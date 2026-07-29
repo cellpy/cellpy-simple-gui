@@ -1,12 +1,10 @@
 # cellpy simple gui
 
-A small, good-looking **desktop app** for exploring battery cell data with
+A small **desktop app** for exploring battery cell data with
 [**cellpy**](https://github.com/jepegit/cellpy) (**≥ 2.1**).
 
 It runs a local [FastAPI](https://fastapi.tiangolo.com/) backend inside a native
-window (via [pywebview](https://pywebview.flowrl.com/)) — so it keeps the
-"runs-in-a-browser" feel of the old Streamlit demo, but is a real installable app
-with a clean separation between UI, API and a reusable cellpy core.
+window (via [pywebview](https://pywebview.flowrl.com/)).
 
 ![Cycle summary](docs/img/summary_collect.png)
 
@@ -137,11 +135,6 @@ the in-memory library (`collect.py`), and discovers instruments via
 `cellpy.list_instruments()`. The cellpy surface stays isolated to
 `cellpy_adapter.py` + `collect.py`.
 
-Building this surfaced a number of cellpy rough edges, filed upstream as
-[jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785) — **most
-were fixed in cellpy 2.1.1**, and the app has since dropped the workarounds. The
-full write-up and per-item status is in
-[CELLPY_PAINPOINTS.md](CELLPY_PAINPOINTS.md).
 
 ## Development
 
@@ -156,10 +149,18 @@ Optional static image export (server-side PNG/SVG/PDF via kaleido):
 uv sync --extra export
 ```
 
+### Why we develop this app
+
+The app is meant to inspire other users of cellpy to make their own apps. We
+also use the development of this app to find pain-points in the cellpy library.
+
+Already now, building this surfaced a number of cellpy rough edges, filed upstream as
+[jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785) — **most were fixed in cellpy 2.1.1**. The full write-up and per-item status is in
+[CELLPY_PAINPOINTS.md](CELLPY_PAINPOINTS.md).
+
 ## Status
 
-This is an MVP / reference implementation — a successor design to the
-`cell_processor_app` Streamlit demo.
+This is an MVP / reference implementation
 
 Done: load `.cellpy`/`.h5` files, **raw-file ingestion** (Arbin `.res` / Maccor / Neware /
 PEC → cellpy), cycle-summary & cell-explorer plotting, editable cell list, CSV export, and
@@ -168,7 +169,10 @@ PEC → cellpy), cycle-summary & cell-explorer plotting, editable cell list, CSV
 > Arbin `.res` loads on Windows through the Access ODBC driver (no separate mdbtools needed
 > in this environment). Instruments needing extra engines will surface a clear error.
 
-Next step: packaging into a Windows installer (PyInstaller + InnoSetup, bundling WebView2).
+### Future plans
+
+- packaging into a Windows installer (PyInstaller + InnoSetup, bundling WebView2).
+- show-case more of the plots
 
 ## License
 
