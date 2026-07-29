@@ -13,12 +13,15 @@ response to issue #787), so we no longer maintain a hand-rolled batch shim.
 from __future__ import annotations
 
 import io
+import logging
 
 import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_summaries, from_cells
 from cellpy.collect.options import CurveOptions
 
 from .library import CellRecord
+
+log = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- #
@@ -180,39 +183,92 @@ def _empty_figure_json(message: str) -> str:
 
 
 _LEGEND_NAME_LIMIT = 24
+_FACET_STRIP_RIGHT_PAD = 72  # px reserved for right-side PX facet strip labels
+
+
+def _truncate_label(name: str, limit: int = _LEGEND_NAME_LIMIT) -> str:
+    if len(name) <= limit:
+        return name
+    return name[: limit - 1] + "…"
+
+
+def _preserve_full_name_on_hover(tr, full_name: str) -> None:
+    """Keep the full identity discoverable when display ``name`` is truncated.
+
+    Plotly Express facet traces ship a ``hovertemplate`` that already embeds the
+    full cell label as a literal prefix — leave that alone. When there is no
+    template, fall back to ``hovertext`` (ignored by Plotly if a template exists).
+    """
+    template = getattr(tr, "hovertemplate", None)
+    if template:
+        return
+    try:
+        tr.hovertext = full_name
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _shorten_legend(fig) -> int:
-    """Truncate long trace/legend names (keeping the full name on hover) and
-    return the longest *displayed* name length, for margin sizing.
+    """Truncate long legend-facing labels; return longest *displayed* length.
 
     Journal cells (especially merged runs) can have very long names that
-    otherwise blow the legend up and squash the plot.
+    otherwise blow the legend up and squash the plot. Shortening always runs
+    even when cosmetic layout updates fail later in :func:`_restyle`.
     """
     longest = 0
     for tr in fig.data:
         name = getattr(tr, "name", None)
-        if not name:
-            continue
-        if len(name) > _LEGEND_NAME_LIMIT:
-            # preserve the full name on hover via the trace's hoverlabel text
-            try:
-                tr.hovertext = name
-            except Exception:  # noqa: BLE001
-                pass
-            tr.name = name[: _LEGEND_NAME_LIMIT - 1] + "…"
-        longest = max(longest, len(tr.name))
+        if name:
+            if len(name) > _LEGEND_NAME_LIMIT:
+                _preserve_full_name_on_hover(tr, name)
+                tr.name = _truncate_label(name)
+            longest = max(longest, len(tr.name))
+
+        # PX sometimes puts the series identity on legendgroup instead of (or
+        # as well as) name — keep the two consistent when group looks like a label.
+        group = getattr(tr, "legendgroup", None)
+        if isinstance(group, str) and len(group) > _LEGEND_NAME_LIMIT:
+            # Numeric / short group ids ("1") are left alone; long label-like
+            # groups get the same truncation as name.
+            if not group.isdigit():
+                tr.legendgroup = _truncate_label(group)
+                longest = max(longest, len(tr.legendgroup))
     return longest
+
+
+def _has_right_facet_strips(fig) -> bool:
+    """True when PX facet annotations sit on the right edge (collide with legend)."""
+    annotations = getattr(fig.layout, "annotations", None) or ()
+    for ann in annotations:
+        try:
+            if float(getattr(ann, "x", 0) or 0) >= 0.9 and getattr(ann, "textangle", 0) in (90, -90):
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
+def _tidy_facet_annotations(fig) -> None:
+    """Shorten ``variable=…`` facet strip text so it fights the legend less."""
+    annotations = getattr(fig.layout, "annotations", None) or ()
+    for ann in annotations:
+        text = getattr(ann, "text", None)
+        if isinstance(text, str) and text.startswith("variable="):
+            ann.text = text.split("=", 1)[1]
 
 
 def _restyle(fig) -> None:
     """Nudge cellpy's figure toward the app's look (white card, soft axes,
     a compact right-hand legend that survives long cell names)."""
+    # Name truncation must not share fate with best-effort cosmetics.
+    longest = _shorten_legend(fig)
     try:
         layout = fig.layout.to_plotly_json()
         rows = max(1, len([k for k in layout if k.startswith("yaxis")]))
-        longest = _shorten_legend(fig)
-        right = 40 + min(longest, _LEGEND_NAME_LIMIT) * 7 if longest else 28
+        strip_pad = _FACET_STRIP_RIGHT_PAD if _has_right_facet_strips(fig) else 0
+        legend_w = 40 + min(longest, _LEGEND_NAME_LIMIT) * 7 if longest else 28
+        right = strip_pad + legend_w
+        _tidy_facet_annotations(fig)
         fig.update_layout(
             paper_bgcolor="white",
             plot_bgcolor="white",
@@ -229,8 +285,8 @@ def _restyle(fig) -> None:
                          linecolor="#c7ccd4", mirror=False, ticks="outside", tickcolor="#c7ccd4")
         fig.update_yaxes(showgrid=True, gridcolor="#eceff3", zeroline=False,
                          linecolor="#c7ccd4", mirror=False, ticks="outside", tickcolor="#c7ccd4")
-    except Exception:  # noqa: BLE001 - restyle is best-effort cosmetics
-        pass
+    except Exception:  # noqa: BLE001 - cosmetics stay best-effort; names already shortened
+        log.warning("figure restyle cosmetics failed", exc_info=True)
 
 
 # --------------------------------------------------------------------------- #
