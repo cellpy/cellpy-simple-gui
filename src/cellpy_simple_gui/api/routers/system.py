@@ -38,7 +38,7 @@ def pick(kind: str = Body("cellpy", embed=True)) -> dict:
 
     file_types = _FILE_TYPES.get(kind, ("All files (*.*)",))
     result = win.create_file_dialog(
-        webview.OPEN_DIALOG,
+        webview.FileDialog.OPEN,
         allow_multiple=(kind != "journal"),
         file_types=file_types,
     )

@@ -35,6 +35,17 @@ def test_healthz(client):
     assert client.get("/healthz").json() == {"ok": True}
 
 
+def test_system_capabilities_no_file_picker(client):
+    """TestClient has no pywebview window — same as --server mode."""
+    assert client.get("/api/system/capabilities").json() == {"file_picker": False}
+
+
+def test_system_pick_rejected_without_webview(client):
+    r = client.post("/api/system/pick", json={"kind": "cellpy"})
+    assert r.status_code == 400
+    assert "desktop" in r.json()["detail"].lower()
+
+
 def test_token_required():
     c = TestClient(create_app())  # no token header
     assert c.get("/api/state").status_code == 401
