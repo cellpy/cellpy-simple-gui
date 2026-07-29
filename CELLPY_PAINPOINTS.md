@@ -7,6 +7,22 @@ roughly by impact.
 
 Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 
+> **Update — most of these are fixed in cellpy 2.1.1** 🎉 Filed upstream as
+> [jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785); the app
+> now runs on 2.1.1 and has dropped the corresponding workarounds.
+>
+> | # | Item | Upstream | Status in 2.1.1 |
+> |---|---|---|---|
+> | 1 | Collection from in-memory cells | [#787](https://github.com/jepegit/cellpy/issues/787) | ✅ `cellpy.collect.from_cells` / `Batch.from_cells` |
+> | 2 | Group-averaged summary can't plot | [#785](https://github.com/jepegit/cellpy/issues/785) | ✅ renders (bug fixed) |
+> | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | ✅ `Collection.is_grouped` + `meta.grouped` |
+> | 4 | `CurveOptions` mode/method | [#788](https://github.com/jepegit/cellpy/issues/788) | ✅ added |
+> | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | ◑ `cellpy.list_instruments()` added (labels + suffixes); still logs loader-probe warnings |
+> | 6 | `Collection.save` xlsx/json | [#789](https://github.com/jepegit/cellpy/issues/789) | ✅ supported |
+> | 7–11 | polars/pandas docs, warnings, metadata read, per-instrument schema, figure theming | [#791](https://github.com/jepegit/cellpy/issues/791) | ◑ suffixes now exposed; rest open |
+>
+> The notes below are kept as originally written (against 2.1.0) for context.
+
 ---
 
 ## 1. 🔴 No public "collection from in-memory cells"

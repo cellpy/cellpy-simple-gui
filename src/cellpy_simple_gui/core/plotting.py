@@ -34,5 +34,7 @@ def cycles_figure(record: CellRecord, spec: CyclesPlotSpec) -> str:
         return collect._empty_figure_json(
             "Pick one or more cycles to plot the voltage curves."
         )
-    collection = collect.cycles_collection([record], cycles=cycles)
+    collection = collect.cycles_collection(
+        [record], cycles=cycles, mode=spec.mode, method=spec.method
+    )
     return collect.figure_json(collection, family_kind="cycles", layout="per_cell")

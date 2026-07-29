@@ -71,77 +71,54 @@ def load_example(kind: str) -> Any:
         return _get(filename=path)
 
 
-#: Cosmetic labels for known instruments. The *list* of instruments and their
-#: models is discovered from cellpy at runtime (see :func:`list_instruments`);
-#: this map only prettifies the ids we recognise, everything else falls back to
-#: a titleised name.
-_INSTRUMENT_LABELS = {
-    "arbin_res": "Arbin (.res)",
-    "arbin_sql": "Arbin SQL",
-    "arbin_sql_7": "Arbin SQL (v7)",
-    "arbin_sql_csv": "Arbin SQL (csv export)",
-    "arbin_sql_h5": "Arbin SQL (h5 export)",
-    "arbin_sql_xlsx": "Arbin SQL (xlsx export)",
-    "maccor_txt": "Maccor (text)",
-    "neware_txt": "Neware (csv / txt)",
-    "neware_xlsx": "Neware (xlsx)",
-    "neware_nda": "Neware (.nda)",
-    "pec_csv": "PEC (csv)",
-    "biologics_mpr": "Biologics (.mpr)",
-    "batmo_bdf": "Batmo (BDF)",
-}
-
 _INSTRUMENTS_CACHE: list[dict[str, Any]] | None = None
 
 
 def list_instruments() -> list[dict[str, Any]]:
-    """Discover the available instrument loaders (and their models) from cellpy.
+    """The available instrument loaders (id / label / models / suffixes).
 
-    Uses ``cellpy.readers.data_structures.instrument_configurations()`` — the
-    same source ``cellpy.print_instruments`` reads — so the app always reflects
-    whatever loaders the installed cellpy actually ships, rather than a list we
-    have to keep in sync by hand.
+    Uses cellpy 2.1.1's public :func:`cellpy.list_instruments` (added in
+    response to issue #786), which returns display labels and raw suffixes.
+    We drop the implicit ``"default"`` pseudo-model (the UI treats "no model
+    selected" as default) and quiet the loader-probe warnings it still emits.
     """
     global _INSTRUMENTS_CACHE
     if _INSTRUMENTS_CACHE is not None:
         return _INSTRUMENTS_CACHE
 
-    from cellpy.readers.data_structures import instrument_configurations
+    import cellpy
 
-    # instrument_configurations() logs warnings for the non-loader modules it
-    # skips; quiet them so startup stays clean.
-    cellpy_log = logging.getLogger("cellpy")
     root_log = logging.getLogger()
-    prev = (cellpy_log.level, root_log.level)
-    cellpy_log.setLevel(logging.ERROR)
-    root_log.setLevel(logging.ERROR)
+    prev = root_log.level
+    root_log.setLevel(logging.ERROR)  # still noisy about skipped non-loader modules
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            configs = instrument_configurations()
+            raw = cellpy.list_instruments()
     except Exception:  # noqa: BLE001 - never let discovery break the app
         log.warning("Could not discover cellpy instruments", exc_info=True)
-        configs = {}
+        raw = []
     finally:
-        cellpy_log.setLevel(prev[0])
-        root_log.setLevel(prev[1])
+        root_log.setLevel(prev)
 
     instruments: list[dict[str, Any]] = []
-    for name, value in sorted(configs.items()):
-        models = [m for m in value.get("__all__", []) if m != "default"]
+    for entry in raw:
+        models = [m for m in entry.get("models", []) if m != "default"]
         instruments.append(
-            {"id": name, "label": _INSTRUMENT_LABELS.get(name, _titleise(name)), "models": models}
+            {
+                "id": entry["id"],
+                "label": entry.get("label") or entry["id"],
+                "models": models,
+                "suffixes": entry.get("suffixes", []),
+            }
         )
+    instruments.sort(key=lambda i: i["id"])
     _INSTRUMENTS_CACHE = instruments
     return instruments
 
 
 def instrument_ids() -> set[str]:
     return {i["id"] for i in list_instruments()}
-
-
-def _titleise(name: str) -> str:
-    return name.replace("_", " ").title()
 
 #: Bundled raw files that "Import raw demo" can pull in with zero setup.
 EXAMPLE_RAW = {

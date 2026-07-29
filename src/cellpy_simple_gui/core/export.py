@@ -19,6 +19,6 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
 
 def cycles_export(record: CellRecord, spec: CyclesPlotSpec, fmt: str) -> tuple[bytes, str]:
     collection = collect.cycles_collection(
-        [record], cycles=tuple(sorted(set(spec.cycles)))
+        [record], cycles=tuple(sorted(set(spec.cycles))), mode=spec.mode, method=spec.method
     )
     return collect.export_bytes(collection, fmt)

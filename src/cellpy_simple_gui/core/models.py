@@ -56,6 +56,8 @@ class CyclesPlotSpec(BaseModel):
 
     cell_id: str
     cycles: list[int] = Field(default_factory=list)
+    mode: CapacityMode = "gravimetric"
+    method: CycleMethod = "forth-and-forth"
     title: str = ""
 
 

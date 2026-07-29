@@ -83,6 +83,32 @@ def test_cycles_figure(loaded_library):
     assert len(fig["data"]) >= 1
 
 
+def test_cycles_figure_areal_mode(loaded_library):
+    rec = loaded_library.all()[0]
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5], mode="areal", method="back-and-forth")
+    fig = json.loads(plotting.cycles_figure(rec, spec))
+    assert len(fig["data"]) >= 1
+
+
+def test_grouped_summary_renders(example_cell):
+    """Regression guard for cellpy #785 (fixed in 2.1.1): group-averaged
+    collected summaries must actually plot, not fall back to an empty figure."""
+    from cellpy_simple_gui.core import cellpy_adapter
+    from cellpy_simple_gui.core.library import Library
+
+    lib = Library()
+    lib.add_cell(example_cell, source="ex")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex")
+    for r in lib.all():
+        lib.update(r.id, group=1)  # same group -> averaging valid
+
+    cols = collect.summary_columns("gravimetric", True, False, False)
+    coll = collect.summary_collection(lib.selected(), columns=cols, group_it=True)
+    assert collect.is_grouped(coll)
+    fig = json.loads(collect.figure_json(coll, spread=True))
+    assert len(fig["data"]) >= 1  # was 0 (empty fallback) on cellpy 2.1.0
+
+
 # ---- multi-format export ------------------------------------------------- #
 
 def test_summary_export_all_formats(loaded_library):

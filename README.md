@@ -108,7 +108,7 @@ src/cellpy_simple_gui/
 │   ├── cellpy_adapter.py   # every cellpy call lives here (get, summary, get_cap, example_data)
 │   ├── models.py           # Pydantic domain models (CellMeta, SummaryPlotSpec, …)
 │   ├── library.py          # in-memory library of loaded cells = source of truth
-│   ├── collect.py          # bridges the library into cellpy.collect / .plotting (batch-shim)
+│   ├── collect.py          # bridges the library into cellpy.collect / .plotting (from_cells)
 │   ├── plotting.py         # thin: delegates figures to cellpy via collect.py
 │   ├── projects.py         # save/open portable project folders (manifest + .cellpy files)
 │   └── export.py           # csv / xlsx / parquet / json from cellpy collections
@@ -122,15 +122,19 @@ src/cellpy_simple_gui/
 └── __main__.py             # entry point (desktop / --server)
 ```
 
-**Powered by cellpy, not around it.** Summaries, grouping, per-cell cycle curves,
-the plots and the multi-format export are all produced by cellpy's own
-`collect` / `plotting` subsystems — the app just feeds them a lightweight
-*batch-shim* built from the in-memory library (`collect.py`) and lightly restyles
-the returned figures. Instruments are discovered from cellpy at runtime. The
-cellpy surface stays isolated to `cellpy_adapter.py` + `collect.py`.
+**Powered by cellpy, not around it.** Summaries, grouping (incl. group averaging
+with spread), per-cell cycle curves, the plots and the multi-format export are all
+produced by cellpy's own `collect` / `plotting` subsystems. On **cellpy ≥ 2.1.1**
+the app feeds them a real `Batch` via `cellpy.collect.from_cells(...)` built from
+the in-memory library (`collect.py`), and discovers instruments via
+`cellpy.list_instruments()`. The cellpy surface stays isolated to
+`cellpy_adapter.py` + `collect.py`.
 
-Friction found while doing this (and concrete suggestions for cellpy) is written
-up in [CELLPY_PAINPOINTS.md](CELLPY_PAINPOINTS.md).
+Building this surfaced a number of cellpy rough edges, filed upstream as
+[jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785) — **most
+were fixed in cellpy 2.1.1**, and the app has since dropped the workarounds. The
+full write-up and per-item status is in
+[CELLPY_PAINPOINTS.md](CELLPY_PAINPOINTS.md).
 
 ## Development
 

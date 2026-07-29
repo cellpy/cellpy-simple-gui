@@ -257,6 +257,22 @@
             <label>max curves</label>
             <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
           </div>
+          <div class="ctl">
+            <label>Mode</label>
+            <select x-model="cell.mode" @change="plotCell()">
+              <option value="gravimetric">Gravimetric</option>
+              <option value="areal">Areal</option>
+              <option value="absolute">Absolute</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Method</label>
+            <select x-model="cell.method" @change="plotCell()">
+              <option value="forth-and-forth">forth-and-forth</option>
+              <option value="back-and-forth">back-and-forth</option>
+              <option value="forth">forth</option>
+            </select>
+          </div>
           <div class="spacer"></div>
           <div class="export" @click.outside="exportCellOpen=false">
             <button class="btn btn-ghost" @click="exportCellOpen=!exportCellOpen" :disabled="!cell.cell_id">⭳ Export ▾</button>

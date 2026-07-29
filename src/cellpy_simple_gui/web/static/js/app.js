@@ -51,7 +51,8 @@ function app() {
       basis: "gravimetric", show_charge: true, show_discharge: true,
       show_efficiency: false, group_average: false, spread: false, max_cycle: "",
     },
-    cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1 },
+    cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
+            mode: "gravimetric", method: "forth-and-forth" },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
     exportOpen: false,
     exportCellOpen: false,
@@ -257,7 +258,10 @@ function app() {
       return [...out].sort((a, b) => a - b);
     },
     cellSpec() {
-      return { cell_id: this.cell.cell_id, cycles: this.buildCycleList(), title: "" };
+      return {
+        cell_id: this.cell.cell_id, cycles: this.buildCycleList(),
+        mode: this.cell.mode, method: this.cell.method, title: "",
+      };
     },
     async plotCell() {
       if (!this.cell.cell_id) return;
