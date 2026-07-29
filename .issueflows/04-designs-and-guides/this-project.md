@@ -77,6 +77,17 @@ uv version --bump <level>   # major | minor | patch | alpha | beta | rc | …
 There is no `HISTORY.md` yet — `/iflow-close` changelog updates are skipped
 until one exists at the repo root. No git-tag-derived versioning.
 
+## Motivation
+
+The app is meant to inspire other users of cellpy to make their own apps. We
+also use the development of this app to find pain-points in the cellpy library.
+
+It should be easy to make apps based on cellpy. 
+
+When we find stuff that, if implemented in cellpy, would improve the experience for
+app-builders, we write it down in CELLPY_PAINPONTS.md and offer to create issues in the
+cellpy repo.
+
 ## Entry points
 
 - **CLI / app:** `cellpy-simple-gui` → `cellpy_simple_gui.__main__:main`
