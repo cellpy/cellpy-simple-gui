@@ -63,11 +63,14 @@ def _load_examples_job(progress: Progress, kinds: list[str]) -> dict:
     return {"added": added, "errors": errors}
 
 
-def _load_files_job(progress: Progress, paths: list[str]) -> dict:
+def _load_files_job(progress: Progress, paths: list[str], max_files: int) -> dict:
+    from ...core.files import expand_paths
+
     lib = get_library()
-    added, errors = [], []
-    total = len(paths)
-    for i, path in enumerate(paths):
+    exp = expand_paths(paths, max_files=max_files)
+    added, errors = [], list(exp.errors)
+    total = len(exp.paths)
+    for i, path in enumerate(exp.paths):
         progress.update(i / max(total, 1), f"Loading {path} …")
         try:
             cell = cellpy_adapter.load_file(path)
@@ -76,7 +79,7 @@ def _load_files_job(progress: Progress, paths: list[str]) -> dict:
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{path}: {exc}")
         progress.update((i + 1) / max(total, 1))
-    return {"added": added, "errors": errors}
+    return {"added": added, "errors": errors, "notes": exp.notes}
 
 
 @router.post("/load/example")
@@ -89,7 +92,7 @@ def load_example(req: LoadExampleRequest) -> dict:
 def load_files(req: LoadFilesRequest) -> dict:
     if not req.paths:
         raise HTTPException(400, "No paths provided")
-    job = get_job_manager().submit("load-files", _load_files_job, req.paths)
+    job = get_job_manager().submit("load-files", _load_files_job, req.paths, req.max_files)
     return {"job_id": job.id}
 
 

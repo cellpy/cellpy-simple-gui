@@ -41,10 +41,8 @@ class CellMeta(BaseModel):
 class SummaryPlotSpec(BaseModel):
     """Drives a cellpy ``collect_summaries`` collection + its plot/export."""
 
+    plot_type: str = "capacity_ce"
     basis: CapacityMode = "gravimetric"
-    show_charge: bool = True
-    show_discharge: bool = True
-    show_efficiency: bool = False
     group_average: bool = False  # average per group (affects data/export)
     spread: bool = False  # mean ± std band (when grouped)
     max_cycle: Optional[int] = None
@@ -85,6 +83,7 @@ class LoadExampleRequest(BaseModel):
 
 class LoadFilesRequest(BaseModel):
     paths: list[str]
+    max_files: int = 10
 
 
 CycleMode = Literal["anode", "cathode", "full_cell"]
@@ -94,6 +93,7 @@ class IngestRequest(BaseModel):
     """Import one or more raw instrument files with shared metadata."""
 
     paths: list[str]
+    max_files: int = 10
     instrument: str
     model: Optional[str] = None
     mass: Optional[float] = None  # mg

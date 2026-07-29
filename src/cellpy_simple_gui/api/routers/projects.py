@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Body, HTTPException
 
-from ...core import projects
+from ...core import cellpy_adapter, projects
 from ...core.library import get_library
 from ..jobs import Progress, get_job_manager
 
@@ -51,6 +53,37 @@ def open_project(target: str = Body(..., embed=True)) -> dict:
     except FileNotFoundError:
         raise HTTPException(404, f"No project found for “{target}”.")
     job = get_job_manager().submit("open-project", _open_job, target)
+    return {"job_id": job.id}
+
+
+def _load_journal_job(progress: Progress, path: str) -> dict:
+    lib = get_library()
+    progress.update(0.1, f"Reading journal {Path(path).name} …")
+    triples = cellpy_adapter.load_journal_cells(path)
+    if not triples:
+        return {"added": [], "errors": [
+            "No cells could be linked from that journal "
+            "(are the referenced .cellpy files present?)."
+        ]}
+    added, errors = [], []
+    total = len(triples)
+    for i, (label, cell, group) in enumerate(triples):
+        progress.update(i / total, f"Loading “{label}” …")
+        try:
+            rec = lib.restore_cell(cell, source="journal", group=group, label=label, selected=True)
+            added.append(rec.id)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{label}: {exc}")
+    return {"added": added, "errors": errors}
+
+
+@router.post("/projects/load-journal")
+def load_journal(path: str = Body(..., embed=True)) -> dict:
+    if not path.strip():
+        raise HTTPException(400, "A journal file path is required.")
+    if not Path(path).is_file():
+        raise HTTPException(404, f"No such file: {path}")
+    job = get_job_manager().submit("load-journal", _load_journal_job, path.strip())
     return {"job_id": job.id}
 
 

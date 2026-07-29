@@ -53,8 +53,42 @@ def _batch(records: list[CellRecord]):
 
 _BASIS_SUFFIX = {"gravimetric": "_gravimetric", "areal": "_areal", "absolute": ""}
 
+#: Curated summary plot types, drawn from cellpy's summary vocabulary. Each maps
+#: to a set of ``cell.data.summary`` columns that render through the collected
+#: summary path. ``basis`` = whether the capacity basis (grav/areal/abs) applies.
+SUMMARY_PLOT_TYPES = [
+    {"id": "capacity_ce", "label": "Capacity + coulombic efficiency", "basis": True},
+    {"id": "capacity", "label": "Capacity (charge & discharge)", "basis": True},
+    {"id": "charge_capacity", "label": "Charge capacity", "basis": True},
+    {"id": "discharge_capacity", "label": "Discharge capacity", "basis": True},
+    {"id": "coulombic_efficiency", "label": "Coulombic efficiency", "basis": False},
+    {"id": "cumulated_ce", "label": "Cumulated coulombic efficiency", "basis": False},
+    {"id": "capacity_loss", "label": "Capacity loss", "basis": True},
+    {"id": "end_voltages", "label": "End-of-charge / discharge voltage", "basis": False},
+    {"id": "internal_resistance", "label": "Internal resistance (IR)", "basis": False},
+    {"id": "c_rate", "label": "C-rate", "basis": False},
+]
+
+
+def summary_columns_for(plot_type: str, basis: str) -> tuple[str, ...]:
+    s = _BASIS_SUFFIX.get(basis, "_gravimetric")
+    table: dict[str, tuple[str, ...]] = {
+        "capacity_ce": (f"charge_capacity{s}", f"discharge_capacity{s}", "coulombic_efficiency"),
+        "capacity": (f"charge_capacity{s}", f"discharge_capacity{s}"),
+        "charge_capacity": (f"charge_capacity{s}",),
+        "discharge_capacity": (f"discharge_capacity{s}",),
+        "coulombic_efficiency": ("coulombic_efficiency",),
+        "cumulated_ce": ("cumulated_coulombic_efficiency",),
+        "capacity_loss": (f"charge_capacity_loss{s}", f"discharge_capacity_loss{s}"),
+        "end_voltages": ("potential_end_charge", "potential_end_discharge"),
+        "internal_resistance": ("ir_charge", "ir_discharge"),
+        "c_rate": ("charge_c_rate", "discharge_c_rate"),
+    }
+    return table.get(plot_type, table["capacity_ce"])
+
 
 def summary_columns(basis: str, charge: bool, discharge: bool, efficiency: bool) -> tuple[str, ...]:
+    """Legacy charge/discharge/CE column selection (kept for tests)."""
     suffix = _BASIS_SUFFIX.get(basis, "_gravimetric")
     cols: list[str] = []
     if charge:

@@ -132,6 +132,11 @@ input[type="text"], input[type="number"], select {
 input:focus, select:focus { border-color: var(--accent); }
 .hint { font-size: 11px; color: var(--text-faint); margin: 2px 0 0; }
 .hint code { background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+.input-row { display: flex; gap: 6px; align-items: center; }
+.input-row input[type="text"] { flex: 1; min-width: 0; }
+.btn.pick { flex: none; padding: 8px 10px; font-size: 15px; }
+.maxlbl { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.num-mini { width: 52px; padding: 6px 8px; }
 
 /* ---------- project panel ---------- */
 .proj-tag {
@@ -252,16 +257,38 @@ input:focus, select:focus { border-color: var(--accent); }
 
 /* ---------- chart ---------- */
 .chart-card {
-  background: #fff; border-radius: var(--radius); padding: 6px; box-shadow: var(--shadow);
-  flex: 1; min-height: 420px;
+  background: #fff; border-radius: var(--radius); padding: 10px; box-shadow: var(--shadow);
+  flex: none; width: 100%; overflow: hidden;   /* clip rounded corners; grow to plot height */
 }
-.chart { width: 100%; height: 100%; min-height: 420px; }
+.chart { width: 100%; min-height: 420px; }     /* height comes from the plotly layout */
 
 /* ---------- cell metrics ---------- */
 .cell-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .metric { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
 .m-num { display: block; font-size: 20px; font-weight: 700; }
 .m-lbl { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .8px; }
+
+/* ---------- toasts ---------- */
+.toasts {
+  position: fixed; right: 18px; bottom: 18px; z-index: 100;
+  display: flex; flex-direction: column; gap: 10px; max-width: 440px;
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  border-radius: var(--radius-sm); box-shadow: var(--shadow); cursor: pointer;
+  font-size: 13px; line-height: 1.4; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); animation: toast-in .18s ease-out;
+}
+.toast-icon {
+  flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: #fff; margin-top: 1px;
+}
+.toast.ok { border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); }
+.toast.ok .toast-icon { background: var(--accent-2); }
+.toast.warn .toast-icon { background: #e0a52e; }
+.toast.error { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
+.toast.error .toast-icon { background: var(--danger); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* scrollbars */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

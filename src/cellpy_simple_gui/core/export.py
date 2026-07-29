@@ -8,9 +8,7 @@ from .models import CyclesPlotSpec, SummaryPlotSpec
 
 
 def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -> tuple[bytes, str]:
-    columns = collect.summary_columns(
-        spec.basis, spec.show_charge, spec.show_discharge, spec.show_efficiency
-    )
+    columns = collect.summary_columns_for(spec.plot_type, spec.basis)
     collection = collect.summary_collection(
         records, columns=columns, group_it=spec.group_average, max_cycle=spec.max_cycle
     )

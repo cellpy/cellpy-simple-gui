@@ -5,11 +5,16 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
-from ...core import cellpy_adapter, plotting
+from ...core import cellpy_adapter, collect, plotting
 from ...core.library import get_library
 from ...core.models import CyclesPlotSpec, SummaryPlotSpec
 
 router = APIRouter()
+
+
+@router.get("/plot-types")
+def plot_types() -> dict:
+    return {"types": collect.SUMMARY_PLOT_TYPES}
 
 
 def _figure_response(figure_json: str) -> Response:

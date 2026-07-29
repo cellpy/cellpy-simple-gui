@@ -28,6 +28,16 @@
     </div>
   </header>
 
+  <!-- toasts -->
+  <div class="toasts">
+    <template x-for="n in notices" :key="n.id">
+      <div class="toast" :class="n.type" @click="notices = notices.filter(x => x.id !== n.id)">
+        <span class="toast-icon" x-text="n.type==='ok' ? '✓' : (n.type==='warn' ? '!' : '×')"></span>
+        <span x-text="n.text"></span>
+      </div>
+    </template>
+  </div>
+
   <div class="layout">
     <!-- ============ Sidebar ============ -->
     <aside class="sidebar">
@@ -50,6 +60,13 @@
           <button class="btn btn-ghost" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length" title="Save">⤓</button>
         </div>
         <p class="hint">Saves every loaded cell into a portable project folder.</p>
+
+        <div class="proj-save" style="margin-top:10px">
+          <input type="text" x-model="journalPath" placeholder="cellpy batch journal (.json)" @keydown.enter="loadJournal()" />
+          <button class="btn btn-ghost" x-show="canPick" @click="pickJournal()" title="Browse…">📁</button>
+          <button class="btn btn-ghost" @click="loadJournal()" :disabled="job.active || !journalPath.trim()" title="Load journal">↧</button>
+        </div>
+        <p class="hint">Load a native cellpy <b>batch journal</b> (links its <code>.cellpy</code> files).</p>
       </section>
 
       <section class="panel">
@@ -61,12 +78,20 @@
 
         <div class="field">
           <label>Add cellpy files</label>
-          <input type="text" x-model="filesPath" placeholder="C:\path\to\cell.cellpy; …"
-                 @keydown.enter="loadFiles()" />
-          <button class="btn btn-ghost block" @click="loadFiles()" :disabled="job.active || !filesPath.trim()">
-            Load files
-          </button>
-          <p class="hint">Semicolon-separated <code>.cellpy</code> / <code>.h5</code> paths.</p>
+          <div class="input-row">
+            <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*si*.h5"
+                   @keydown.enter="loadFiles()" />
+            <button class="btn btn-ghost pick" x-show="canPick" @click="pickCellpy()" title="Browse…">📁</button>
+          </div>
+          <div class="input-row" style="margin-top:7px">
+            <button class="btn btn-ghost" style="flex:1" @click="loadFiles()" :disabled="job.active || !filesPath.trim()">
+              Load files
+            </button>
+            <label class="maxlbl" title="Max files a glob may load">max
+              <input type="number" class="num-mini" x-model="filesMax" min="1" />
+            </label>
+          </div>
+          <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.</p>
         </div>
 
         <button class="disclosure" @click="showImport = !showImport">
@@ -116,7 +141,13 @@
           </div>
           <div class="field">
             <label>Raw file paths</label>
-            <input type="text" x-model="ingest.paths" placeholder="C:\path\to\file.res; …" @keydown.enter="ingestRaw()" />
+            <div class="input-row">
+              <input type="text" x-model="ingest.paths" placeholder="path or glob, e.g. C:\data\*.res" @keydown.enter="ingestRaw()" />
+              <button class="btn btn-ghost pick" x-show="canPick" @click="pickRaw()" title="Browse…">📁</button>
+            </div>
+            <label class="maxlbl" style="margin-top:7px" title="Max files a glob may load">max
+              <input type="number" class="num-mini" x-model="ingest.maxFiles" min="1" />
+            </label>
           </div>
           <button class="btn btn-primary block" @click="ingestRaw()" :disabled="job.active || !ingest.paths.trim()">
             ⚙ Import &amp; process
@@ -201,22 +232,30 @@
       <section class="tabpane" x-show="tab==='summary'" x-cloak>
         <div class="controls">
           <div class="ctl">
-            <label>Capacity basis</label>
+            <label>Plot type</label>
+            <select x-model="summary.plot_type" @change="plotSummary()">
+              <template x-for="t in plotTypes" :key="t.id">
+                <option :value="t.id" x-text="t.label"></option>
+              </template>
+            </select>
+          </div>
+          <div class="ctl" x-show="currentPlotTypeBasis()">
+            <label>Basis</label>
             <select x-model="summary.basis" @change="plotSummary()">
               <option value="gravimetric">Gravimetric (mAh/g)</option>
               <option value="areal">Areal (mAh/cm²)</option>
               <option value="absolute">Absolute (mAh)</option>
             </select>
           </div>
-          <label class="chk"><input type="checkbox" x-model="summary.show_charge" @change="plotSummary()" /> Charge</label>
-          <label class="chk"><input type="checkbox" x-model="summary.show_discharge" @change="plotSummary()" /> Discharge</label>
-          <label class="chk"><input type="checkbox" x-model="summary.show_efficiency" @change="plotSummary()" /> Coulombic eff.</label>
           <div class="ctl">
             <label>Max cycle</label>
             <input type="number" class="num" x-model="summary.max_cycle" placeholder="all" @change="plotSummary()" />
           </div>
-          <label class="chk" title="Average replicate cells per group (affects exported data)">
+          <label class="chk" title="Average replicate cells per group">
             <input type="checkbox" x-model="summary.group_average" @change="plotSummary()" /> Group avg
+          </label>
+          <label class="chk" x-show="summary.group_average" title="Show mean ± std band">
+            <input type="checkbox" x-model="summary.spread" @change="plotSummary()" /> Spread
           </label>
           <div class="spacer"></div>
           <!-- export menu -->

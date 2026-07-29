@@ -23,10 +23,13 @@ def list_instruments() -> dict:
 
 
 def _ingest_job(progress: Progress, req: IngestRequest) -> dict:
+    from ...core.files import expand_paths
+
     lib = get_library()
-    added, errors = [], []
-    total = len(req.paths)
-    for i, path in enumerate(req.paths):
+    exp = expand_paths(req.paths, max_files=req.max_files)
+    added, errors = [], list(exp.errors)
+    total = len(exp.paths)
+    for i, path in enumerate(exp.paths):
         progress.update(i / max(total, 1), f"Processing {path} …")
         try:
             cell = cellpy_adapter.load_raw(
@@ -39,7 +42,7 @@ def _ingest_job(progress: Progress, req: IngestRequest) -> dict:
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{path}: {exc}")
         progress.update((i + 1) / max(total, 1))
-    return {"added": added, "errors": errors}
+    return {"added": added, "errors": errors, "notes": exp.notes}
 
 
 def _ingest_example_job(progress: Progress, kind: str, mass: float | None) -> dict:

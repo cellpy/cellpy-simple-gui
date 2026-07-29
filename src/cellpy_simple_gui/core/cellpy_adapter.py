@@ -270,6 +270,54 @@ def capacity_curve(
     return df[["capacity", "potential"]].reset_index(drop=True)
 
 
+def load_journal_cells(path: str | Path) -> list[tuple[str, Any, int]]:
+    """Load a cellpy batch journal (.json) and return ``(label, cell, group)``.
+
+    Uses cellpy 2.1's ``batch.from_journal`` (which links the ``.cellpy`` files
+    the journal references). Raises if the file can't be read; returns an empty
+    list if the journal has no linkable cells.
+    """
+    from cellpy.batch import from_journal
+    from cellpy.batch.journal import FILENAME
+
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(f"No such journal file: {p}")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        batch = from_journal(str(p))
+        # from_journal builds the journal/pages but doesn't eagerly load the
+        # cell data — batch.load() links & loads the referenced .cellpy files.
+        try:
+            batch.load()
+        except Exception:  # noqa: BLE001 - surfaced below as "no linkable cells"
+            log.warning("batch.load() failed for journal %s", p, exc_info=True)
+
+    groups: dict[str, int] = {}
+    try:
+        pages = batch.journal.pages
+        cols = pages.columns
+        if FILENAME in cols and "group" in cols:
+            for row in pages.iter_rows(named=True):
+                groups[row[FILENAME]] = int(row.get("group") or 1)
+    except Exception:  # noqa: BLE001 - group metadata is best-effort
+        pass
+
+    out: list[tuple[str, Any, int]] = []
+    for label, cell in batch.cells.items():
+        if cell is None:
+            continue
+        # Skip shells the journal referenced but whose .cellpy file couldn't be
+        # loaded — touching the data raises for those.
+        try:
+            cell.get_number_of_cycles()
+        except Exception:  # noqa: BLE001
+            continue
+        out.append((str(label), cell, groups.get(str(label), 1)))
+    return out
+
+
 def save_cell(cell: Any, path: str | Path) -> None:
     """Write a cell to a self-contained ``.cellpy`` file (overwriting)."""
     with warnings.catch_warnings():

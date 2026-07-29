@@ -19,9 +19,7 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         return collect._empty_figure_json(
             "Select one or more cells to plot the cycle summary."
         )
-    columns = collect.summary_columns(
-        spec.basis, spec.show_charge, spec.show_discharge, spec.show_efficiency
-    )
+    columns = collect.summary_columns_for(spec.plot_type, spec.basis)
     collection = collect.summary_collection(
         records, columns=columns, group_it=spec.group_average, max_cycle=spec.max_cycle
     )

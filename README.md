@@ -27,14 +27,20 @@ with a clean separation between UI, API and a reusable cellpy core.
 - **Save & reopen projects** — the loaded set plus your grouping / labels / selection is
   written to a self-contained, portable project folder and restored later.
 - **Cycle summary** across many cells — built with cellpy's own
-  `collect_summaries` + plotting: capacity vs. cycle (gravimetric / areal /
-  absolute), charge / discharge / coulombic-efficiency panels, optional group
-  averaging.
+  `collect_summaries` + plotting, with a **plot-type selector** (capacity + CE,
+  capacity, coulombic efficiency, cumulated CE, end voltages, internal
+  resistance, C-rate, capacity loss), a gravimetric / areal / absolute basis,
+  optional group averaging with a mean ± std spread band.
 - **Cell explorer** — cellpy's `collect_cycles` voltage–capacity curves for any
-  set of cycles, with per-cell metric tiles.
+  set of cycles (gravimetric / areal / absolute, method), with per-cell metric tiles.
+- **Load data lots of ways**: bundled demo cells, `.cellpy` / `.h5` files,
+  **native cellpy batch journals** (`.json`), or your own **project folders** —
+  with **glob patterns** (`*si*.h5`, capped at a configurable max) and, in the
+  desktop app, **native file pickers**.
 - **Editable cell list** (the "journal"): rename, group, select/deselect, remove.
 - **Instruments discovered from cellpy** at runtime (not hard-coded), with each
   loader's sub-models.
+- **Clear feedback**: toast notifications tell you what loaded (and why nothing did).
 - **Background loading** with live progress (SSE) — the UI never freezes.
 - **Export** collected data to **CSV / Excel / Parquet / JSON**; save charts as PNG
   from the chart toolbar.
@@ -111,11 +117,12 @@ src/cellpy_simple_gui/
 │   ├── collect.py          # bridges the library into cellpy.collect / .plotting (from_cells)
 │   ├── plotting.py         # thin: delegates figures to cellpy via collect.py
 │   ├── projects.py         # save/open portable project folders (manifest + .cellpy files)
+│   ├── files.py            # glob/path expansion with a max cap + messages
 │   └── export.py           # csv / xlsx / parquet / json from cellpy collections
 ├── api/
 │   ├── app.py              # FastAPI factory + index route
 │   ├── jobs.py             # tiny thread-pool JobManager (progress + cancel)
-│   └── routers/            # cells · plots · export · jobs · projects · ingest
+│   └── routers/            # cells · plots · export · jobs · projects · ingest · system
 ├── web/                    # templates/ (Jinja) + static/ (css, js, vendored Plotly & Alpine)
 ├── server.py               # uvicorn-in-a-thread helper
 ├── desktop.py              # pywebview launcher

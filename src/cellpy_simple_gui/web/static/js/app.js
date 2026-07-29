@@ -34,6 +34,9 @@ function app() {
     cells: [],
     examples: [],
     filesPath: "",
+    filesMax: 10,
+    journalPath: "",
+    canPick: false,
     tab: "summary",
     project: null,
     projects: [],
@@ -44,18 +47,20 @@ function app() {
     rawExamples: [],
     ingest: {
       instrument: "", model: "", mass: "", area: "",
-      nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", paths: "",
+      nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", paths: "", maxFiles: 10,
     },
     job: { active: false, progress: 0, message: "", error: "" },
     summary: {
-      basis: "gravimetric", show_charge: true, show_discharge: true,
-      show_efficiency: false, group_average: false, spread: false, max_cycle: "",
+      plot_type: "capacity_ce", basis: "gravimetric",
+      group_average: false, spread: false, max_cycle: "",
     },
+    plotTypes: [],
     cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
             mode: "gravimetric", method: "forth-and-forth" },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
     exportOpen: false,
     exportCellOpen: false,
+    notices: [],
 
     // ---- lifecycle ----
     async init() {
@@ -63,9 +68,27 @@ function app() {
         this.examples = await (await api("/api/examples")).json();
       } catch (_) {}
       await this.refreshInstruments();
+      await this.refreshPlotTypes();
       await this.refreshProjects();
+      await this.probeCapabilities();
       await this.refreshState();
       this.$watch("theme", (v) => this.relayoutCharts());
+      window.addEventListener("resize", () => this.relayoutCharts());
+    },
+
+    async refreshPlotTypes() {
+      try {
+        this.plotTypes = (await (await api("/api/plot-types")).json()).types;
+      } catch (_) {}
+    },
+    currentPlotTypeBasis() {
+      const t = this.plotTypes.find((t) => t.id === this.summary.plot_type);
+      return t ? t.basis : true;
+    },
+    async probeCapabilities() {
+      try {
+        this.canPick = (await (await api("/api/system/capabilities")).json()).file_picker;
+      } catch (_) { this.canPick = false; }
     },
 
     get nSelected() { return this.cells.filter((c) => c.selected).length; },
@@ -116,9 +139,27 @@ function app() {
     async loadFiles() {
       const paths = this.filesPath.split(";").map((s) => s.trim()).filter(Boolean);
       if (!paths.length) return;
-      await this.runJob("/api/load/files", { paths });
+      await this.runJob("/api/load/files", { paths, max_files: this._num(this.filesMax) || 10 });
       this.filesPath = "";
     },
+    async loadJournal() {
+      const path = this.journalPath.trim();
+      if (!path) return;
+      await this.runJob("/api/projects/load-journal", { path });
+      this.journalPath = "";
+      await this.refreshProjects();
+    },
+
+    // ---- native file pickers (desktop only) ----
+    async pick(kind, assign) {
+      try {
+        const r = await (await api("/api/system/pick", { method: "POST", body: { kind } })).json();
+        if (r.paths && r.paths.length) assign(r.paths);
+      } catch (e) { this.notify("error", e.message); }
+    },
+    pickCellpy() { this.pick("cellpy", (p) => { this.filesPath = p.join("; "); }); },
+    pickRaw() { this.pick("raw", (p) => { this.ingest.paths = p.join("; "); }); },
+    pickJournal() { this.pick("journal", (p) => { this.journalPath = p[0]; this.loadJournal(); }); },
 
     async refreshInstruments() {
       try {
@@ -142,6 +183,7 @@ function app() {
       if (!paths.length) return;
       const body = {
         paths,
+        max_files: this._num(this.ingest.maxFiles) || 10,
         instrument: this.ingest.instrument,
         model: this.ingest.model || null,
         mass: this._num(this.ingest.mass),
@@ -177,16 +219,40 @@ function app() {
           if (["done", "error", "cancelled"].includes(s.status)) {
             es.close();
             this.job.active = false;
-            if (s.status === "error") this.job.error = s.message;
-            if (s.result && s.result.errors && s.result.errors.length) {
-              this.job.error = s.result.errors.join(" · ");
-            }
+            this.job.error = "";
+            if (s.status === "error") this.notify("error", s.message || "Job failed.");
+            else this.reportJobResult(s.result);
             this.refreshState();
             resolve();
           }
         };
-        es.onerror = () => { es.close(); this.job.active = false; this.refreshState(); resolve(); };
+        es.onerror = () => {
+          es.close(); this.job.active = false;
+          this.notify("error", "Lost connection to the job.");
+          this.refreshState(); resolve();
+        };
       });
+    },
+    reportJobResult(r) {
+      if (!r || typeof r !== "object") return;
+      // load / ingest jobs report {added:[...], errors:[...], matched?, note?}
+      if ("added" in r) {
+        const n = (r.added || []).length;
+        const errs = r.errors || [];
+        const notes = r.notes || [];
+        if (n > 0 && errs.length) this.notify("warn", `Loaded ${n} cell${n > 1 ? "s" : ""}; ${errs.length} problem${errs.length > 1 ? "s" : ""}: ${errs.join(" · ")}`);
+        else if (n > 0) this.notify("ok", `Loaded ${n} cell${n > 1 ? "s" : ""}.`);
+        else if (errs.length) this.notify("error", errs.join(" · "));
+        else this.notify("warn", "Nothing was loaded — no files matched.");
+        if (notes.length) this.notify("warn", notes.join(" · "));
+      } else if ("name" in r && "n_cells" in r) {
+        this.notify("ok", `Project “${r.name}” — ${r.n_cells} cell${r.n_cells > 1 ? "s" : ""}.`);
+      }
+    },
+    notify(type, text) {
+      const id = Date.now() + Math.random();
+      this.notices.push({ id, type, text });
+      setTimeout(() => { this.notices = this.notices.filter((n) => n.id !== id); }, type === "error" ? 9000 : 5000);
     },
 
     // ---- editing ----
@@ -215,12 +281,10 @@ function app() {
     // ---- summary plot ----
     summarySpec() {
       return {
+        plot_type: this.summary.plot_type,
         basis: this.summary.basis,
-        show_charge: this.summary.show_charge,
-        show_discharge: this.summary.show_discharge,
-        show_efficiency: this.summary.show_efficiency,
         group_average: this.summary.group_average,
-        spread: this.summary.group_average,
+        spread: this.summary.spread,
         max_cycle: this._num(this.summary.max_cycle),
         title: "Cycle summary",
       };

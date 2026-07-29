@@ -39,6 +39,31 @@ def test_list_instruments_dynamic():
 
 # ---- column mapping ------------------------------------------------------ #
 
+def test_summary_columns_for_types():
+    assert collect.summary_columns_for("capacity_ce", "gravimetric") == (
+        "charge_capacity_gravimetric",
+        "discharge_capacity_gravimetric",
+        "coulombic_efficiency",
+    )
+    assert collect.summary_columns_for("end_voltages", "gravimetric") == (
+        "potential_end_charge",
+        "potential_end_discharge",
+    )
+    assert collect.summary_columns_for("internal_resistance", "areal") == ("ir_charge", "ir_discharge")
+    assert collect.summary_columns_for("capacity_loss", "areal") == (
+        "charge_capacity_loss_areal",
+        "discharge_capacity_loss_areal",
+    )
+    # unknown type falls back to capacity_ce
+    assert collect.summary_columns_for("???", "gravimetric")[0] == "charge_capacity_gravimetric"
+
+
+def test_plot_type_renders_end_voltages(loaded_library):
+    spec = SummaryPlotSpec(plot_type="end_voltages")
+    fig = json.loads(plotting.summary_figure(loaded_library.selected(), spec))
+    assert len(fig["data"]) >= 1
+
+
 def test_summary_columns_mapping():
     assert collect.summary_columns("gravimetric", True, True, True) == (
         "charge_capacity_gravimetric",
