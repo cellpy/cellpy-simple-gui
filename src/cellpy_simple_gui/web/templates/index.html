@@ -68,6 +68,68 @@
           </button>
           <p class="hint">Semicolon-separated <code>.cellpy</code> / <code>.h5</code> paths.</p>
         </div>
+
+        <button class="disclosure" @click="showImport = !showImport">
+          <span x-text="showImport ? '▾' : '▸'"></span> Import raw instrument files
+        </button>
+        <div class="import-form" x-show="showImport" x-cloak>
+          <div class="field">
+            <label>Instrument</label>
+            <select x-model="ingest.instrument">
+              <template x-for="ins in instruments" :key="ins.id">
+                <option :value="ins.id" x-text="ins.label"></option>
+              </template>
+            </select>
+          </div>
+          <div class="field" x-show="currentModels().length">
+            <label>Format / model</label>
+            <select x-model="ingest.model">
+              <option value="">default</option>
+              <template x-for="m in currentModels()" :key="m">
+                <option :value="m" x-text="m"></option>
+              </template>
+            </select>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Mass (mg)</label>
+              <input type="number" step="any" x-model="ingest.mass" placeholder="auto" /></div>
+            <div class="field"><label>Area (cm²)</label>
+              <input type="number" step="any" x-model="ingest.area" placeholder="auto" /></div>
+            <div class="field"><label>Nom. cap</label>
+              <input type="number" step="any" x-model="ingest.nominal_capacity" placeholder="auto" /></div>
+            <div class="field"><label>Specifics</label>
+              <select x-model="ingest.nom_cap_specifics">
+                <option value="">default</option>
+                <option value="gravimetric">gravimetric</option>
+                <option value="areal">areal</option>
+                <option value="absolute">absolute</option>
+              </select></div>
+          </div>
+          <div class="field">
+            <label>Cycle mode</label>
+            <select x-model="ingest.cycle_mode">
+              <option value="">default</option>
+              <option value="anode">anode</option>
+              <option value="cathode">cathode</option>
+              <option value="full_cell">full cell</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Raw file paths</label>
+            <input type="text" x-model="ingest.paths" placeholder="C:\path\to\file.res; …" @keydown.enter="ingestRaw()" />
+          </div>
+          <button class="btn btn-primary block" @click="ingestRaw()" :disabled="job.active || !ingest.paths.trim()">
+            ⚙ Import &amp; process
+          </button>
+          <div class="demo-chips">
+            <span class="hint">or try a bundled raw file:</span>
+            <div class="chips">
+              <template x-for="ex in rawExamples" :key="ex.kind">
+                <button class="chip-btn" @click="ingestExample(ex.kind)" :disabled="job.active" x-text="ex.label"></button>
+              </template>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- progress -->

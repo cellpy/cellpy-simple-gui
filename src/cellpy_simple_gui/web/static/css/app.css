@@ -144,6 +144,29 @@ input:focus, select:focus { border-color: var(--accent); }
 .proj-open select, .proj-save input { flex: 1; min-width: 0; }
 .proj-open .btn, .proj-save .btn { padding: 8px 11px; font-size: 15px; flex: none; }
 
+/* ---------- import raw ---------- */
+.disclosure {
+  margin-top: 14px; width: 100%; text-align: left; background: transparent; border: none;
+  color: var(--text-dim); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 4px 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.disclosure:hover { color: var(--text); }
+.import-form {
+  margin-top: 8px; padding: 12px; border: 1px dashed var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-2) 60%, transparent);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.import-form .field { margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.demo-chips { margin-top: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip-btn {
+  font-size: 11.5px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--chip); color: var(--text-dim); cursor: pointer;
+}
+.chip-btn:hover { color: var(--text); border-color: var(--accent); }
+.chip-btn:disabled { opacity: .45; cursor: not-allowed; }
+
 /* ---------- job / progress ---------- */
 .job { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
 .job-row { display: flex; align-items: center; gap: 10px; }

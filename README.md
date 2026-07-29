@@ -21,6 +21,9 @@ with a clean separation between UI, API and a reusable cellpy core.
 
 - **Zero-setup demo** — one click loads three bundled example cells (no files needed).
 - **Load your own** `.cellpy` / legacy `.h5` files.
+- **Import raw instrument files** — Arbin `.res`, Maccor (text), Neware, PEC and more are
+  processed into cellpy cells with a metadata step (mass / area / nominal capacity / cycle
+  mode). One-click bundled raw demos too.
 - **Save & reopen projects** — the loaded set plus your grouping / labels / selection is
   written to a self-contained, portable project folder and restored later.
 - **Cycle summary** across many cells: charge/discharge capacity vs. cycle
@@ -55,6 +58,8 @@ Then click **Load demo cells** and explore.
 > repository (then cached). Everything else is fully offline.
 
 ![Projects](docs/img/projects_dark.png)
+
+![Import raw files](docs/img/ingest_dark.png)
 
 ## Projects on disk
 
@@ -105,7 +110,7 @@ src/cellpy_simple_gui/
 ├── api/
 │   ├── app.py              # FastAPI factory + index route
 │   ├── jobs.py             # tiny thread-pool JobManager (progress + cancel)
-│   └── routers/            # cells · plots · export · jobs · projects
+│   └── routers/            # cells · plots · export · jobs · projects · ingest
 ├── web/                    # templates/ (Jinja) + static/ (css, js, vendored Plotly & Alpine)
 ├── server.py               # uvicorn-in-a-thread helper
 ├── desktop.py              # pywebview launcher
@@ -135,11 +140,14 @@ uv sync --extra export
 This is an MVP / reference implementation — a successor design to the
 `cell_processor_app` Streamlit demo.
 
-Done: load `.cellpy`/`.h5` files, cycle-summary & cell-explorer plotting, editable
-cell list, CSV export, and **save/open portable projects on disk**.
+Done: load `.cellpy`/`.h5` files, **raw-file ingestion** (Arbin `.res` / Maccor / Neware /
+PEC → cellpy), cycle-summary & cell-explorer plotting, editable cell list, CSV export, and
+**save/open portable projects on disk**.
 
-Next steps: raw-file ingestion (Arbin `.res` / Maccor / Neware / CSV → cellpy) and
-packaging into a Windows installer.
+> Arbin `.res` loads on Windows through the Access ODBC driver (no separate mdbtools needed
+> in this environment). Instruments needing extra engines will surface a clear error.
+
+Next step: packaging into a Windows installer (PyInstaller + InnoSetup, bundling WebView2).
 
 ## License
 

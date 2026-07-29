@@ -39,6 +39,13 @@ function app() {
     projects: [],
     openTarget: "",
     saveName: "",
+    showImport: false,
+    instruments: [],
+    rawExamples: [],
+    ingest: {
+      instrument: "", model: "", mass: "", area: "",
+      nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", paths: "",
+    },
     job: { active: false, progress: 0, message: "", error: "" },
     summary: {
       mode: "gravimetric", direction: "charge",
@@ -54,6 +61,7 @@ function app() {
       try {
         this.examples = await (await api("/api/examples")).json();
       } catch (_) {}
+      await this.refreshInstruments();
       await this.refreshProjects();
       await this.refreshState();
       this.$watch("theme", (v) => this.relayoutCharts());
@@ -109,6 +117,43 @@ function app() {
       if (!paths.length) return;
       await this.runJob("/api/load/files", { paths });
       this.filesPath = "";
+    },
+
+    async refreshInstruments() {
+      try {
+        const r = await (await api("/api/instruments")).json();
+        this.instruments = r.instruments;
+        this.rawExamples = r.examples;
+        if (!this.ingest.instrument && this.instruments.length)
+          this.ingest.instrument = this.instruments[0].id;
+      } catch (_) {}
+    },
+    currentModels() {
+      const ins = this.instruments.find((i) => i.id === this.ingest.instrument);
+      return ins ? ins.models : [];
+    },
+    _num(v) {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    },
+    async ingestRaw() {
+      const paths = this.ingest.paths.split(";").map((s) => s.trim()).filter(Boolean);
+      if (!paths.length) return;
+      const body = {
+        paths,
+        instrument: this.ingest.instrument,
+        model: this.ingest.model || null,
+        mass: this._num(this.ingest.mass),
+        area: this._num(this.ingest.area),
+        nominal_capacity: this._num(this.ingest.nominal_capacity),
+        nom_cap_specifics: this.ingest.nom_cap_specifics || null,
+        cycle_mode: this.ingest.cycle_mode || null,
+      };
+      await this.runJob("/api/ingest", body);
+      this.ingest.paths = "";
+    },
+    async ingestExample(kind) {
+      await this.runJob("/api/ingest/example", { kind, mass: this._num(this.ingest.mass) });
     },
     async runJob(url, body) {
       this.job = { active: true, progress: 0, message: "Starting…", error: "" };

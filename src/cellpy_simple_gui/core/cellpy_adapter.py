@@ -71,6 +71,82 @@ def load_example(kind: str) -> Any:
         return _get(filename=path)
 
 
+#: Curated raw-instrument registry surfaced to the UI. ``models`` lists the
+#: sub-formats a text-based instrument understands (empty = no model choice).
+#: All entries below were verified to load cellpy's bundled example raw files.
+INSTRUMENTS: list[dict[str, Any]] = [
+    {"id": "arbin_res", "label": "Arbin (.res)", "models": [], "ext": ".res"},
+    {"id": "maccor_txt", "label": "Maccor (text)", "models": ["one", "two", "three", "zero"], "ext": ".txt"},
+    {"id": "neware_txt", "label": "Neware (csv / txt)", "models": [], "ext": ".csv"},
+    {"id": "neware_xlsx", "label": "Neware (xlsx)", "models": [], "ext": ".xlsx"},
+    {"id": "pec_csv", "label": "PEC (csv)", "models": [], "ext": ".csv"},
+    {"id": "biologics_mpr", "label": "Biologics (.mpr)", "models": [], "ext": ".mpr"},
+    {"id": "arbin_sql_csv", "label": "Arbin SQL (csv export)", "models": [], "ext": ".csv"},
+    {"id": "arbin_sql_xlsx", "label": "Arbin SQL (xlsx export)", "models": [], "ext": ".xlsx"},
+]
+
+#: Bundled raw files that "Import raw demo" can pull in with zero setup.
+EXAMPLE_RAW = {
+    "neware": {"instrument": "neware_txt", "model": None, "label": "Neware demo (.csv)"},
+    "pec": {"instrument": "pec_csv", "model": None, "label": "PEC demo (.csv)"},
+    "maccor": {"instrument": "maccor_txt", "model": "three", "label": "Maccor demo (.txt)"},
+    "arbin": {"instrument": "arbin_res", "model": None, "label": "Arbin demo (.res)"},
+}
+
+
+def load_raw(
+    path: str | Path,
+    instrument: str,
+    *,
+    model: str | None = None,
+    mass: float | None = None,
+    area: float | None = None,
+    nominal_capacity: float | None = None,
+    nom_cap_specifics: str | None = None,
+    cycle_mode: str | None = None,
+) -> Any:
+    """Load and process a raw instrument file into a ``CellpyCell``.
+
+    Only the metadata the caller actually supplied is passed through, so cellpy
+    falls back to its own defaults for anything left blank.
+    """
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(f"No such file: {p}")
+    kwargs: dict[str, Any] = {"filename": str(p), "instrument": instrument}
+    if model:
+        kwargs["model"] = model
+    if mass:
+        kwargs["mass"] = mass
+    if area:
+        kwargs["area"] = area
+    if nominal_capacity:
+        kwargs["nominal_capacity"] = nominal_capacity
+    if nom_cap_specifics:
+        kwargs["nom_cap_specifics"] = nom_cap_specifics
+    if cycle_mode:
+        kwargs["cycle_mode"] = cycle_mode
+    return _get(**kwargs)
+
+
+def example_raw_path(kind: str) -> Path:
+    """Return the path to a bundled example raw file (downloading if needed)."""
+    from cellpy.utils import example_data
+
+    kind = kind.lower()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if kind == "neware":
+            return example_data.neware_file_path()
+        if kind == "pec":
+            return example_data.pec_file_path()
+        if kind == "maccor":
+            return example_data.maccor_file_path_type_three()
+        if kind == "arbin":
+            return example_data.arbin_file_path()
+    raise ValueError(f"Unknown raw example: {kind!r}")
+
+
 def load_file(path: str | Path, mass: float | None = None) -> Any:
     """Load a cellpy file (``.cellpy`` / legacy ``.h5``) from disk."""
     p = Path(path)

@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from ..config import get_settings
 from ..core import cellpy_adapter
 from .deps import TEMPLATES, TOKEN_COOKIE, WEB_DIR, require_token
-from .routers import cells, export, jobs, plots, projects
+from .routers import cells, export, ingest, jobs, plots, projects
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(export.router, prefix="/api", dependencies=guarded)
     app.include_router(jobs.router, prefix="/api", dependencies=guarded)
     app.include_router(projects.router, prefix="/api", dependencies=guarded)
+    app.include_router(ingest.router, prefix="/api", dependencies=guarded)
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request):

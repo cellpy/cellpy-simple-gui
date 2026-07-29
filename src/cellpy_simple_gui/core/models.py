@@ -72,3 +72,24 @@ class LoadExampleRequest(BaseModel):
 
 class LoadFilesRequest(BaseModel):
     paths: list[str]
+
+
+CycleMode = Literal["anode", "cathode", "full_cell"]
+
+
+class IngestRequest(BaseModel):
+    """Import one or more raw instrument files with shared metadata."""
+
+    paths: list[str]
+    instrument: str
+    model: Optional[str] = None
+    mass: Optional[float] = None  # mg
+    area: Optional[float] = None  # cm^2
+    nominal_capacity: Optional[float] = None
+    nom_cap_specifics: Optional[CapacityMode] = None
+    cycle_mode: Optional[CycleMode] = None
+
+
+class IngestExampleRequest(BaseModel):
+    kind: str = "neware"  # one of cellpy_adapter.EXAMPLE_RAW
+    mass: Optional[float] = None
