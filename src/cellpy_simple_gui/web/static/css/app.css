@@ -133,6 +133,17 @@ input:focus, select:focus { border-color: var(--accent); }
 .hint { font-size: 11px; color: var(--text-faint); margin: 2px 0 0; }
 .hint code { background: var(--chip); padding: 1px 5px; border-radius: 4px; }
 
+/* ---------- project panel ---------- */
+.proj-tag {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; font-weight: 700;
+  padding: 3px 8px; border-radius: 999px; background: var(--chip); color: var(--text-faint);
+  border: 1px solid var(--line); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.proj-tag.saved { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
+.proj-open, .proj-save { display: flex; gap: 6px; margin-top: 10px; }
+.proj-open select, .proj-save input { flex: 1; min-width: 0; }
+.proj-open .btn, .proj-save .btn { padding: 8px 11px; font-size: 15px; flex: none; }
+
 /* ---------- job / progress ---------- */
 .job { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
 .job-row { display: flex; align-items: center; gap: 10px; }

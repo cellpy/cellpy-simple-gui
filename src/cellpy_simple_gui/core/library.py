@@ -65,6 +65,9 @@ class Library:
         self._records: dict[str, CellRecord] = {}
         self._counter = itertools.count(1)
         self._lock = threading.RLock()
+        # Current on-disk project this library is associated with (if any).
+        self.project_name: str | None = None
+        self.project_path: str | None = None
 
     # -- mutation --------------------------------------------------------- #
     def add_cell(self, cell: Any, *, source: str = "example") -> CellRecord:
@@ -84,6 +87,41 @@ class Library:
                 group=n,  # each new cell starts in its own group
                 label=meta["name"] or rid,
                 selected=True,
+            )
+            self._records[rid] = record
+            return record
+
+    def restore_cell(
+        self,
+        cell: Any,
+        *,
+        source: str = "project",
+        group: int = 1,
+        label: str = "",
+        selected: bool = True,
+    ) -> CellRecord:
+        """Add a cell while preserving saved organisational metadata.
+
+        Physical quantities (mass/area/nominal capacity/cycles) are read fresh
+        from the ``.cellpy`` file — it is the source of truth for those — while
+        group/label/selection come from the project manifest.
+        """
+        meta = adapter.read_meta(cell)
+        with self._lock:
+            n = next(self._counter)
+            rid = f"c{n}"
+            record = CellRecord(
+                id=rid,
+                cell=cell,
+                name=meta["name"] or rid,
+                source=source,
+                mass=meta["mass"],
+                area=meta["area"],
+                nominal_capacity=meta["nominal_capacity"],
+                n_cycles=meta["n_cycles"],
+                group=int(group),
+                label=label or meta["name"] or rid,
+                selected=bool(selected),
             )
             self._records[rid] = record
             return record
@@ -120,6 +158,8 @@ class Library:
     def clear(self) -> None:
         with self._lock:
             self._records.clear()
+            self.project_name = None
+            self.project_path = None
 
     def set_selection(self, selected: bool) -> None:
         with self._lock:

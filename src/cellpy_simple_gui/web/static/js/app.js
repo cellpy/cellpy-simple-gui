@@ -35,6 +35,10 @@ function app() {
     examples: [],
     filesPath: "",
     tab: "summary",
+    project: null,
+    projects: [],
+    openTarget: "",
+    saveName: "",
     job: { active: false, progress: 0, message: "", error: "" },
     summary: {
       mode: "gravimetric", direction: "charge",
@@ -50,6 +54,7 @@ function app() {
       try {
         this.examples = await (await api("/api/examples")).json();
       } catch (_) {}
+      await this.refreshProjects();
       await this.refreshState();
       this.$watch("theme", (v) => this.relayoutCharts());
     },
@@ -67,8 +72,31 @@ function app() {
     async refreshState() {
       const s = await (await api("/api/state")).json();
       this.cells = s.cells;
+      this.project = s.project;
+      if (this.project && !this.saveName) this.saveName = this.project;
       if (this.tab === "summary") this.plotSummary();
       if (this.tab === "cell") this.ensureCellSelected();
+    },
+
+    async refreshProjects() {
+      try {
+        const r = await (await api("/api/projects")).json();
+        this.projects = r.projects;
+        this.project = r.current.name;
+        if (this.project && !this.saveName) this.saveName = this.project;
+      } catch (_) {}
+    },
+
+    async saveProject() {
+      const name = this.saveName.trim();
+      if (!name || !this.cells.length) return;
+      await this.runJob("/api/projects/save", { name });
+      await this.refreshProjects();
+    },
+    async openProject() {
+      if (!this.openTarget) return;
+      await this.runJob("/api/projects/open", { target: this.openTarget });
+      await this.refreshProjects();
     },
 
     // ---- loading (jobs + SSE) ----
@@ -133,7 +161,7 @@ function app() {
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
-      this.cells = s.cells; this.cell.cell_id = "";
+      this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
       Plotly.purge("summaryChart"); Plotly.purge("cellChart");
       this.plotSummary();
     },

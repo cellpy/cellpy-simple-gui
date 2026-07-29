@@ -26,6 +26,7 @@ def _state() -> dict:
         "n_selected": len(lib.selected()),
         "n_groups": lib.n_groups(),
         "empty": lib.is_empty(),
+        "project": lib.project_name,
     }
 
 

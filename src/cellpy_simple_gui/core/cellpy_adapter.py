@@ -159,6 +159,13 @@ def capacity_curve(
     return df[["capacity", "potential"]].reset_index(drop=True)
 
 
+def save_cell(cell: Any, path: str | Path) -> None:
+    """Write a cell to a self-contained ``.cellpy`` file (overwriting)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        cell.save(str(path), overwrite=True)
+
+
 def set_mass(cell: Any, mass: float) -> None:
     """Update the active-material mass and refresh the summary."""
     with warnings.catch_warnings():

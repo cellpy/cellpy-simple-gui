@@ -21,6 +21,8 @@ with a clean separation between UI, API and a reusable cellpy core.
 
 - **Zero-setup demo** — one click loads three bundled example cells (no files needed).
 - **Load your own** `.cellpy` / legacy `.h5` files.
+- **Save & reopen projects** — the loaded set plus your grouping / labels / selection is
+  written to a self-contained, portable project folder and restored later.
 - **Cycle summary** across many cells: charge/discharge capacity vs. cycle
   (gravimetric / areal / absolute) with an optional coulombic-efficiency panel,
   grouping and colour-by-group.
@@ -52,6 +54,24 @@ Then click **Load demo cells** and explore.
 > First run downloads a few small example cells from the cellpy example-data
 > repository (then cached). Everything else is fully offline.
 
+![Projects](docs/img/projects_dark.png)
+
+## Projects on disk
+
+A project is a portable folder — move it, zip it, share it:
+
+```
+<project>/
+├── project.json      # manifest: name, timestamps, versions, per-cell grouping/labels/selection
+└── data/
+    ├── c1.cellpy     # every loaded cell saved as a self-contained cellpy file
+    └── c2.cellpy
+```
+
+Projects live under `~/.cellpy_simple_gui/projects/` by default; **Save** writes the
+current set there and **Open** restores it (physical quantities come from the
+`.cellpy` files, organisational metadata from the manifest).
+
 ## How it is built
 
 Three layers, each testable on its own. The UI never imports cellpy; the core
@@ -80,11 +100,12 @@ src/cellpy_simple_gui/
 │   ├── models.py           # Pydantic domain models (CellMeta, SummaryPlotSpec, …)
 │   ├── library.py          # in-memory library of loaded cells = source of truth
 │   ├── plotting.py         # builds Plotly figure JSON from cell data
+│   ├── projects.py         # save/open portable project folders (manifest + .cellpy files)
 │   └── export.py           # CSV / image export
 ├── api/
 │   ├── app.py              # FastAPI factory + index route
 │   ├── jobs.py             # tiny thread-pool JobManager (progress + cancel)
-│   └── routers/            # cells · plots · export · jobs
+│   └── routers/            # cells · plots · export · jobs · projects
 ├── web/                    # templates/ (Jinja) + static/ (css, js, vendored Plotly & Alpine)
 ├── server.py               # uvicorn-in-a-thread helper
 ├── desktop.py              # pywebview launcher
@@ -112,10 +133,13 @@ uv sync --extra export
 ## Status
 
 This is an MVP / reference implementation — a successor design to the
-`cell_processor_app` Streamlit demo. It focuses on loading cellpy files and
-exploring/plotting them. Raw-file ingestion (Arbin `.res` → cellpy), project
-folders on disk, and packaging into a Windows installer are the natural next
-steps.
+`cell_processor_app` Streamlit demo.
+
+Done: load `.cellpy`/`.h5` files, cycle-summary & cell-explorer plotting, editable
+cell list, CSV export, and **save/open portable projects on disk**.
+
+Next steps: raw-file ingestion (Arbin `.res` / Maccor / Neware / CSV → cellpy) and
+packaging into a Windows installer.
 
 ## License
 

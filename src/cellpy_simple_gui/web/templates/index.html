@@ -32,6 +32,27 @@
     <!-- ============ Sidebar ============ -->
     <aside class="sidebar">
       <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Project</h2>
+          <span class="proj-tag" x-text="project || 'unsaved'" :class="{saved: project}"></span>
+        </div>
+        <div class="proj-open" x-show="projects.length">
+          <select x-model="openTarget">
+            <option value="" disabled>Open a project…</option>
+            <template x-for="p in projects" :key="p.slug">
+              <option :value="p.slug" x-text="`${p.name} · ${p.n_cells} cells`"></option>
+            </template>
+          </select>
+          <button class="btn btn-ghost" @click="openProject()" :disabled="job.active || !openTarget" title="Open">↥</button>
+        </div>
+        <div class="proj-save">
+          <input type="text" x-model="saveName" placeholder="Project name" @keydown.enter="saveProject()" />
+          <button class="btn btn-ghost" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length" title="Save">⤓</button>
+        </div>
+        <p class="hint">Saves every loaded cell into a portable project folder.</p>
+      </section>
+
+      <section class="panel">
         <h2 class="panel-title">Data</h2>
         <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
           <span>✦</span> Load demo cells
