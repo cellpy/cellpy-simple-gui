@@ -179,18 +179,51 @@ def _empty_figure_json(message: str) -> str:
     return pio.to_json(fig)
 
 
+_LEGEND_NAME_LIMIT = 24
+
+
+def _shorten_legend(fig) -> int:
+    """Truncate long trace/legend names (keeping the full name on hover) and
+    return the longest *displayed* name length, for margin sizing.
+
+    Journal cells (especially merged runs) can have very long names that
+    otherwise blow the legend up and squash the plot.
+    """
+    longest = 0
+    for tr in fig.data:
+        name = getattr(tr, "name", None)
+        if not name:
+            continue
+        if len(name) > _LEGEND_NAME_LIMIT:
+            # preserve the full name on hover via the trace's hoverlabel text
+            try:
+                tr.hovertext = name
+            except Exception:  # noqa: BLE001
+                pass
+            tr.name = name[: _LEGEND_NAME_LIMIT - 1] + "…"
+        longest = max(longest, len(tr.name))
+    return longest
+
+
 def _restyle(fig) -> None:
-    """Nudge cellpy's figure toward the app's look (white card, soft axes)."""
+    """Nudge cellpy's figure toward the app's look (white card, soft axes,
+    a compact right-hand legend that survives long cell names)."""
     try:
         layout = fig.layout.to_plotly_json()
         rows = max(1, len([k for k in layout if k.startswith("yaxis")]))
+        longest = _shorten_legend(fig)
+        right = 40 + min(longest, _LEGEND_NAME_LIMIT) * 7 if longest else 28
         fig.update_layout(
             paper_bgcolor="white",
             plot_bgcolor="white",
             font=dict(family="Inter, Segoe UI, system-ui, sans-serif", size=12, color="#1f2933"),
-            margin=dict(l=64, r=28, t=44, b=48),
+            margin=dict(l=64, r=right, t=44, b=48),
             height=min(250 * rows + 90, 1500),
             autosize=True,
+            legend=dict(
+                orientation="v", x=1.005, xanchor="left", y=1, yanchor="top",
+                font=dict(size=10), bgcolor="rgba(255,255,255,0.6)",
+            ),
         )
         fig.update_xaxes(showgrid=True, gridcolor="#eceff3", zeroline=False,
                          linecolor="#c7ccd4", mirror=False, ticks="outside", tickcolor="#c7ccd4")
