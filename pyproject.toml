@@ -19,7 +19,7 @@ dependencies = [
     "pandas>=3.0",
     "polars>=1.0",
     "openpyxl>=3.1",
-    "pywebview>=5.1",
+    "pywebview>=6.0",
 ]
 
 [project.optional-dependencies]
