@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en" x-data="app()" x-init="init()" :data-theme="theme">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csg-token" content="{{ token }}" />
+  <title>{{ app_name }}</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <link rel="icon" href="/static/img/favicon.svg" />
+  <script defer src="/static/js/plotly.min.js"></script>
+  <script defer src="/static/js/app.js"></script>
+  <script defer src="/static/js/alpine.min.js"></script>
+</head>
+<body>
+  <!-- ============ Top bar ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">◧</div>
+      <div class="brand-text">
+        <span class="brand-title">cellpy</span><span class="brand-sub">simple gui</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="badge" title="cellpy version">cellpy {{ cellpy_version }}</span>
+      <button class="icon-btn" @click="toggleTheme()" :title="theme==='dark' ? 'Light mode' : 'Dark mode'">
+        <span x-text="theme==='dark' ? '☀' : '☾'"></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ============ Sidebar ============ -->
+    <aside class="sidebar">
+      <section class="panel">
+        <h2 class="panel-title">Data</h2>
+        <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
+          <span>✦</span> Load demo cells
+        </button>
+        <p class="hint">Three bundled example cells — no files needed.</p>
+
+        <div class="field">
+          <label>Add cellpy files</label>
+          <input type="text" x-model="filesPath" placeholder="C:\path\to\cell.cellpy; …"
+                 @keydown.enter="loadFiles()" />
+          <button class="btn btn-ghost block" @click="loadFiles()" :disabled="job.active || !filesPath.trim()">
+            Load files
+          </button>
+          <p class="hint">Semicolon-separated <code>.cellpy</code> / <code>.h5</code> paths.</p>
+        </div>
+      </section>
+
+      <!-- progress -->
+      <div class="job" x-show="job.active || job.error" x-cloak>
+        <div class="job-row">
+          <span class="spinner" x-show="job.active"></span>
+          <span class="job-msg" x-text="job.error ? job.error : job.message"></span>
+        </div>
+        <div class="progress" x-show="job.active">
+          <div class="progress-bar" :style="`width:${Math.round(job.progress*100)}%`"></div>
+        </div>
+      </div>
+
+      <section class="panel grow">
+        <div class="panel-head">
+          <h2 class="panel-title">Cells</h2>
+          <div class="panel-actions" x-show="cells.length">
+            <button class="mini" @click="selectAll(true)">all</button>
+            <button class="mini" @click="selectAll(false)">none</button>
+            <button class="mini danger" @click="clearAll()">clear</button>
+          </div>
+        </div>
+
+        <template x-if="!cells.length">
+          <p class="empty">No cells loaded yet.<br />Start with <b>Load demo cells</b>.</p>
+        </template>
+
+        <div class="celllist" x-show="cells.length">
+          <template x-for="c in cells" :key="c.id">
+            <div class="cell-card" :class="{selected: c.selected}">
+              <label class="cell-check">
+                <input type="checkbox" :checked="c.selected"
+                       @change="updateCell(c.id, {selected: $event.target.checked})" />
+                <span class="swatch" :style="`background:${c.color}`"></span>
+              </label>
+              <div class="cell-main">
+                <input class="cell-label" :value="c.label"
+                       @change="updateCell(c.id, {label: $event.target.value})" />
+                <div class="cell-meta">
+                  <span x-text="c.n_cycles + ' cyc'"></span>
+                  <span x-text="fmt(c.mass) + ' mg'"></span>
+                  <span class="grp">
+                    grp
+                    <input type="number" min="1" class="grp-input" :value="c.group"
+                           @change="updateCell(c.id, {group: parseInt($event.target.value)||1})" />
+                  </span>
+                </div>
+              </div>
+              <button class="x" @click="removeCell(c.id)" title="Remove">×</button>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <div class="stat-row" x-show="cells.length">
+        <div class="stat"><span class="stat-num" x-text="nSelected"></span><span class="stat-lbl">selected</span></div>
+        <div class="stat"><span class="stat-num" x-text="nGroups"></span><span class="stat-lbl">groups</span></div>
+      </div>
+    </aside>
+
+    <!-- ============ Main ============ -->
+    <main class="main">
+      <nav class="tabs">
+        <button :class="{active: tab==='summary'}" @click="tab='summary'; plotSummary()">Cycle summary</button>
+        <button :class="{active: tab==='cell'}" @click="tab='cell'; ensureCellSelected()">Cell explorer</button>
+      </nav>
+
+      <!-- Summary tab -->
+      <section class="tabpane" x-show="tab==='summary'" x-cloak>
+        <div class="controls">
+          <div class="ctl">
+            <label>Capacity</label>
+            <select x-model="summary.mode" @change="plotSummary()">
+              <option value="gravimetric">Gravimetric (mAh/g)</option>
+              <option value="areal">Areal (mAh/cm²)</option>
+              <option value="absolute">Absolute (mAh)</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Direction</label>
+            <select x-model="summary.direction" @change="plotSummary()">
+              <option value="charge">Charge</option>
+              <option value="discharge">Discharge</option>
+            </select>
+          </div>
+          <label class="chk"><input type="checkbox" x-model="summary.show_efficiency" @change="plotSummary()" /> Coulombic eff.</label>
+          <label class="chk"><input type="checkbox" x-model="summary.group_colors" @change="plotSummary()" /> Colour by group</label>
+          <label class="chk"><input type="checkbox" x-model="summary.markers" @change="plotSummary()" /> Markers</label>
+          <div class="spacer"></div>
+          <button class="btn btn-ghost" @click="exportSummaryCsv()" :disabled="!nSelected">⭳ CSV</button>
+        </div>
+        <div class="chart-card">
+          <div id="summaryChart" class="chart"></div>
+        </div>
+      </section>
+
+      <!-- Cell explorer tab -->
+      <section class="tabpane" x-show="tab==='cell'" x-cloak>
+        <div class="controls">
+          <div class="ctl">
+            <label>Cell</label>
+            <select x-model="cell.cell_id" @change="onCellChange()">
+              <template x-for="c in cells" :key="c.id">
+                <option :value="c.id" x-text="c.label"></option>
+              </template>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Cycles from</label>
+            <input type="number" class="num" x-model.number="cell.from" :min="cell.min" :max="cell.max" @change="plotCell()" />
+          </div>
+          <div class="ctl">
+            <label>to</label>
+            <input type="number" class="num" x-model.number="cell.to" :min="cell.min" :max="cell.max" @change="plotCell()" />
+          </div>
+          <div class="ctl">
+            <label>max curves</label>
+            <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
+          </div>
+          <div class="ctl">
+            <label>Mode</label>
+            <select x-model="cell.mode" @change="plotCell()">
+              <option value="gravimetric">Gravimetric</option>
+              <option value="areal">Areal</option>
+              <option value="absolute">Absolute</option>
+            </select>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn btn-ghost" @click="exportCyclesCsv()" :disabled="!cell.cell_id">⭳ CSV</button>
+        </div>
+
+        <div class="cell-metrics" x-show="currentCell()">
+          <div class="metric"><span class="m-num" x-text="fmt(currentCell()?.mass)"></span><span class="m-lbl">mass (mg)</span></div>
+          <div class="metric"><span class="m-num" x-text="fmt(currentCell()?.area)"></span><span class="m-lbl">area (cm²)</span></div>
+          <div class="metric"><span class="m-num" x-text="fmt(currentCell()?.nominal_capacity, 0)"></span><span class="m-lbl">nom. cap</span></div>
+          <div class="metric"><span class="m-num" x-text="currentCell()?.n_cycles"></span><span class="m-lbl">cycles</span></div>
+        </div>
+
+        <div class="chart-card">
+          <div id="cellChart" class="chart"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

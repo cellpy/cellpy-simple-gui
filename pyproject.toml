@@ -1,0 +1,39 @@
+[project]
+name = "cellpy-simple-gui"
+version = "0.1.0"
+description = "A simple, good-looking desktop GUI for exploring battery cell data with cellpy (>= 2.1)."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
+authors = [{ name = "cellpy" }]
+dependencies = [
+    "cellpy>=2.1",
+    "tables",                 # read legacy .h5 cellpy files
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "plotly>=5.22",
+    "pandas>=3.0",
+    "pywebview>=5.1",
+]
+
+[project.optional-dependencies]
+export = ["kaleido>=0.1,<1.4"]        # server-side static image export (optional)
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+cellpy-simple-gui = "cellpy_simple_gui.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cellpy_simple_gui"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
