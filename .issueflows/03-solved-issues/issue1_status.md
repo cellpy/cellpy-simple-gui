@@ -14,12 +14,15 @@
   shorten-still-runs when `update_layout` raises.
 - Design note: `.issueflows/04-designs-and-guides/summary-legend-long-names.md`.
 - `uv run pytest`: 41 passed.
-- PR #9 merged to `main` (squash). GitHub issue closed on `/iflow-close`
-  (PR body used `Refs #1`, so close was not automatic).
+- Code PR #9 merged to `main` (squash).
+- Issue-flow files moved to `03-solved-issues/` (tracking PR #10).
 - No `HISTORY.md` at repo root — changelog update skipped.
 
 ## Remaining work
 
-None.
+- Close GitHub issue #1 manually (bot token lacks `issues` write; PR #9 used
+  `Refs #1` so auto-close did not fire).
+- `/iflow-cleanup` after tracking PR #10 merges.
 
-PR: https://github.com/cellpy/cellpy-simple-gui/pull/9 (#9, merged)
+Code PR: https://github.com/cellpy/cellpy-simple-gui/pull/9 (#9, merged)
+Tracking PR: https://github.com/cellpy/cellpy-simple-gui/pull/10 (#10)
