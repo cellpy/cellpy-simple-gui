@@ -61,10 +61,8 @@ body {
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
-  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
-  font-size: 20px; color: #fff;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: var(--shadow-sm);
+  width: 34px; height: 34px; border-radius: 8px; object-fit: contain;
+  display: block; flex-shrink: 0;
 }
 .brand-text { display: flex; flex-direction: column; line-height: 1.05; }
 .brand-title { font-weight: 700; letter-spacing: -0.2px; }
