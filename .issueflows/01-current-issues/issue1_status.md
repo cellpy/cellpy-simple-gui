@@ -17,4 +17,6 @@
 
 ## Remaining work
 
-- `/iflow-close` (commit already on branch for review; finalize PR / HISTORY).
+- `/iflow-close` (finalize PR / HISTORY; draft already open).
+
+PR: https://github.com/cellpy/cellpy-simple-gui/pull/9 (#9, draft)
