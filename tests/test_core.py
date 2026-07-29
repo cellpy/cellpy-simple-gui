@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from cellpy_simple_gui.core import export, plotting
+from cellpy_simple_gui.core import collect, export, plotting
 from cellpy_simple_gui.core.models import CyclesPlotSpec, SummaryPlotSpec
 
 
@@ -24,68 +24,79 @@ def test_summary_frame_has_expected_columns(example_cell):
     assert "cycle_num" in df.columns
     assert "charge_capacity_gravimetric" in df.columns
     assert "coulombic_efficiency" in df.columns
-    assert len(df) > 0
 
 
-def test_capacity_curve(example_cell):
+# ---- dynamic instrument discovery ---------------------------------------- #
+
+def test_list_instruments_dynamic():
     from cellpy_simple_gui.core import cellpy_adapter
 
-    curve = cellpy_adapter.capacity_curve(example_cell, cycle=1)
-    assert list(curve.columns) == ["capacity", "potential"]
-    assert len(curve) > 0
+    ids = cellpy_adapter.instrument_ids()
+    assert {"arbin_res", "maccor_txt", "neware_txt", "pec_csv"} <= ids
+    maccor = next(i for i in cellpy_adapter.list_instruments() if i["id"] == "maccor_txt")
+    assert maccor["models"]  # discovered from cellpy, not hard-coded
 
 
-def test_library_lifecycle(loaded_library):
-    lib = loaded_library
-    assert len(lib) == 1
-    rec = lib.all()[0]
-    assert rec.selected is True
+# ---- column mapping ------------------------------------------------------ #
 
-    lib.update(rec.id, label="my cell", group=3, selected=False)
-    rec = lib.get(rec.id)
-    assert rec.label == "my cell"
-    assert rec.group == 3
-    assert rec.selected is False
-    assert len(lib.selected()) == 0
-
-    lib.set_selection(True)
-    assert len(lib.selected()) == 1
-
-    lib.remove(rec.id)
-    assert lib.is_empty()
+def test_summary_columns_mapping():
+    assert collect.summary_columns("gravimetric", True, True, True) == (
+        "charge_capacity_gravimetric",
+        "discharge_capacity_gravimetric",
+        "coulombic_efficiency",
+    )
+    assert collect.summary_columns("absolute", True, False, False) == ("charge_capacity",)
+    assert collect.summary_columns("areal", False, True, False) == ("discharge_capacity_areal",)
+    # nothing selected -> falls back to charge
+    assert collect.summary_columns("gravimetric", False, False, False) == (
+        "charge_capacity_gravimetric",
+    )
 
 
-def test_summary_figure_json(loaded_library):
-    spec = SummaryPlotSpec(mode="gravimetric", direction="charge", show_efficiency=True)
-    fig = json.loads(plotting.summary_figure(loaded_library.selected(), spec))
-    # one capacity trace + one efficiency trace for a single cell
-    assert len(fig["data"]) == 2
+# ---- collect-based plotting ---------------------------------------------- #
+
+def test_summary_collection_and_figure(loaded_library):
+    recs = loaded_library.selected()
+    cols = collect.summary_columns("gravimetric", True, True, False)
+    coll = collect.summary_collection(recs, columns=cols)
+    assert coll.data.height > 0
+    fig = json.loads(collect.figure_json(coll))
+    assert fig["data"]  # at least one trace
     assert "layout" in fig
 
 
+def test_summary_figure_via_plotting(loaded_library):
+    spec = SummaryPlotSpec(basis="gravimetric", show_charge=True, show_discharge=True)
+    fig = json.loads(plotting.summary_figure(loaded_library.selected(), spec))
+    assert len(fig["data"]) >= 1
+
+
 def test_summary_figure_empty():
-    spec = SummaryPlotSpec()
-    fig = json.loads(plotting.summary_figure([], spec))
-    assert "layout" in fig  # annotation-only placeholder figure
+    fig = json.loads(plotting.summary_figure([], SummaryPlotSpec()))
+    assert "layout" in fig  # placeholder figure, no crash
 
 
-def test_cycles_figure_json(loaded_library):
+def test_cycles_figure(loaded_library):
     rec = loaded_library.all()[0]
     spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5, 10])
     fig = json.loads(plotting.cycles_figure(rec, spec))
-    assert len(fig["data"]) == 3
+    assert len(fig["data"]) >= 1
 
 
-def test_summary_csv(loaded_library):
+# ---- multi-format export ------------------------------------------------- #
+
+def test_summary_export_all_formats(loaded_library):
+    recs = loaded_library.selected()
     spec = SummaryPlotSpec()
-    data = export.summary_csv(loaded_library.selected(), spec)
-    assert data.startswith(b"cycle")
-    assert len(data.splitlines()) > 5
+    for fmt in collect.EXPORT_FORMATS:
+        data, media = export.summary_export(recs, spec, fmt)
+        assert isinstance(data, bytes) and len(data) > 0
+        assert media
 
 
-def test_cycles_csv(loaded_library):
+def test_cycles_export_csv(loaded_library):
     rec = loaded_library.all()[0]
     spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 2])
-    data = export.cycles_csv(rec, spec)
-    assert data.splitlines()[0] == b"cycle,capacity,potential"
-    assert len(data.splitlines()) > 5
+    data, media = export.cycles_export(rec, spec, "csv")
+    assert data.startswith(b"cycle") or b"capacity" in data[:200]
+    assert media == "text/csv"

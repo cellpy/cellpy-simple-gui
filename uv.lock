@@ -240,8 +240,10 @@ dependencies = [
     { name = "cellpy" },
     { name = "fastapi" },
     { name = "jinja2" },
+    { name = "openpyxl" },
     { name = "pandas" },
     { name = "plotly" },
+    { name = "polars" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
@@ -266,8 +268,10 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "kaleido", marker = "extra == 'export'", specifier = ">=0.1,<1.4" },
+    { name = "openpyxl", specifier = ">=3.1" },
     { name = "pandas", specifier = ">=3.0" },
     { name = "plotly", specifier = ">=5.22" },
+    { name = "polars", specifier = ">=1.0" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pydantic-settings", specifier = ">=2.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
@@ -2638,9 +2642,9 @@ name = "sqlalchemy-access"
 version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyodbc" },
-    { name = "pywin32" },
-    { name = "sqlalchemy" },
+    { name = "pyodbc", marker = "sys_platform == 'win32'" },
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "sqlalchemy", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3f/e3/02801e7b150342be8b7146227beb7943723511eb2f074bb836eae05e7578/sqlalchemy_access-2.0.3.tar.gz", hash = "sha256:89174a94e0ebd6c32470282d143aef0c0fbe3aafdee2c40956cd417648cb317e", size = 18011, upload-time = "2024-09-08T14:16:16.866Z" }
 wheels = [

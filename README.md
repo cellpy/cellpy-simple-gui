@@ -8,11 +8,11 @@ window (via [pywebview](https://pywebview.flowrl.com/)) — so it keeps the
 "runs-in-a-browser" feel of the old Streamlit demo, but is a real installable app
 with a clean separation between UI, API and a reusable cellpy core.
 
-![Cycle summary](docs/img/summary_dark.png)
+![Cycle summary](docs/img/summary_collect.png)
 
 <p align="center">
-  <img src="docs/img/cell_dark.png" width="49%" alt="Cell explorer" />
-  <img src="docs/img/summary_light.png" width="49%" alt="Light theme" />
+  <img src="docs/img/cell_collect.png" width="49%" alt="Cell explorer — cellpy cycle curves" />
+  <img src="docs/img/ingest_dark.png" width="49%" alt="Import raw instrument files" />
 </p>
 
 ---
@@ -26,14 +26,18 @@ with a clean separation between UI, API and a reusable cellpy core.
   mode). One-click bundled raw demos too.
 - **Save & reopen projects** — the loaded set plus your grouping / labels / selection is
   written to a self-contained, portable project folder and restored later.
-- **Cycle summary** across many cells: charge/discharge capacity vs. cycle
-  (gravimetric / areal / absolute) with an optional coulombic-efficiency panel,
-  grouping and colour-by-group.
-- **Cell explorer**: voltage–capacity curves for any set of cycles, with a
-  blue→red cycle progression and per-cell metric tiles.
+- **Cycle summary** across many cells — built with cellpy's own
+  `collect_summaries` + plotting: capacity vs. cycle (gravimetric / areal /
+  absolute), charge / discharge / coulombic-efficiency panels, optional group
+  averaging.
+- **Cell explorer** — cellpy's `collect_cycles` voltage–capacity curves for any
+  set of cycles, with per-cell metric tiles.
 - **Editable cell list** (the "journal"): rename, group, select/deselect, remove.
+- **Instruments discovered from cellpy** at runtime (not hard-coded), with each
+  loader's sub-models.
 - **Background loading** with live progress (SSE) — the UI never freezes.
-- **Export** summary and cycle data to CSV; save charts as PNG from the chart toolbar.
+- **Export** collected data to **CSV / Excel / Parquet / JSON**; save charts as PNG
+  from the chart toolbar.
 - **Light & dark themes.**
 
 ## Quick start
@@ -104,9 +108,10 @@ src/cellpy_simple_gui/
 │   ├── cellpy_adapter.py   # every cellpy call lives here (get, summary, get_cap, example_data)
 │   ├── models.py           # Pydantic domain models (CellMeta, SummaryPlotSpec, …)
 │   ├── library.py          # in-memory library of loaded cells = source of truth
-│   ├── plotting.py         # builds Plotly figure JSON from cell data
+│   ├── collect.py          # bridges the library into cellpy.collect / .plotting (batch-shim)
+│   ├── plotting.py         # thin: delegates figures to cellpy via collect.py
 │   ├── projects.py         # save/open portable project folders (manifest + .cellpy files)
-│   └── export.py           # CSV / image export
+│   └── export.py           # csv / xlsx / parquet / json from cellpy collections
 ├── api/
 │   ├── app.py              # FastAPI factory + index route
 │   ├── jobs.py             # tiny thread-pool JobManager (progress + cancel)
@@ -117,10 +122,15 @@ src/cellpy_simple_gui/
 └── __main__.py             # entry point (desktop / --server)
 ```
 
-**Why the adapter matters:** the jump from cellpy v1 (the old Streamlit app) to
-v2.1 is contained to one file. `cellpy_adapter.py` is pinned against the real
-2.1 API (`cellpy.get`, `cell.data.summary`, `cell.get_cap`, `example_data`), so
-the rest of the code speaks in plain DataFrames and Pydantic models.
+**Powered by cellpy, not around it.** Summaries, grouping, per-cell cycle curves,
+the plots and the multi-format export are all produced by cellpy's own
+`collect` / `plotting` subsystems — the app just feeds them a lightweight
+*batch-shim* built from the in-memory library (`collect.py`) and lightly restyles
+the returned figures. Instruments are discovered from cellpy at runtime. The
+cellpy surface stays isolated to `cellpy_adapter.py` + `collect.py`.
+
+Friction found while doing this (and concrete suggestions for cellpy) is written
+up in [CELLPY_PAINPOINTS.md](CELLPY_PAINPOINTS.md).
 
 ## Development
 

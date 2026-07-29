@@ -71,19 +71,77 @@ def load_example(kind: str) -> Any:
         return _get(filename=path)
 
 
-#: Curated raw-instrument registry surfaced to the UI. ``models`` lists the
-#: sub-formats a text-based instrument understands (empty = no model choice).
-#: All entries below were verified to load cellpy's bundled example raw files.
-INSTRUMENTS: list[dict[str, Any]] = [
-    {"id": "arbin_res", "label": "Arbin (.res)", "models": [], "ext": ".res"},
-    {"id": "maccor_txt", "label": "Maccor (text)", "models": ["one", "two", "three", "zero"], "ext": ".txt"},
-    {"id": "neware_txt", "label": "Neware (csv / txt)", "models": [], "ext": ".csv"},
-    {"id": "neware_xlsx", "label": "Neware (xlsx)", "models": [], "ext": ".xlsx"},
-    {"id": "pec_csv", "label": "PEC (csv)", "models": [], "ext": ".csv"},
-    {"id": "biologics_mpr", "label": "Biologics (.mpr)", "models": [], "ext": ".mpr"},
-    {"id": "arbin_sql_csv", "label": "Arbin SQL (csv export)", "models": [], "ext": ".csv"},
-    {"id": "arbin_sql_xlsx", "label": "Arbin SQL (xlsx export)", "models": [], "ext": ".xlsx"},
-]
+#: Cosmetic labels for known instruments. The *list* of instruments and their
+#: models is discovered from cellpy at runtime (see :func:`list_instruments`);
+#: this map only prettifies the ids we recognise, everything else falls back to
+#: a titleised name.
+_INSTRUMENT_LABELS = {
+    "arbin_res": "Arbin (.res)",
+    "arbin_sql": "Arbin SQL",
+    "arbin_sql_7": "Arbin SQL (v7)",
+    "arbin_sql_csv": "Arbin SQL (csv export)",
+    "arbin_sql_h5": "Arbin SQL (h5 export)",
+    "arbin_sql_xlsx": "Arbin SQL (xlsx export)",
+    "maccor_txt": "Maccor (text)",
+    "neware_txt": "Neware (csv / txt)",
+    "neware_xlsx": "Neware (xlsx)",
+    "neware_nda": "Neware (.nda)",
+    "pec_csv": "PEC (csv)",
+    "biologics_mpr": "Biologics (.mpr)",
+    "batmo_bdf": "Batmo (BDF)",
+}
+
+_INSTRUMENTS_CACHE: list[dict[str, Any]] | None = None
+
+
+def list_instruments() -> list[dict[str, Any]]:
+    """Discover the available instrument loaders (and their models) from cellpy.
+
+    Uses ``cellpy.readers.data_structures.instrument_configurations()`` — the
+    same source ``cellpy.print_instruments`` reads — so the app always reflects
+    whatever loaders the installed cellpy actually ships, rather than a list we
+    have to keep in sync by hand.
+    """
+    global _INSTRUMENTS_CACHE
+    if _INSTRUMENTS_CACHE is not None:
+        return _INSTRUMENTS_CACHE
+
+    from cellpy.readers.data_structures import instrument_configurations
+
+    # instrument_configurations() logs warnings for the non-loader modules it
+    # skips; quiet them so startup stays clean.
+    cellpy_log = logging.getLogger("cellpy")
+    root_log = logging.getLogger()
+    prev = (cellpy_log.level, root_log.level)
+    cellpy_log.setLevel(logging.ERROR)
+    root_log.setLevel(logging.ERROR)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            configs = instrument_configurations()
+    except Exception:  # noqa: BLE001 - never let discovery break the app
+        log.warning("Could not discover cellpy instruments", exc_info=True)
+        configs = {}
+    finally:
+        cellpy_log.setLevel(prev[0])
+        root_log.setLevel(prev[1])
+
+    instruments: list[dict[str, Any]] = []
+    for name, value in sorted(configs.items()):
+        models = [m for m in value.get("__all__", []) if m != "default"]
+        instruments.append(
+            {"id": name, "label": _INSTRUMENT_LABELS.get(name, _titleise(name)), "models": models}
+        )
+    _INSTRUMENTS_CACHE = instruments
+    return instruments
+
+
+def instrument_ids() -> set[str]:
+    return {i["id"] for i in list_instruments()}
+
+
+def _titleise(name: str) -> str:
+    return name.replace("_", " ").title()
 
 #: Bundled raw files that "Import raw demo" can pull in with zero setup.
 EXAMPLE_RAW = {

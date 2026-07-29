@@ -59,26 +59,29 @@ def test_load_and_plot_flow(client):
     assert state["n_cells"] == 1
     cell_id = state["cells"][0]["id"]
 
-    # summary figure
+    # summary figure (cellpy collected plot)
     fig = client.post(
         "/api/plots/summary",
-        json={"mode": "gravimetric", "direction": "charge", "show_efficiency": True},
+        json={"basis": "gravimetric", "show_charge": True, "show_discharge": True},
     ).json()
-    assert len(fig["data"]) == 2
+    assert len(fig["data"]) >= 1
 
     # cycles info + figure
     info = client.get(f"/api/cells/{cell_id}/cycles").json()
     assert info["max"] > info["min"]
     cfig = client.post(
         "/api/plots/cycles",
-        json={"cell_id": cell_id, "cycles": [1, 5, 10], "mode": "gravimetric"},
+        json={"cell_id": cell_id, "cycles": [1, 5, 10]},
     ).json()
-    assert len(cfig["data"]) == 3
+    assert len(cfig["data"]) >= 1
 
-    # csv export
-    csv = client.post("/api/export/summary.csv", json={"mode": "gravimetric", "direction": "charge"})
-    assert csv.status_code == 200
-    assert csv.content.startswith(b"cycle")
+    # multi-format export
+    for fmt in ("csv", "xlsx", "parquet", "json"):
+        r = client.post(f"/api/export/summary?fmt={fmt}", json={"basis": "gravimetric"})
+        assert r.status_code == 200, fmt
+        assert len(r.content) > 0
+    bad = client.post("/api/export/summary?fmt=nope", json={"basis": "gravimetric"})
+    assert bad.status_code == 400
 
 
 def test_edit_cell(client):

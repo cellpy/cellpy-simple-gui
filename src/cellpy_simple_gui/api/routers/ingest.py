@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("/instruments")
 def list_instruments() -> dict:
     return {
-        "instruments": cellpy_adapter.INSTRUMENTS,
+        "instruments": cellpy_adapter.list_instruments(),
         "examples": [
             {"kind": k, "label": v["label"]} for k, v in cellpy_adapter.EXAMPLE_RAW.items()
         ],
@@ -62,8 +62,7 @@ def _ingest_example_job(progress: Progress, kind: str, mass: float | None) -> di
 def ingest(req: IngestRequest) -> dict:
     if not req.paths:
         raise HTTPException(400, "No files provided.")
-    valid = {i["id"] for i in cellpy_adapter.INSTRUMENTS}
-    if req.instrument not in valid:
+    if req.instrument not in cellpy_adapter.instrument_ids():
         raise HTTPException(400, f"Unknown instrument: {req.instrument}")
     job = get_job_manager().submit("ingest", _ingest_job, req)
     return {"job_id": job.id}

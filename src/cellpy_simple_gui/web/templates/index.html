@@ -201,25 +201,33 @@
       <section class="tabpane" x-show="tab==='summary'" x-cloak>
         <div class="controls">
           <div class="ctl">
-            <label>Capacity</label>
-            <select x-model="summary.mode" @change="plotSummary()">
+            <label>Capacity basis</label>
+            <select x-model="summary.basis" @change="plotSummary()">
               <option value="gravimetric">Gravimetric (mAh/g)</option>
               <option value="areal">Areal (mAh/cm²)</option>
               <option value="absolute">Absolute (mAh)</option>
             </select>
           </div>
-          <div class="ctl">
-            <label>Direction</label>
-            <select x-model="summary.direction" @change="plotSummary()">
-              <option value="charge">Charge</option>
-              <option value="discharge">Discharge</option>
-            </select>
-          </div>
+          <label class="chk"><input type="checkbox" x-model="summary.show_charge" @change="plotSummary()" /> Charge</label>
+          <label class="chk"><input type="checkbox" x-model="summary.show_discharge" @change="plotSummary()" /> Discharge</label>
           <label class="chk"><input type="checkbox" x-model="summary.show_efficiency" @change="plotSummary()" /> Coulombic eff.</label>
-          <label class="chk"><input type="checkbox" x-model="summary.group_colors" @change="plotSummary()" /> Colour by group</label>
-          <label class="chk"><input type="checkbox" x-model="summary.markers" @change="plotSummary()" /> Markers</label>
+          <div class="ctl">
+            <label>Max cycle</label>
+            <input type="number" class="num" x-model="summary.max_cycle" placeholder="all" @change="plotSummary()" />
+          </div>
+          <label class="chk" title="Average replicate cells per group (affects exported data)">
+            <input type="checkbox" x-model="summary.group_average" @change="plotSummary()" /> Group avg
+          </label>
           <div class="spacer"></div>
-          <button class="btn btn-ghost" @click="exportSummaryCsv()" :disabled="!nSelected">⭳ CSV</button>
+          <!-- export menu -->
+          <div class="export" @click.outside="exportOpen=false">
+            <button class="btn btn-ghost" @click="exportOpen=!exportOpen" :disabled="!nSelected">⭳ Export ▾</button>
+            <div class="export-menu" x-show="exportOpen" x-cloak>
+              <template x-for="f in exportFormats" :key="f">
+                <button @click="exportSummary(f); exportOpen=false" x-text="f.toUpperCase()"></button>
+              </template>
+            </div>
+          </div>
         </div>
         <div class="chart-card">
           <div id="summaryChart" class="chart"></div>
@@ -249,16 +257,15 @@
             <label>max curves</label>
             <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
           </div>
-          <div class="ctl">
-            <label>Mode</label>
-            <select x-model="cell.mode" @change="plotCell()">
-              <option value="gravimetric">Gravimetric</option>
-              <option value="areal">Areal</option>
-              <option value="absolute">Absolute</option>
-            </select>
-          </div>
           <div class="spacer"></div>
-          <button class="btn btn-ghost" @click="exportCyclesCsv()" :disabled="!cell.cell_id">⭳ CSV</button>
+          <div class="export" @click.outside="exportCellOpen=false">
+            <button class="btn btn-ghost" @click="exportCellOpen=!exportCellOpen" :disabled="!cell.cell_id">⭳ Export ▾</button>
+            <div class="export-menu" x-show="exportCellOpen" x-cloak>
+              <template x-for="f in exportFormats" :key="f">
+                <button @click="exportCycles(f); exportCellOpen=false" x-text="f.toUpperCase()"></button>
+              </template>
+            </div>
+          </div>
         </div>
 
         <div class="cell-metrics" x-show="currentCell()">

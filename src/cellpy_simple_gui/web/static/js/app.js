@@ -48,13 +48,13 @@ function app() {
     },
     job: { active: false, progress: 0, message: "", error: "" },
     summary: {
-      mode: "gravimetric", direction: "charge",
-      show_efficiency: true, group_colors: true, markers: true,
+      basis: "gravimetric", show_charge: true, show_discharge: true,
+      show_efficiency: false, group_average: false, spread: false, max_cycle: "",
     },
-    cell: {
-      cell_id: "", from: 1, to: 10, maxCurves: 8,
-      mode: "gravimetric", method: "forth-and-forth", min: 1, max: 1,
-    },
+    cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1 },
+    exportFormats: ["csv", "xlsx", "parquet", "json"],
+    exportOpen: false,
+    exportCellOpen: false,
 
     // ---- lifecycle ----
     async init() {
@@ -212,10 +212,21 @@ function app() {
     },
 
     // ---- summary plot ----
+    summarySpec() {
+      return {
+        basis: this.summary.basis,
+        show_charge: this.summary.show_charge,
+        show_discharge: this.summary.show_discharge,
+        show_efficiency: this.summary.show_efficiency,
+        group_average: this.summary.group_average,
+        spread: this.summary.group_average,
+        max_cycle: this._num(this.summary.max_cycle),
+        title: "Cycle summary",
+      };
+    },
     async plotSummary() {
-      const spec = { ...this.summary, title: "Cycle summary" };
       try {
-        const fig = await (await api("/api/plots/summary", { method: "POST", body: spec })).json();
+        const fig = await (await api("/api/plots/summary", { method: "POST", body: this.summarySpec() })).json();
         Plotly.react("summaryChart", fig.data, fig.layout, PLOTLY_CONFIG);
       } catch (e) { console.error(e); }
     },
@@ -245,26 +256,24 @@ function app() {
       for (let i = 0; i < n; i++) out.add(Math.round(from + i * step));
       return [...out].sort((a, b) => a - b);
     },
+    cellSpec() {
+      return { cell_id: this.cell.cell_id, cycles: this.buildCycleList(), title: "" };
+    },
     async plotCell() {
       if (!this.cell.cell_id) return;
-      const spec = {
-        cell_id: this.cell.cell_id, cycles: this.buildCycleList(),
-        mode: this.cell.mode, method: this.cell.method, title: "",
-      };
       try {
-        const fig = await (await api("/api/plots/cycles", { method: "POST", body: spec })).json();
+        const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cellSpec() })).json();
         Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
       } catch (e) { console.error(e); }
     },
 
-    // ---- exports ----
-    async exportSummaryCsv() {
-      await this.download("/api/export/summary.csv", { ...this.summary, title: "" }, "summary.csv");
+    // ---- exports (csv / xlsx / parquet / json) ----
+    async exportSummary(fmt) {
+      await this.download(`/api/export/summary?fmt=${fmt}`, this.summarySpec(), `summary.${fmt}`);
     },
-    async exportCyclesCsv() {
+    async exportCycles(fmt) {
       if (!this.cell.cell_id) return;
-      const spec = { cell_id: this.cell.cell_id, cycles: this.buildCycleList(), mode: this.cell.mode, method: this.cell.method };
-      await this.download("/api/export/cycles.csv", spec, "cycles.csv");
+      await this.download(`/api/export/cycles?fmt=${fmt}`, this.cellSpec(), `cycles.${fmt}`);
     },
     async download(url, body, filename) {
       try {

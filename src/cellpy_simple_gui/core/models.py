@@ -39,21 +39,32 @@ class CellMeta(BaseModel):
 
 
 class SummaryPlotSpec(BaseModel):
-    mode: CapacityMode = "gravimetric"
-    direction: Direction = "charge"
-    show_efficiency: bool = True
-    show_capacity_loss: bool = False
-    group_colors: bool = True
-    markers: bool = True
+    """Drives a cellpy ``collect_summaries`` collection + its plot/export."""
+
+    basis: CapacityMode = "gravimetric"
+    show_charge: bool = True
+    show_discharge: bool = True
+    show_efficiency: bool = False
+    group_average: bool = False  # average per group (affects data/export)
+    spread: bool = False  # mean ± std band (when grouped)
+    max_cycle: Optional[int] = None
     title: str = "Cycle summary"
 
 
 class CyclesPlotSpec(BaseModel):
+    """Drives a cellpy ``collect_cycles`` collection for one cell."""
+
     cell_id: str
     cycles: list[int] = Field(default_factory=list)
-    mode: CapacityMode = "gravimetric"
-    method: CycleMethod = "forth-and-forth"
     title: str = ""
+
+
+class ExportSpec(BaseModel):
+    """A plot spec plus the desired file format."""
+
+    fmt: str = "csv"  # csv | xlsx | parquet | json
+    summary: Optional[SummaryPlotSpec] = None
+    cycles: Optional[CyclesPlotSpec] = None
 
 
 class JournalRowUpdate(BaseModel):
