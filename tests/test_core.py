@@ -134,6 +134,76 @@ def test_grouped_summary_renders(example_cell):
     assert len(fig["data"]) >= 1  # was 0 (empty fallback) on cellpy 2.1.0
 
 
+def test_summary_figure_long_cell_names_shorten_legend(loaded_library):
+    """Long journal-style labels must not blow up the summary legend (#1)."""
+    long = (
+        "20130419_es018_02_eth_01-20130419_es018_02_eth_03-"
+        "CONCAT-VERY-LONG-LABEL-FOR-LEGEND"
+    )
+    assert len(long) > 40
+    rec = loaded_library.all()[0]
+    loaded_library.update(rec.id, label=long)
+
+    spec = SummaryPlotSpec(plot_type="capacity_ce")
+    fig = json.loads(plotting.summary_figure(loaded_library.selected(), spec))
+    assert fig["data"]
+
+    limit = collect._LEGEND_NAME_LIMIT
+    for tr in fig["data"]:
+        name = tr.get("name") or ""
+        assert len(name) <= limit
+        # Full identity remains on hover (PX embeds it in hovertemplate).
+        hover = tr.get("hovertemplate") or tr.get("hovertext") or ""
+        assert long in hover
+
+    legend = fig["layout"].get("legend") or {}
+    assert legend.get("orientation") == "v"
+    assert legend.get("xanchor") == "left"
+    assert float(legend.get("x", 0)) > 1.0
+    margin_r = (fig["layout"].get("margin") or {}).get("r") or 0
+    assert margin_r >= 40 + limit * 7  # room for truncated legend (+ strips)
+
+
+def test_summary_figure_short_names_unchanged(loaded_library):
+    """Short labels stay intact; right margin stays modest (#1)."""
+    rec = loaded_library.all()[0]
+    short = "cell-a"
+    loaded_library.update(rec.id, label=short)
+
+    fig = json.loads(
+        plotting.summary_figure(loaded_library.selected(), SummaryPlotSpec())
+    )
+    names = [tr.get("name") for tr in fig["data"] if tr.get("name")]
+    assert names
+    assert all(n == short for n in names)
+    margin_r = (fig["layout"].get("margin") or {}).get("r") or 0
+    # Short name + optional facet-strip pad; not the full long-name gutter.
+    expected_max = (
+        collect._FACET_STRIP_RIGHT_PAD + 40 + len(short) * 7 + 8
+    )
+    assert margin_r <= expected_max
+
+
+def test_shorten_legend_runs_when_restyle_cosmetics_fail():
+    """Legend shortening must not be skipped if update_layout raises (#1)."""
+    import plotly.graph_objects as go
+
+    long = "x" * 60
+    fig = go.Figure(go.Scatter(x=[1, 2], y=[1, 2], name=long))
+
+    original_update = fig.update_layout
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("cosmetics broken")
+
+    fig.update_layout = boom  # type: ignore[method-assign]
+    collect._restyle(fig)
+    fig.update_layout = original_update  # type: ignore[method-assign]
+
+    assert fig.data[0].name == "x" * (collect._LEGEND_NAME_LIMIT - 1) + "…"
+    assert fig.data[0].hovertext == long
+
+
 # ---- multi-format export ------------------------------------------------- #
 
 def test_summary_export_all_formats(loaded_library):
