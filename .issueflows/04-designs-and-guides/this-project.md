@@ -60,8 +60,9 @@ No ruff/formatter gate is configured in `pyproject.toml` yet — do not invent o
 - **Instruments:** discover at runtime via `list_instruments()` / 
   `instrument_configurations()` — do not hard-code loader names. Instrument
   names = module names under `cellpy/readers/instruments`.
-- **Multi-root workspaces:** this repo sits beside `cell_processor_app` and
-  `cellpy_streamlit_installer`. See [`multi-repo-workspaces.md`](multi-repo-workspaces.md).
+- **Multi-root workspaces:** for at least one of the developers,
+- this repo sits beside `cell_processor_app` and `cellpy_streamlit_installer`.
+  See [`multi-repo-workspaces.md`](multi-repo-workspaces.md).
   Resolve the project root before `git`/`gh`/`.issueflows/` work; always
   `uv run` / `pytest` from *this* directory.
 
