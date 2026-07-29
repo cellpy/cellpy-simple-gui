@@ -35,6 +35,25 @@ def test_healthz(client):
     assert client.get("/healthz").json() == {"ok": True}
 
 
+def test_branding_static_assets(client):
+    for path in (
+        "/static/img/favicon.svg",
+        "/static/img/cellpy-icon.svg",
+        "/static/img/cellpy-icon.png",
+        "/static/img/cellpy-icon.ico",
+    ):
+        r = client.get(path)
+        assert r.status_code == 200, path
+        assert len(r.content) > 0
+
+
+def test_index_uses_cellpy_logo(client):
+    html = client.get("/").text
+    assert "◧" not in html
+    assert "/static/img/cellpy-icon.svg" in html
+    assert 'rel="icon" href="/static/img/favicon.svg"' in html
+
+
 def test_system_capabilities_no_file_picker(client):
     """TestClient has no pywebview window — same as --server mode."""
     assert client.get("/api/system/capabilities").json() == {"file_picker": False}
