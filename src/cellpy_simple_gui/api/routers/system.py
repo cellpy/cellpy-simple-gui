@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, HTTPException
+from pathlib import Path
+
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 
 router = APIRouter()
 
@@ -10,6 +12,16 @@ _FILE_TYPES = {
     "cellpy": ("Cellpy files (*.cellpy;*.h5)", "All files (*.*)"),
     "raw": ("All files (*.*)",),
     "journal": ("Journal files (*.json)", "All files (*.*)"),
+}
+
+_SAVE_TYPE_BY_EXT = {
+    "csv": "CSV (*.csv)",
+    "xlsx": "Excel (*.xlsx)",
+    "parquet": "Parquet (*.parquet)",
+    "json": "JSON (*.json)",
+    "png": "PNG (*.png)",
+    "svg": "SVG (*.svg)",
+    "pdf": "PDF (*.pdf)",
 }
 
 
@@ -21,6 +33,22 @@ def _webview_window():
         return webview.windows[0] if getattr(webview, "windows", None) else None
     except Exception:  # noqa: BLE001
         return None
+
+
+def _save_file_types(filename: str) -> tuple[str, ...]:
+    ext = Path(filename).suffix.lower().lstrip(".")
+    specific = _SAVE_TYPE_BY_EXT.get(ext)
+    if specific:
+        return (specific, "All files (*.*)")
+    return ("All files (*.*)",)
+
+
+def _normalize_dialog_path(result) -> str | None:
+    if not result:
+        return None
+    if isinstance(result, (list, tuple)):
+        return str(result[0]) if result else None
+    return str(result)
 
 
 @router.get("/system/capabilities")
@@ -43,3 +71,40 @@ def pick(kind: str = Body("cellpy", embed=True)) -> dict:
         file_types=file_types,
     )
     return {"paths": [str(p) for p in result] if result else []}
+
+
+@router.post("/system/save")
+async def save(
+    request: Request,
+    filename: str = Query(..., min_length=1, description="Suggested file name"),
+) -> dict:
+    """Show a native Save As dialog and write the request body to the chosen path.
+
+    Used by desktop exports: the browser ``<a download>`` trick does not reliably
+    land files in the user's Downloads folder under pywebview.
+    """
+    win = _webview_window()
+    if win is None:
+        raise HTTPException(400, "Save As is only available in the desktop app.")
+    import webview
+
+    suggested = Path(filename).name or "export.bin"
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "Empty export payload.")
+
+    result = win.create_file_dialog(
+        webview.FileDialog.SAVE,
+        save_filename=suggested,
+        file_types=_save_file_types(suggested),
+    )
+    path = _normalize_dialog_path(result)
+    if path is None:
+        return {"path": None, "cancelled": True}
+
+    dest = Path(path)
+    try:
+        dest.write_bytes(data)
+    except OSError as exc:
+        raise HTTPException(500, f"Could not write file: {exc}") from exc
+    return {"path": str(dest.resolve()), "cancelled": False}
