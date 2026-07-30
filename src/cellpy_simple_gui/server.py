@@ -32,7 +32,14 @@ class ServerThread:
         self.host = host
         self.port = port
         config = uvicorn.Config(
-            create_app(), host=host, port=port, log_level="warning", access_log=False
+            create_app(),
+            host=host,
+            port=port,
+            log_level="warning",
+            access_log=False,
+            # No FastAPI lifespan hooks — "on" races with force-stop and prints a
+            # scary CancelledError traceback on every desktop window close.
+            lifespan="off",
         )
         self._server = uvicorn.Server(config)
         self._thread = threading.Thread(target=self._server.run, daemon=True)
@@ -52,5 +59,11 @@ class ServerThread:
                 return
             time.sleep(0.05)
 
-    def stop(self) -> None:
+    def stop(self, join_timeout: float = 2.0) -> None:
+        """Ask uvicorn to exit and briefly wait for the daemon thread."""
         self._server.should_exit = True
+        # force_exit helps when a request handler is stuck in cellpy I/O
+        if hasattr(self._server, "force_exit"):
+            self._server.force_exit = True
+        if self._thread.is_alive():
+            self._thread.join(timeout=join_timeout)

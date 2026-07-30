@@ -87,19 +87,78 @@ class Job:
                 q.put(snap)
 
 
+class _DaemonThreadPoolExecutor(ThreadPoolExecutor):
+    """Like ThreadPoolExecutor, but workers are daemons so app exit is not blocked.
+
+    A stuck cellpy load must not pin the console after the window closes.
+    """
+
+    def _adjust_thread_count(self) -> None:
+        # Mirror stdlib logic with daemon=True (stdlib workers are non-daemon).
+        import weakref
+
+        from concurrent.futures.thread import _threads_queues, _worker
+
+        if self._idle_semaphore.acquire(timeout=0):
+            return
+
+        def weakref_cb(_, q=self._work_queue):
+            q.put(None)
+
+        num_threads = len(self._threads)
+        if num_threads < self._max_workers:
+            thread_name = "%s_%d" % (self._thread_name_prefix or self, num_threads)
+            t = threading.Thread(
+                name=thread_name,
+                target=_worker,
+                args=(
+                    weakref.ref(self, weakref_cb),
+                    self._work_queue,
+                    self._initializer,
+                    self._initargs,
+                ),
+                daemon=True,
+            )
+            t.start()
+            self._threads.add(t)
+            _threads_queues[t] = self._work_queue
+
+
 class JobManager:
     def __init__(self, max_workers: int = 2) -> None:
-        self._pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="csg-job")
+        self._pool = _DaemonThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="csg-job"
+        )
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
+        self._closed = False
 
     def submit(self, kind: str, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Job:
+        if self._closed:
+            raise RuntimeError("Job manager has been shut down.")
         job = Job(id=uuid.uuid4().hex[:12], kind=kind)
         with self._lock:
             self._jobs[job.id] = job
         log.info("Job %s started (%s)", job.id, kind)
         self._pool.submit(self._run, job, fn, args, kwargs)
         return job
+
+    def shutdown(self) -> None:
+        """Cancel running jobs and stop the pool without waiting on stuck work."""
+        if self._closed:
+            return
+        self._closed = True
+        with self._lock:
+            running = [
+                j for j in self._jobs.values() if j.status in ("pending", "running")
+            ]
+        for job in running:
+            job.cancel_event.set()
+        log.info("Shutting down job manager (%d job(s) signalled)", len(running))
+        try:
+            self._pool.shutdown(wait=False, cancel_futures=True)
+        except TypeError:  # pragma: no cover - older Python
+            self._pool.shutdown(wait=False)
 
     def _run(self, job: Job, fn: Callable[..., Any], args: tuple, kwargs: dict) -> None:
         job.status = "running"

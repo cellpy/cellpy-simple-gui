@@ -79,26 +79,30 @@
         <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
           <span>✦</span> Load demo cells
         </button>
-        <p class="hint">Three bundled example cells — no files needed.</p>
+        <p class="hint">Three bundled example cells.</p>
 
-        <div class="field">
-          <label>Add cellpy files</label>
-          <div class="input-row">
-            <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*.cellpy"
-                   @keydown.enter="loadFiles()" />
-            <button class="btn btn-ghost pick" x-show="canPick" @click="pickCellpy()" title="Browse…">📁</button>
+        <button class="disclosure" @click="showLoadFiles = !showLoadFiles">
+          <span x-text="showLoadFiles ? '▾' : '▸'"></span> Add cellpy files
+        </button>
+        <div class="import-form" x-show="showLoadFiles" x-cloak>
+          <div class="field">
+            <div class="input-row">
+              <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*.cellpy"
+                     @keydown.enter="loadFiles()" />
+              <button class="btn btn-ghost pick" x-show="canPick" @click="pickCellpy()" title="Browse…">📁</button>
+            </div>
+            <div class="input-row" style="margin-top:7px">
+              <button class="btn btn-ghost" style="flex:1" @click="loadFiles()" :disabled="job.active || !filesPath.trim()">
+                Load files
+              </button>
+              <label class="maxlbl" title="Max files a glob may load">max
+                <input type="number" class="num-mini" x-model="filesMax" min="1" />
+              </label>
+            </div>
+            <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.
+              Native cellpy files only (<code>.cellpy</code> / cellpy <code>.h5</code>) —
+              Arbin SQL HDF5 belongs under Import raw below.</p>
           </div>
-          <div class="input-row" style="margin-top:7px">
-            <button class="btn btn-ghost" style="flex:1" @click="loadFiles()" :disabled="job.active || !filesPath.trim()">
-              Load files
-            </button>
-            <label class="maxlbl" title="Max files a glob may load">max
-              <input type="number" class="num-mini" x-model="filesMax" min="1" />
-            </label>
-          </div>
-          <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.
-            Native cellpy files only (<code>.cellpy</code> / cellpy <code>.h5</code>) —
-            Arbin SQL HDF5 belongs under Import raw below.</p>
         </div>
 
         <button class="disclosure" @click="showImport = !showImport">
