@@ -436,6 +436,19 @@ def _tidy_facet_annotations(fig) -> None:
             ann.text = text.split("=", 1)[1]
 
 
+def _hex_to_rgba(color: str, alpha: float = 0.28) -> str:
+    """Turn ``#RRGGBB`` into ``rgba(r,g,b,a)`` for translucent Plotly fills."""
+    c = color.strip()
+    if c.startswith("#") and len(c) == 7:
+        r, g, b = (int(c[i : i + 2], 16) for i in (1, 3, 5))
+        return f"rgba({r},{g},{b},{alpha})"
+    if c.startswith("rgba("):
+        return c
+    if c.startswith("rgb("):
+        return "rgba" + c[3:-1] + f",{alpha})"
+    return color
+
+
 def _apply_colorway(fig, color_scheme: str) -> None:
     """Cycle a discrete colorway across legend series (name / legendgroup)."""
     colors = COLOR_SCHEMES.get(color_scheme)
@@ -453,12 +466,11 @@ def _apply_colorway(fig, color_scheme: str) -> None:
                 tr.line.color = color
             if getattr(tr, "marker", None) is not None:
                 tr.marker.color = color
-            # Spread / fill bands: tint the fill to match the series.
+            # Spread bands need alpha in fillcolor; tr.opacity is ignored for
+            # fills or washes out the mean line when fill+line share a trace.
             fill = getattr(tr, "fill", None)
             if fill and fill != "none":
-                tr.fillcolor = color
-                if getattr(tr, "opacity", None) in (None, 1):
-                    tr.opacity = 0.25
+                tr.fillcolor = _hex_to_rgba(color, 0.28)
         except Exception:  # noqa: BLE001 - per-trace color is best-effort
             continue
 

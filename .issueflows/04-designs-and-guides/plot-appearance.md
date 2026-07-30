@@ -16,6 +16,7 @@ light/dark shell hook.
   shell theme before POST so export stays deterministic.
 - **Color schemes:** `cellpy` (leave upstream colors), `safe` (`library.PALETTE`),
   `muted` (lower-saturation qualitative). Applied post-plot in `_apply_colorway`.
+  Spread/fill traces get `rgba(..., ~0.28)` fillcolor (not solid hex + opacity).
 - **Defaults:** figure theme `match` (resolves from app shell) + color scheme `cellpy`.
   Chart card chrome follows shell tokens (`--panel` / `--line`), not figure theme.
 - **Persistence:** `localStorage` keys `csg-figure-theme`, `csg-color-scheme`.
