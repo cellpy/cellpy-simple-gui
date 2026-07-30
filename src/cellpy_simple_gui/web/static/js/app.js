@@ -66,7 +66,7 @@ function app() {
     cellsManagerOpen: false,
     cellsManagerFilter: "",
     cellsManagerSort: "default",
-    cellsManagerGroup: "1",
+    cellsManagerGroup: 1,
 
     // ---- lifecycle ----
     async init() {
@@ -331,10 +331,16 @@ function app() {
       this.plotSummary();
     },
     async selectGroup() {
-      const g = parseInt(this.cellsManagerGroup, 10);
+      const g = Number(this.cellsManagerGroup);
       if (!Number.isFinite(g) || g < 1) return;
-      const targets = this.cells.filter((c) => c.group === g && !c.selected);
-      for (const c of targets) await this.updateCell(c.id, { selected: true }, { plot: false });
+      // Select only this group (deselect others). Previously skipped already-selected
+      // members, so the control looked dead when every cell started selected.
+      for (const c of this.cells) {
+        const want = Number(c.group) === g;
+        if (Boolean(c.selected) !== want) {
+          await this.updateCell(c.id, { selected: want }, { plot: false });
+        }
+      }
       if (this.tab === "summary") this.plotSummary();
     },
     async removeCell(id) {
