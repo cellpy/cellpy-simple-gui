@@ -10,7 +10,7 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
 
 <p align="center">
   <img src="docs/img/cell_collect.png" width="49%" alt="Cell explorer — cellpy cycle curves" />
-  <img src="docs/img/ingest_dark.png" width="49%" alt="Import raw instrument files" />
+  <img src="docs/img/manage_cells.png" width="49%" alt="Manage cells modal" />
 </p>
 
 ---
@@ -22,27 +22,34 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
 - **Import raw instrument files** — Arbin `.res`, Maccor (text), Neware, PEC and more are
   processed into cellpy cells with a metadata step (mass / area / nominal capacity / cycle
   mode). One-click bundled raw demos too.
-- **Save & reopen projects** — the loaded set plus your grouping / labels / selection is
-  written to a self-contained, portable project folder and restored later.
+- **Save & reopen projects** — explicit Save (not autosave) writes the loaded set plus
+  grouping / labels / selection into a portable project folder; reopen later. The project
+  tag shows when you have unsaved edits (`name*`), and **Close** clears the current
+  session after confirmation.
 - **Cycle summary** across many cells — built with cellpy's own
   `collect_summaries` + plotting, with a **plot-type selector** (capacity + CE,
   capacity, coulombic efficiency, cumulated CE, end voltages, internal
   resistance, C-rate, capacity loss), a gravimetric / areal / absolute basis,
-  optional group averaging with a mean ± std spread band.
+  optional group averaging with a mean ± std spread band, and independent or
+  shared y-scales.
 - **Cell explorer** — cellpy's `collect_cycles` voltage–capacity curves for any
   set of cycles (gravimetric / areal / absolute, method), with per-cell metric tiles.
 - **Load data lots of ways**: bundled demo cells, `.cellpy` / `.h5` files,
   **native cellpy batch journals** (`.json`), or your own **project folders** —
   with **glob patterns** (`*si*.h5`, capped at a configurable max) and, in the
-  desktop app, **native file pickers**.
-- **Editable cell list** (the "journal"): rename, group, select/deselect, remove.
+  desktop app, **native file pickers**. Journal load failures surface as toasts
+  instead of a stuck spinner.
+- **Editable cell list** (the "journal"): rename, group, select/deselect, remove —
+  plus a **Manage cells** modal (filter/sort, select-by-group, remove all).
 - **Instruments discovered from cellpy** at runtime (not hard-coded), with each
   loader's sub-models.
-- **Clear feedback**: toast notifications tell you what loaded (and why nothing did).
+- **Clear feedback**: toast notifications for loads, saves, opens, exports, and
+  errors (including corrupt journals).
 - **Background loading** with live progress (SSE) — the UI never freezes.
-- **Export** collected data to **CSV / Excel / Parquet / JSON**; save charts as PNG
-  from the chart toolbar.
+- **Export** collected data to **CSV / Excel / Parquet / JSON** (with a success
+  toast naming the file); save charts as PNG from the chart toolbar.
 - **Light & dark themes.**
+- **Colorized terminal logging** via loguru (`CSG_LOG_LEVEL`, default `INFO`).
 
 ## Quick start
 
@@ -67,7 +74,7 @@ Then click **Load demo cells** and explore.
 
 ![Projects](docs/img/projects_dark.png)
 
-![Import raw files](docs/img/ingest_dark.png)
+![Plot types](docs/img/plot_types.png)
 
 ## Projects on disk
 
@@ -83,7 +90,8 @@ A project is a portable folder — move it, zip it, share it:
 
 Projects live under `~/.cellpy_simple_gui/projects/` by default; **Save** writes the
 current set there and **Open** restores it (physical quantities come from the
-`.cellpy` files, organisational metadata from the manifest).
+`.cellpy` files, organisational metadata from the manifest). Changes in the UI
+are **not** written until you Save.
 
 ## How it is built
 
@@ -122,6 +130,7 @@ src/cellpy_simple_gui/
 │   ├── jobs.py             # tiny thread-pool JobManager (progress + cancel)
 │   └── routers/            # cells · plots · export · jobs · projects · ingest · system
 ├── web/                    # templates/ (Jinja) + static/ (css, js, vendored Plotly & Alpine)
+├── logging_setup.py        # loguru terminal logging + stdlib bridge
 ├── server.py               # uvicorn-in-a-thread helper
 ├── desktop.py              # pywebview launcher
 └── __main__.py             # entry point (desktop / --server)
@@ -141,7 +150,11 @@ the in-memory library (`collect.py`), and discovers instruments via
 ```bash
 uv sync --extra dev
 uv run pytest            # core unit tests + FastAPI integration tests
+uv run pytest -m essential   # critical-path subset (also run in CI)
 ```
+
+GitHub Actions runs the `essential` marker on code changes; a matching
+document-mock workflow keeps the same check name green on docs-only PRs.
 
 Optional static image export (server-side PNG/SVG/PDF via kaleido):
 
@@ -163,8 +176,9 @@ Already now, building this surfaced a number of cellpy rough edges, filed upstre
 This is an MVP / reference implementation
 
 Done: load `.cellpy`/`.h5` files, **raw-file ingestion** (Arbin `.res` / Maccor / Neware /
-PEC → cellpy), cycle-summary & cell-explorer plotting, editable cell list, CSV export, and
-**save/open portable projects on disk**.
+PEC → cellpy), cycle-summary & cell-explorer plotting, editable cell list + Manage cells
+modal, CSV/Excel/Parquet/JSON export with feedback, **save/open/close portable projects**,
+batch-journal loading with error toasts, loguru console logging, and essential-test CI.
 
 > Arbin `.res` loads on Windows through the Access ODBC driver (no separate mdbtools needed
 > in this environment). Instruments needing extra engines will surface a clear error.
