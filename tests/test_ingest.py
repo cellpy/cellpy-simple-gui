@@ -35,11 +35,43 @@ def test_instruments_endpoint():
     client = _client()
     data = client.get("/api/instruments").json()
     ids = {i["id"] for i in data["instruments"]}
-    assert {"arbin_res", "maccor_txt", "neware_txt", "pec_csv"} <= ids
+    assert {"arbin_res", "maccor_txt", "neware_txt", "pec_csv", "arbin_sql_h5"} <= ids
     # maccor exposes sub-models; arbin does not
     maccor = next(i for i in data["instruments"] if i["id"] == "maccor_txt")
     assert maccor["models"]
     assert {e["kind"] for e in data["examples"]}
+    arbin_h5 = next(i for i in data["instruments"] if i["id"] == "arbin_sql_h5")
+    assert ".h5" in arbin_h5.get("suffixes", [])
+
+
+def test_load_raw_passes_instrument_and_disables_autopick(tmp_path, monkeypatch):
+    """Raw ingest must keep the selected instrument (no .h5 → cellpy sniff) (#41)."""
+    fake = tmp_path / "sample.h5"
+    fake.write_bytes(b"not-a-real-hdf5")
+    captured: dict = {}
+
+    def fake_get(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(cellpy_adapter, "_get", fake_get)
+    cellpy_adapter.load_raw(fake, "arbin_sql_h5", mass=1.0)
+    assert captured["instrument"] == "arbin_sql_h5"
+    assert captured["filename"] == str(fake)
+    assert captured["auto_pick_cellpy_format"] is False
+    assert captured["mass"] == 1.0
+
+
+def test_load_raw_rewrites_data_df_error(tmp_path, monkeypatch):
+    fake = tmp_path / "sample.h5"
+    fake.write_bytes(b"x")
+
+    def boom(**kwargs):
+        raise KeyError("No object named data_df in the file")
+
+    monkeypatch.setattr(cellpy_adapter, "_get", boom)
+    with pytest.raises(RuntimeError, match="arbin_sql_h5"):
+        cellpy_adapter.load_raw(fake, "arbin_sql_h5")
 
 
 @pytest.mark.essential
