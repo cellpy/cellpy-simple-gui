@@ -16,8 +16,10 @@ light/dark shell hook.
   shell theme before POST so export stays deterministic.
 - **Color schemes:** `cellpy` (leave upstream colors), `safe` (`library.PALETTE`),
   `muted` (lower-saturation qualitative). Applied post-plot in `_apply_colorway`.
-- **Defaults:** `light` + `cellpy` (export-friendly; current look).
+- **Defaults:** figure theme `match` (resolves from app shell) + color scheme `cellpy`.
+  Chart card chrome follows shell tokens (`--panel` / `--line`), not figure theme.
 - **Persistence:** `localStorage` keys `csg-figure-theme`, `csg-color-scheme`.
+  Existing Light/Dark choices in localStorage stay respected.
 - **Cell-list swatches** stay on `PALETTE` and do not follow the plot scheme (v1).
 - Keep legend/facet polish in app `_restyle`; do not replace it with cellpy
   templates until they cover height/legend/facet strip needs.

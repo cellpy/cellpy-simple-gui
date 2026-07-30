@@ -266,7 +266,8 @@ input:focus, select:focus { border-color: var(--accent); }
 
 /* ---------- chart ---------- */
 .chart-card {
-  background: #fff; border-radius: var(--radius); padding: 10px; box-shadow: var(--shadow);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px; box-shadow: var(--shadow);
   flex: none; width: 100%; overflow: hidden;   /* clip rounded corners; grow to plot height */
 }
 .chart { width: 100%; min-height: 420px; }     /* height comes from the plotly layout */

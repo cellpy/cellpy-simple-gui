@@ -31,7 +31,7 @@ const PLOTLY_CONFIG = {
 function app() {
   return {
     theme: localStorage.getItem("csg-theme") || "dark",
-    figureThemePref: localStorage.getItem("csg-figure-theme") || "light",
+    figureThemePref: localStorage.getItem("csg-figure-theme") || "match",
     colorScheme: localStorage.getItem("csg-color-scheme") || "cellpy",
     cells: [],
     examples: [],
