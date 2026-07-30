@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from ...core import cellpy_adapter
@@ -9,6 +11,7 @@ from ...core.library import get_library
 from ...core.models import IngestExampleRequest, IngestRequest
 from ..jobs import Progress, get_job_manager
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -67,6 +70,11 @@ def ingest(req: IngestRequest) -> dict:
         raise HTTPException(400, "No files provided.")
     if req.instrument not in cellpy_adapter.instrument_ids():
         raise HTTPException(400, f"Unknown instrument: {req.instrument}")
+    log.info(
+        "Import raw: instrument=%s, %d path(s)",
+        req.instrument,
+        len(req.paths),
+    )
     job = get_job_manager().submit("ingest", _ingest_job, req)
     return {"job_id": job.id}
 
@@ -75,5 +83,6 @@ def ingest(req: IngestRequest) -> dict:
 def ingest_example(req: IngestExampleRequest) -> dict:
     if req.kind not in cellpy_adapter.EXAMPLE_RAW:
         raise HTTPException(400, f"Unknown raw example: {req.kind}")
+    log.info("Import raw demo: %s", req.kind)
     job = get_job_manager().submit("ingest-example", _ingest_example_job, req.kind, req.mass)
     return {"job_id": job.id}

@@ -26,8 +26,11 @@ def job_status(job_id: str) -> dict:
 
 @router.post("/jobs/{job_id}/cancel")
 def job_cancel(job_id: str) -> dict:
+    job = get_job_manager().get(job_id)
+    if job is None:
+        raise HTTPException(404, "No such job")
     ok = get_job_manager().cancel(job_id)
-    return {"cancelled": ok}
+    return {"cancelled": ok, "status": job.status}
 
 
 @router.get("/jobs/{job_id}/events")

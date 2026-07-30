@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 
 from fastapi import APIRouter, HTTPException
@@ -15,6 +16,7 @@ from ...core.models import (
 )
 from ..jobs import Progress, get_job_manager
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -84,6 +86,7 @@ def _load_files_job(progress: Progress, paths: list[str], max_files: int) -> dic
 
 @router.post("/load/example")
 def load_example(req: LoadExampleRequest) -> dict:
+    log.info("Load demo cells: %s", ", ".join(req.kinds) or "(none)")
     job = get_job_manager().submit("load-example", _load_examples_job, req.kinds)
     return {"job_id": job.id}
 
@@ -92,6 +95,7 @@ def load_example(req: LoadExampleRequest) -> dict:
 def load_files(req: LoadFilesRequest) -> dict:
     if not req.paths:
         raise HTTPException(400, "No paths provided")
+    log.info("Load cellpy files: %d path(s)", len(req.paths))
     job = get_job_manager().submit("load-files", _load_files_job, req.paths, req.max_files)
     return {"job_id": job.id}
 
@@ -129,5 +133,7 @@ def delete_cell(cell_id: str) -> dict:
 
 @router.post("/cells/clear")
 def clear() -> dict:
+    n = len(get_library())
     get_library().clear()
+    log.info("Cleared library (%d cell(s))", n)
     return _state()

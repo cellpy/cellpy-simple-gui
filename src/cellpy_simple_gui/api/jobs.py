@@ -7,6 +7,7 @@ and stream their events to the browser over Server-Sent Events.
 
 from __future__ import annotations
 
+import logging
 import queue
 import threading
 import time
@@ -15,6 +16,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Callable
+
+log = logging.getLogger(__name__)
 
 
 class Cancelled(Exception):
@@ -94,6 +97,7 @@ class JobManager:
         job = Job(id=uuid.uuid4().hex[:12], kind=kind)
         with self._lock:
             self._jobs[job.id] = job
+        log.info("Job %s started (%s)", job.id, kind)
         self._pool.submit(self._run, job, fn, args, kwargs)
         return job
 
@@ -107,17 +111,27 @@ class JobManager:
             if job.cancel_event.is_set():
                 job.status = "cancelled"
                 job.message = "Cancelled"
+                log.info("Job %s cancelled (%s)", job.id, job.kind)
             else:
                 job.status = "done"
                 job.progress = 1.0
                 job.message = "Done"
+                summary = _job_result_summary(job.result)
+                if summary:
+                    log.info("Job %s done (%s): %s", job.id, job.kind, summary)
+                else:
+                    log.info("Job %s done (%s)", job.id, job.kind)
+                for err in _job_result_errors(job.result):
+                    log.error("Job %s (%s): %s", job.id, job.kind, err)
         except Cancelled:
             job.status = "cancelled"
             job.message = "Cancelled"
+            log.info("Job %s cancelled (%s)", job.id, job.kind)
         except Exception as exc:  # noqa: BLE001
             job.status = "error"
             job.error = str(exc)
             job.message = f"Error: {exc}"
+            log.exception("Job %s failed (%s): %s", job.id, job.kind, exc)
             traceback.print_exc()
         finally:
             job._emit()
@@ -134,6 +148,33 @@ class JobManager:
 
 
 _MANAGER: JobManager | None = None
+
+
+def _job_result_summary(result: Any) -> str:
+    """One-line summary of common job result dicts (load / ingest / project)."""
+    if not isinstance(result, dict):
+        return ""
+    parts: list[str] = []
+    if "added" in result:
+        parts.append(f"{len(result['added'])} cell(s) added")
+    errors = result.get("errors") or []
+    if errors:
+        parts.append(f"{len(errors)} error(s)")
+    if result.get("action") and result.get("name"):
+        parts.append(
+            f"{result['action']} “{result['name']}” ({result.get('n_cells', '?')} cells)"
+        )
+    notes = result.get("notes") or []
+    if notes:
+        parts.append("; ".join(str(n) for n in notes[:2]))
+    return "; ".join(parts)
+
+
+def _job_result_errors(result: Any) -> list[str]:
+    if not isinstance(result, dict):
+        return []
+    errors = result.get("errors") or []
+    return [str(e) for e in errors[:10]]
 
 
 def get_job_manager() -> JobManager:

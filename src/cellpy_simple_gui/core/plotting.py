@@ -30,6 +30,8 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
     return collect.figures_json(
         parts,
         spread=spec.spread,
+        # cellpy prefers share_y; match_axes kept as alias for older paths.
+        share_y=spec.share_y,
         match_axes=spec.share_y,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,

@@ -444,6 +444,33 @@ def test_summary_figure_share_y_matches_axes(loaded_library):
     assert any(v == "y" for v in matches.values())
 
 
+def test_summary_figure_share_y_with_group_avg_and_spread(loaded_library):
+    """Group avg + Spread must still honour share_y (#47; cellpy spread_plot gap)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    # Need ≥2 cells in one group so averaging + spread actually engage.
+    lib = loaded_library
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    for rec in lib.all():
+        rec.group = 1
+        rec.selected = True
+
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                group_average=True,
+                spread=True,
+                share_y=True,
+            ),
+        )
+    )
+    matches = _yaxis_matches(fig)
+    assert len(matches) >= 2
+    assert any(v == "y" for v in matches.values())
+
+
 def test_summary_figure_ce_outlier_does_not_crush_capacity(loaded_library):
     """Extreme CE must not force capacity panels onto a million-scale (#2)."""
     import polars as pl

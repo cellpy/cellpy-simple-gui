@@ -249,6 +249,33 @@ def is_grouped(collection) -> bool:
         return False
 
 
+def _want_share_y(plot_kwargs: dict) -> bool:
+    """True when the caller asked for shared facet y-scales (``share_y`` wins)."""
+    if plot_kwargs.get("share_y") is not None:
+        return bool(plot_kwargs["share_y"])
+    if plot_kwargs.get("match_axes") is not None:
+        return bool(plot_kwargs["match_axes"])
+    return False
+
+
+def _apply_share_y(fig, share: bool) -> None:
+    """Link secondary facet y-axes to the primary when ``share`` is True.
+
+    cellpy's non-spread summary path honours ``match_axes`` / ``share_y``; its
+    ``spread_plot`` path (Group avg + Spread) does not. Re-apply here so the
+    app checkbox stays honest for both.
+    """
+    if not share:
+        return
+    try:
+        layout = fig.layout.to_plotly_json()
+        for key in layout:
+            if key.startswith("yaxis") and key != "yaxis":
+                getattr(fig.layout, key).matches = "y"
+    except Exception:  # noqa: BLE001 - cosmetics stay best-effort
+        log.warning("could not apply shared y-axes", exc_info=True)
+
+
 def figure_json(
     collection,
     *,
@@ -263,6 +290,7 @@ def figure_json(
     try:
         fig = collection.plot(spread=spread, **plot_kwargs)
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        _apply_share_y(fig, _want_share_y(plot_kwargs))
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
@@ -367,6 +395,7 @@ def figures_json(
                 figure_theme=figure_theme,
             )
         _restyle(base, figure_theme=figure_theme, color_scheme=color_scheme)
+        _apply_share_y(base, _want_share_y(plot_kwargs))
         return pio.to_json(base)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(

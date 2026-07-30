@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 _FILE_TYPES = {
@@ -102,11 +104,14 @@ async def save(
     )
     path = _normalize_dialog_path(result)
     if path is None:
+        log.info("Save As cancelled (%s)", suggested)
         return {"path": None, "cancelled": True}
 
     dest = Path(path)
     try:
         dest.write_bytes(data)
     except OSError as exc:
+        log.error("Save As write failed (%s): %s", dest, exc)
         raise HTTPException(500, f"Could not write file: {exc}") from exc
+    log.info("Saved export to %s (%d bytes)", dest, len(data))
     return {"path": str(dest.resolve()), "cancelled": False}
