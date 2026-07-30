@@ -282,6 +282,44 @@ def test_summary_figure_safe_color_scheme(loaded_library):
     assert any(c in palette for c in colors)
 
 
+@pytest.mark.parametrize("scheme", ["safe", "muted"])
+def test_spread_fillcolor_has_alpha(example_cell, scheme):
+    """safe/muted spread bands use translucent rgba fill, solid mean lines (#37)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+    from cellpy_simple_gui.core.library import Library
+
+    lib = Library()
+    lib.add_cell(example_cell, source="ex")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex")
+    for r in lib.all():
+        lib.update(r.id, group=1)
+
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(group_average=True, spread=True, color_scheme=scheme),
+        )
+    )
+    filled = [
+        tr for tr in fig["data"]
+        if tr.get("fill") and tr.get("fill") != "none"
+    ]
+    assert filled, "expected at least one spread fill trace"
+    for tr in filled:
+        fc = tr.get("fillcolor") or ""
+        assert fc.startswith("rgba("), fc
+        alpha = float(fc.rsplit(",", 1)[-1].rstrip(")"))
+        assert 0.15 <= alpha <= 0.4
+    # Mean / series lines stay opaque hex from the colorway.
+    palette = set(collect.COLOR_SCHEMES[scheme] or [])
+    line_colors = [
+        (tr.get("line") or {}).get("color")
+        for tr in fig["data"]
+        if (tr.get("line") or {}).get("color")
+    ]
+    assert any(c in palette for c in line_colors)
+
+
 def _yaxis_matches(fig: dict) -> dict[str, str | None]:
     return {
         key: (fig["layout"].get(key) or {}).get("matches")
