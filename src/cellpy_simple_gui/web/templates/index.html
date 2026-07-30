@@ -359,7 +359,6 @@
         <div class="panel-actions">
           <button class="mini" type="button" @click="selectAll(true)">all</button>
           <button class="mini" type="button" @click="selectAll(false)">none</button>
-          <button class="mini danger" type="button" @click="clearAll()">clear</button>
         </div>
         <input class="mgr-filter" type="search" x-ref="cellsManagerFilter"
                x-model="cellsManagerFilter" placeholder="Filter by name…" />
@@ -373,10 +372,12 @@
         </label>
         <label class="mgr-ctl">
           Select group
-          <input class="num" type="number" min="1" x-model="cellsManagerGroup" />
+          <input class="num" type="number" min="1" x-model.number="cellsManagerGroup" />
         </label>
         <button class="mini" type="button" @click="selectGroup()">select</button>
         <span class="mgr-meta" x-text="filteredSortedCells.length + ' / ' + cells.length"></span>
+        <button class="mini danger mgr-remove-all" type="button" @click="clearAll()"
+                title="Remove every loaded cell">remove all cells</button>
       </div>
       <div class="modal-body">
         <table class="cells-table">
