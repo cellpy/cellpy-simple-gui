@@ -26,14 +26,24 @@ def _save_job(progress: Progress, name: str) -> dict:
     manifest = projects.save_project(
         get_library(), name, progress=lambda f, m: progress.update(f, m)
     )
-    return {"name": manifest.name, "slug": manifest.slug, "n_cells": len(manifest.cells)}
+    return {
+        "action": "saved",
+        "name": manifest.name,
+        "slug": manifest.slug,
+        "n_cells": len(manifest.cells),
+    }
 
 
 def _open_job(progress: Progress, target: str) -> dict:
     manifest = projects.open_project(
         get_library(), target, progress=lambda f, m: progress.update(f, m)
     )
-    return {"name": manifest.name, "slug": manifest.slug, "n_cells": len(manifest.cells)}
+    return {
+        "action": "opened",
+        "name": manifest.name,
+        "slug": manifest.slug,
+        "n_cells": len(manifest.cells),
+    }
 
 
 @router.post("/projects/save")

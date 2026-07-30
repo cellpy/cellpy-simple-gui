@@ -42,6 +42,7 @@ function app() {
     projects: [],
     openTarget: "",
     saveName: "",
+    dirty: false,
     showImport: false,
     instruments: [],
     rawExamples: [],
@@ -98,6 +99,16 @@ function app() {
 
     get nSelected() { return this.cells.filter((c) => c.selected).length; },
     get nGroups() { return new Set(this.cells.map((c) => c.group)).size; },
+    get projectTagLabel() {
+      if (!this.project) return "no project";
+      return this.dirty ? `${this.project}*` : this.project;
+    },
+    get projectTagTitle() {
+      if (!this.project) return "No project name yet — Save writes cells to a folder.";
+      if (this.dirty) return "Unsaved changes — click Save to write the project folder.";
+      return "Project saved to disk (in this session).";
+    },
+    markDirty() { this.dirty = true; },
     get filteredSortedCells() {
       let list = this.cells.slice();
       const q = (this.cellsManagerFilter || "").trim().toLowerCase();
@@ -139,12 +150,25 @@ function app() {
       const name = this.saveName.trim();
       if (!name || !this.cells.length) return;
       await this.runJob("/api/projects/save", { name });
+      this.dirty = false;
       await this.refreshProjects();
     },
     async openProject() {
       if (!this.openTarget) return;
       await this.runJob("/api/projects/open", { target: this.openTarget });
+      this.dirty = false;
       await this.refreshProjects();
+    },
+    async closeProject() {
+      if (!this.cells.length && !this.project) return;
+      const msg = this.dirty
+        ? "Close the current project? Unsaved changes will be lost."
+        : "Close the current project and clear loaded cells?";
+      if (!window.confirm(msg)) return;
+      await this.clearAll();
+      this.saveName = "";
+      this.dirty = false;
+      this.notify("ok", "Project closed.");
     },
 
     // ---- loading (jobs + SSE) ----
@@ -262,8 +286,19 @@ function app() {
         else this.notify("warn", "Nothing was loaded — no files matched.");
         if (notes.length) this.notify("warn", notes.join(" · "));
       } else if ("name" in r && "n_cells" in r) {
-        this.notify("ok", `Project “${r.name}” — ${r.n_cells} cell${r.n_cells > 1 ? "s" : ""}.`);
+        const n = r.n_cells;
+        const cells = `${n} cell${n === 1 ? "" : "s"}`;
+        if (r.action === "saved") {
+          this.dirty = false;
+          this.notify("ok", `Saved “${r.name}” — ${cells}.`);
+        } else if (r.action === "opened") {
+          this.dirty = false;
+          this.notify("ok", `Opened “${r.name}” — ${cells}.`);
+        } else {
+          this.notify("ok", `Project “${r.name}” — ${cells}.`);
+        }
       }
+      if ("added" in r && (r.added || []).length) this.markDirty();
     },
     notify(type, text) {
       const id = Date.now() + Math.random();
@@ -286,11 +321,14 @@ function app() {
       }
       const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
       this.cells = r.state.cells;
+      this.markDirty();
       if (plot && this.tab === "summary") this.plotSummary();
     },
     async selectAll(v) {
       const s = await (await api(`/api/cells/select?value=${v}`, { method: "POST" })).json();
-      this.cells = s.cells; this.plotSummary();
+      this.cells = s.cells;
+      this.markDirty();
+      this.plotSummary();
     },
     async selectGroup() {
       const g = parseInt(this.cellsManagerGroup, 10);
@@ -302,12 +340,14 @@ function app() {
     async removeCell(id) {
       const s = await (await api(`/api/cells/${id}`, { method: "DELETE" })).json();
       this.cells = s.cells;
+      this.markDirty();
       if (this.cell.cell_id === id) this.cell.cell_id = "";
       this.plotSummary();
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
       this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
+      this.dirty = false;
       this.cellsManagerOpen = false;
       Plotly.purge("summaryChart"); Plotly.purge("cellChart");
       this.plotSummary();
