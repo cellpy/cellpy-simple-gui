@@ -178,6 +178,50 @@ def test_group_average_keeps_singleton_traces(example_cell):
     assert len(fig["data"]) > len(json.loads(collect.figure_json(parts[1][0]))["data"])
 
 
+def test_group_average_singleton_traces_on_correct_facet(example_cell):
+    """Mixed avg+singleton merge must put each series on its variable's row (#39)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+    from cellpy_simple_gui.core.library import Library
+
+    lib = Library()
+    lib.add_cell(example_cell, source="ex")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex")
+    lib.add_cell(cellpy_adapter.load_example("cellpy"), source="ex")
+    recs = lib.all()
+    lib.update(recs[0].id, group=1, label="g1a")
+    lib.update(recs[1].id, group=1, label="g1b")
+    lib.update(recs[2].id, group=2, label="solo")
+
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(plot_type="capacity_ce", group_average=True, spread=True),
+        )
+    )
+    y_title = {}
+    for key, axis in fig["layout"].items():
+        if not key.startswith("yaxis"):
+            continue
+        title = axis.get("title")
+        if isinstance(title, dict):
+            title = title.get("text")
+        if isinstance(title, str) and title:
+            y_id = "y" if key == "yaxis" else "y" + key[5:]
+            y_title[y_id] = title
+
+    solo = [tr for tr in fig["data"] if tr.get("name") == "solo"]
+    assert len(solo) >= 3
+    for tr in solo:
+        ht = tr.get("hovertemplate") or ""
+        var = next(
+            (p.split("=", 1)[1] for p in ht.split("<br>") if p.startswith("variable=")),
+            None,
+        )
+        assert var, ht
+        yaxis = tr.get("yaxis") or "y"
+        assert y_title.get(yaxis) == var, (var, yaxis, y_title)
+
+
 def test_summary_figure_long_cell_names_shorten_legend(loaded_library):
     """Long journal-style labels must not blow up the summary legend (#1)."""
     long = (

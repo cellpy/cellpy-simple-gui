@@ -12,6 +12,11 @@ multi-member vs singleton groups (`collect.partition_by_group_size` /
 `summary_collections`). Average only the multi set; keep singletons as plain
 per-cell series (no spread); merge Plotly traces / unify export frames.
 
+**Facet merge (#39):** before `add_trace` from a secondary part, remap each
+trace's `xaxis`/`yaxis` using the base figure's y-axis titles (variable → axes)
+and the trace's `variable=` hover field — averaged long and per-cell wide plots
+do not share subplot ids.
+
 **Alternatives:** Drop singletons from the plot; wait for an upstream collect
 fix. Rejected for UX — checkbox looked broken on real projects.
 

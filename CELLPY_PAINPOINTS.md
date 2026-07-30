@@ -84,11 +84,21 @@ Workaround in this app (#27): partition selected cells into multi-member vs
 singleton groups, `group_it=True` only the multi set, keep singletons as plain
 per-cell series (no spread), then merge Plotly traces / export frames.
 
+**Follow-up (#39):** merging those two Plotly figures with bare `add_trace` puts
+singleton series on the wrong facet — averaged (long) and per-cell (wide)
+collections assign different subplot ids (`x`/`y`/`x2`/…) to the same
+`variable`. App remaps secondary traces onto the base figure's
+variable→axis map before merge. Ideal upstream: stable facet axis ids (or a
+merge helper) so long and wide summary plots share subplot identity by
+`variable`.
+
 **Wish:**
 1. Average groups that have ≥ 2 cells and leave singletons as ordinary (non-spread)
    series in the same collection — not all-or-nothing.
 2. `Collection.meta.grouped: bool` (or `collection.is_grouped`) so callers can
    adapt UI/labels without inspecting columns.
+3. Stable facet subplot ids across long (averaged) vs wide (per-cell) summary
+   plots for the same column set.
 
 ## 4. 🟠 `CurveOptions` can't set capacity mode / method
 
