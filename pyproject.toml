@@ -20,6 +20,7 @@ dependencies = [
     "polars>=1.0",
     "openpyxl>=3.1",
     "pywebview>=6.0",
+    "loguru>=0.7.3",
 ]
 
 [project.optional-dependencies]
