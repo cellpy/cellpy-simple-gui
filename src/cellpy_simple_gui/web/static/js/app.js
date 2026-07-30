@@ -434,10 +434,38 @@ function app() {
         const m = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(cd);
         const name = (m ? decodeURIComponent(m[1].replace(/"/g, "")) : filename) || filename;
         const blob = await res.blob();
+        // Desktop (pywebview): <a download> often never reaches the real Downloads
+        // folder — use a native Save As dialog and write the bytes server-side.
+        if (this.canPick) {
+          const saveRes = await fetch(
+            `/api/system/save?filename=${encodeURIComponent(name)}`,
+            {
+              method: "POST",
+              headers: {
+                "X-CSG-Token": TOKEN,
+                "Content-Type": "application/octet-stream",
+              },
+              credentials: "same-origin",
+              body: blob,
+            },
+          );
+          if (!saveRes.ok) {
+            let detail = saveRes.statusText;
+            try { detail = (await saveRes.json()).detail || detail; } catch (_) {}
+            throw new Error(detail);
+          }
+          const out = await saveRes.json();
+          if (out.cancelled || !out.path) {
+            this.notify("ok", "Export cancelled.");
+            return;
+          }
+          this.notify("ok", `Saved “${name}” to ${out.path}`);
+          return;
+        }
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob); a.download = name; a.click();
         URL.revokeObjectURL(a.href);
-        this.notify("ok", `Exported “${name}” to your downloads folder.`);
+        this.notify("ok", `Download started for “${name}”.`);
       } catch (e) {
         this.notify("error", `Export failed: ${e.message}`);
       }

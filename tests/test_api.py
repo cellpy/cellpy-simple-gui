@@ -66,6 +66,16 @@ def test_system_pick_rejected_without_webview(client):
     assert "desktop" in r.json()["detail"].lower()
 
 
+def test_system_save_rejected_without_webview(client):
+    r = client.post(
+        "/api/system/save?filename=summary.svg",
+        content=b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert r.status_code == 400
+    assert "desktop" in r.json()["detail"].lower()
+
+
 @pytest.mark.essential
 def test_token_required():
     c = TestClient(create_app())  # no token header
