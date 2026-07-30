@@ -23,7 +23,9 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
     collection = collect.summary_collection(
         records, columns=columns, group_it=spec.group_average, max_cycle=spec.max_cycle
     )
-    return collect.figure_json(collection, spread=spec.spread)
+    return collect.figure_json(
+        collection, spread=spec.spread, match_axes=spec.share_y
+    )
 
 
 def cycles_figure(record: CellRecord, spec: CyclesPlotSpec) -> str:

@@ -204,6 +204,119 @@ def test_shorten_legend_runs_when_restyle_cosmetics_fail():
     assert fig.data[0].hovertext == long
 
 
+def _yaxis_matches(fig: dict) -> dict[str, str | None]:
+    return {
+        key: (fig["layout"].get(key) or {}).get("matches")
+        for key in fig["layout"]
+        if key.startswith("yaxis")
+    }
+
+
+def _numeric_y_values(y) -> list[float]:
+    """Unpack Plotly figure-json ``y`` (plain list or binary ``bdata`` dict)."""
+    import base64
+    import struct
+
+    if y is None:
+        return []
+    if isinstance(y, dict) and "bdata" in y:
+        raw = base64.b64decode(y["bdata"])
+        dtype = y.get("dtype") or "f8"
+        fmt = {"f8": "d", "f4": "f", "i4": "i", "i8": "q"}.get(dtype)
+        if not fmt:
+            return []
+        n = len(raw) // struct.calcsize(fmt)
+        return [abs(v) for v in struct.unpack(f"<{n}{fmt}", raw)]
+    vals = []
+    for v in y:
+        try:
+            vals.append(abs(float(v)))
+        except (TypeError, ValueError):
+            continue
+    return vals
+
+
+def _yaxis_to_variable(fig: dict) -> dict[str, str]:
+    """Map Plotly yaxis id (``y`` / ``y2`` / …) to facet strip variable name."""
+    annotations = fig["layout"].get("annotations") or []
+    yaxes = sorted(
+        (k for k in fig["layout"] if k.startswith("yaxis")),
+        key=lambda k: (fig["layout"][k].get("domain") or [0, 0])[0],
+    )
+    # Restyle tidies ``variable=…`` strips to the bare column id; keep only those.
+    labels = [
+        a.get("text")
+        for a in annotations
+        if isinstance(a.get("text"), str) and a.get("text")
+    ]
+    # Facet strips are ordered bottom→top matching yaxis domains.
+    out: dict[str, str] = {}
+    for ax_key, label in zip(yaxes, labels):
+        # layout key ``yaxis`` → trace ``yaxis`` ``y``; ``yaxis2`` → ``y2``.
+        trace_id = "y" if ax_key == "yaxis" else ax_key.replace("yaxis", "y")
+        out[trace_id] = label
+    return out
+
+
+def test_summary_figure_independent_y_by_default(loaded_library):
+    """Multi-panel summary defaults to unmatched y-axes (#2)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(), SummaryPlotSpec(plot_type="capacity_ce")
+        )
+    )
+    assert fig["data"]
+    matches = _yaxis_matches(fig)
+    assert len(matches) >= 2
+    assert all(v in (None, "") for v in matches.values())
+
+
+def test_summary_figure_share_y_matches_axes(loaded_library):
+    """share_y=True restores cellpy's shared y-scale (#2)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(plot_type="capacity_ce", share_y=True),
+        )
+    )
+    matches = _yaxis_matches(fig)
+    # Primary axis has no matches; secondary rows link to "y".
+    assert any(v == "y" for v in matches.values())
+
+
+def test_summary_figure_ce_outlier_does_not_crush_capacity(loaded_library):
+    """Extreme CE must not force capacity panels onto a million-scale (#2)."""
+    import polars as pl
+
+    cols = collect.summary_columns_for("capacity_ce", "gravimetric")
+    coll = collect.summary_collection(loaded_library.selected(), columns=cols)
+    assert "coulombic_efficiency" in coll.data.columns
+    coll.data = coll.data.with_columns(pl.lit(1e6).alias("coulombic_efficiency"))
+
+    fig = json.loads(collect.figure_json(coll, match_axes=False))
+    assert fig["data"]
+    matches = _yaxis_matches(fig)
+    assert all(v in (None, "") for v in matches.values())
+
+    var_by_axis = _yaxis_to_variable(fig)
+    capacity_max = 0.0
+    ce_max = 0.0
+    for tr in fig["data"]:
+        vals = _numeric_y_values(tr.get("y"))
+        if not vals:
+            continue
+        ymax = max(vals)
+        var = var_by_axis.get(tr.get("yaxis") or "y", "")
+        if var == "coulombic_efficiency":
+            ce_max = max(ce_max, ymax)
+        elif "capacity" in var:
+            capacity_max = max(capacity_max, ymax)
+
+    assert ce_max >= 1e5
+    assert capacity_max > 0
+    assert capacity_max < 1e5
+
+
 # ---- multi-format export ------------------------------------------------- #
 
 def test_summary_export_all_formats(loaded_library):

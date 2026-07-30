@@ -46,6 +46,9 @@ class SummaryPlotSpec(BaseModel):
     group_average: bool = False  # average per group (affects data/export)
     spread: bool = False  # mean ± std band (when grouped)
     max_cycle: Optional[int] = None
+    # Independent y-scales by default so CE outliers don't crush capacity panels.
+    # Maps to cellpy ``match_axes`` on the collected summary path.
+    share_y: bool = False
     title: str = "Cycle summary"
 
 

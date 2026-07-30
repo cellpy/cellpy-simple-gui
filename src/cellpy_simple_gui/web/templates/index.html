@@ -257,6 +257,9 @@
           <label class="chk" x-show="summary.group_average" title="Show mean ± std band">
             <input type="checkbox" x-model="summary.spread" @change="plotSummary()" /> Spread
           </label>
+          <label class="chk" title="Use one shared y-scale across all summary panels (off = independent auto-scale)">
+            <input type="checkbox" x-model="summary.share_y" @change="plotSummary()" /> Share y-scale
+          </label>
           <div class="spacer"></div>
           <!-- export menu -->
           <div class="export" @click.outside="exportOpen=false">
