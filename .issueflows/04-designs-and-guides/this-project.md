@@ -37,11 +37,11 @@ workspace parent — sibling repos have their own trees and can pollute collecti
 
 ```bash
 uv sync --extra dev
-uv run cellpy-simple-gui              # native window
-uv run cellpy-simple-gui --server     # browser tab
+./run                                 # native window (run on Windows cmd/PowerShell)
+./run --server                        # browser tab
+uv run cellpy-simple-gui              # same as ./run
 uv run pytest                         # unit + FastAPI integration (~34 tests)
 ```
-
 Optional kaleido static export: `uv sync --extra export`.
 
 No ruff/formatter gate is configured in `pyproject.toml` yet — do not invent one.

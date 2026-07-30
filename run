@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Launch cellpy-simple-gui from the repo root.
+# Usage: ./run [--server] [--no-open] [--port N]
+set -euo pipefail
+cd "$(dirname "$0")"
+exec uv run cellpy-simple-gui "$@"

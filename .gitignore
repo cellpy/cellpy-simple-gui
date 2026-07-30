@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# graphify — regenerated AST cache (keep GRAPH_REPORT.md / graph artifacts tracked)
+graphify-out/cache/

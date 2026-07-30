@@ -57,16 +57,23 @@ Requires **Python ≥ 3.13** and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-uv run cellpy-simple-gui
+```
+
+Then from this folder:
+
+```bash
+run                 # Windows (cmd / PowerShell)
+./run               # macOS / Linux / Git Bash
 ```
 
 That opens the app in a native desktop window. Prefer your normal browser?
 
 ```bash
-uv run cellpy-simple-gui --server        # runs the local server and opens a browser tab
-uv run cellpy-simple-gui --server --no-open   # headless: just serve
+run --server              # local server + browser tab
+run --server --no-open    # headless: just serve
 ```
 
+Equivalent without the helper: `uv run cellpy-simple-gui` (same flags).
 Then click **Load demo cells** and explore.
 
 > First run downloads a few small example cells from the cellpy example-data
