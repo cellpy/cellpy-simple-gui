@@ -52,9 +52,17 @@ def main() -> None:
     if not args.no_open:
         webbrowser.open(server.url)
     try:
-        server._thread.join()
+        # Timed joins so Ctrl+C is delivered promptly (bare join can stall on Windows).
+        while server._thread.is_alive():
+            server._thread.join(timeout=0.5)
     except KeyboardInterrupt:
         logger.info("Shutting down")
+        try:
+            from .api.jobs import get_job_manager
+
+            get_job_manager().shutdown()
+        except Exception:  # noqa: BLE001
+            pass
         server.stop()
 
 

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import logging
 import re
 import shutil
 from pathlib import Path
@@ -28,6 +29,8 @@ from .. import __version__ as APP_VERSION
 from ..config import get_settings
 from . import cellpy_adapter as adapter
 from .library import Library
+
+log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 ProgressFn = Optional[Callable[[float, str], None]]
@@ -166,19 +169,25 @@ def open_project(library: Library, path_or_slug: str, progress: ProgressFn = Non
 
     library.clear()
     total = max(len(manifest.cells), 1)
+    log.info("Opening project “%s” (%d cell(s)) from %s", manifest.name, len(manifest.cells), pdir)
     for i, entry in enumerate(manifest.cells):
+        label = entry.label or entry.name
+        data_path = pdir / entry.data_file
+        log.info("Project open: loading %d/%d “%s” ← %s", i + 1, total, label, data_path)
         if progress:
-            progress(i / total, f"Loading “{entry.label or entry.name}” …")
-        cell = adapter.load_file(pdir / entry.data_file)
+            progress(i / total, f"Loading “{label}” ({i + 1}/{total}) …")
+        cell = adapter.load_file(data_path)
         library.restore_cell(
             cell, source=entry.source, group=entry.group,
             label=entry.label, selected=entry.selected,
         )
+        log.info("Project open: loaded %d/%d “%s”", i + 1, total, label)
 
     library.project_name = manifest.name
     library.project_path = str(pdir)
     if progress:
         progress(1.0, "Opened")
+    log.info("Opened project “%s” (%d cell(s))", manifest.name, len(manifest.cells))
     return manifest
 
 

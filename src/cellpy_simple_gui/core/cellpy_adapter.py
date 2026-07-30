@@ -17,12 +17,16 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 log = logging.getLogger(__name__)
+
+# Optional ``(fraction, message)`` hook for long cellpy calls (jobs / UI).
+ProgressFn = Callable[[float, str], None] | None
 
 # cellpy is imported lazily inside functions so that importing this module (and
 # therefore running fast unit tests / the API import) does not pay the cellpy
@@ -297,36 +301,107 @@ def capacity_curve(
     return df[["capacity", "potential"]].reset_index(drop=True)
 
 
-def load_journal_cells(path: str | Path) -> list[tuple[str, Any, int]]:
+def load_journal_cells(
+    path: str | Path,
+    progress: ProgressFn = None,
+) -> list[tuple[str, Any, int]]:
     """Load a cellpy batch journal (.json) and return ``(label, cell, group)``.
 
-    Uses cellpy 2.1's ``batch.from_journal`` (which links the ``.cellpy`` files
-    the journal references). Raises if the file can't be read; returns an empty
-    list if the journal has no linkable cells.
+    Uses cellpy 2.1's ``batch.from_journal`` + ``batch.load()``. Loads
+    **cellpy files only** (not raw instrument paths) so old journals with
+    dead lab-share ``raw_file_names`` do not hang forever. Raises if the
+    journal can't be parsed; returns an empty list if nothing linkable.
     """
     from cellpy.batch import from_journal
     from cellpy.batch.journal import FILENAME
+    from cellpy.batch.policy import LoadPolicy, SourcePreference, resolve_specs
+    from cellpy.batch.result import BatchResult
+    from cellpy.batch.runner import load_cell
+    from cellpy.batch.store import CellStore
 
     p = Path(path)
     if not p.is_file():
         raise FileNotFoundError(f"No such journal file: {p}")
 
+    def _progress(fraction: float, message: str) -> None:
+        if progress is not None:
+            progress(fraction, message)
+
+    log.info("Journal: parsing %s", p)
+    _progress(0.05, f"Parsing journal {p.name} (from_journal) …")
+    policy = LoadPolicy(source=SourcePreference.CELLPY_ONLY, accept_errors=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
-            batch = from_journal(str(p))
+            batch = from_journal(str(p), policy=policy)
         except Exception as exc:  # noqa: BLE001 - rephrase for the UI
             raise RuntimeError(
                 f"Could not parse batch journal “{p.name}”: {exc}"
             ) from exc
-        # from_journal builds the journal/pages but doesn't eagerly load the
-        # cell data — batch.load() links & loads the referenced .cellpy files.
+        n_pages = 0
+        try:
+            n_pages = len(batch.journal.pages)
+        except Exception:  # noqa: BLE001
+            pass
+        log.info(
+            "Journal: parsed “%s” (%d page row(s)); loading cellpy files only …",
+            p.name,
+            n_pages,
+        )
+        _progress(
+            0.1,
+            f"Loading .cellpy files for {p.name} (batch.load, {n_pages} cell(s)) …",
+        )
+
+        # Serial load with *pre*-cell logging. cellpy's on_progress only fires
+        # after each cell finishes, so a hang would look silent; we drive
+        # load_cell ourselves (same as executor="serial") and log before/after.
         load_exc: Exception | None = None
         try:
-            batch.load()
+            specs = resolve_specs(batch.journal, policy)
+            results = []
+            total = max(len(specs), 1)
+            for i, spec in enumerate(specs, start=1):
+                cpath = str(spec.cellpy_file or "(no cellpy path)")
+                log.info(
+                    "Journal: loading %d/%d “%s” ← %s …",
+                    i,
+                    len(specs),
+                    spec.label,
+                    cpath,
+                )
+                _progress(
+                    0.1 + 0.7 * ((i - 1) / total),
+                    f"Loading cell {i}/{len(specs)}: “{spec.label}” …",
+                )
+                result = load_cell(spec, policy)
+                results.append(result)
+                outcome = getattr(result.outcome, "value", result.outcome)
+                err = f" — {result.error}" if result.error else ""
+                log.info(
+                    "Journal: loaded %d/%d “%s” → %s (%.1fs)%s",
+                    i,
+                    len(specs),
+                    spec.label,
+                    outcome,
+                    result.seconds,
+                    err,
+                )
+                _progress(
+                    0.1 + 0.7 * (i / total),
+                    f"Loaded cell {i}/{len(specs)}: “{spec.label}” ({outcome}) …",
+                )
+            batch._result = BatchResult(results)
+            batch._store = CellStore.from_cells(batch._result.cells())
+            batch._summaries = None
         except Exception as exc:  # noqa: BLE001 - may still have partial cells
+            # Job cancel propagates via the progress callback — don't swallow it.
+            if type(exc).__name__ == "Cancelled":
+                raise
             load_exc = exc
-            log.warning("batch.load() failed for journal %s", p, exc_info=True)
+            log.warning("Journal cell load failed for %s", p, exc_info=True)
+        else:
+            log.info("Journal: cell load finished for “%s”", p.name)
 
     groups: dict[str, int] = {}
     try:
@@ -338,18 +413,35 @@ def load_journal_cells(path: str | Path) -> list[tuple[str, Any, int]]:
     except Exception:  # noqa: BLE001 - group metadata is best-effort
         pass
 
+    n_keys = 0
+    try:
+        n_keys = len(batch.cells)
+    except Exception:  # noqa: BLE001
+        pass
+    log.info("Journal: probing %d batch cell key(s) for usable data …", n_keys)
+    _progress(0.85, f"Checking {n_keys} loaded cell(s) …")
+
     out: list[tuple[str, Any, int]] = []
+    skipped = 0
     for label, cell in batch.cells.items():
         if cell is None:
+            skipped += 1
             continue
         # Skip shells the journal referenced but whose .cellpy file couldn't be
         # loaded — touching the data raises for those.
         try:
             cell.get_number_of_cycles()
         except Exception:  # noqa: BLE001
+            skipped += 1
             continue
         out.append((str(label), cell, groups.get(str(label), 1)))
 
+    log.info(
+        "Journal: %d linkable cell(s), %d skipped/empty (from “%s”)",
+        len(out),
+        skipped,
+        p.name,
+    )
     if not out and load_exc is not None:
         raise RuntimeError(
             f"Could not load cells from journal “{p.name}”: {load_exc}"

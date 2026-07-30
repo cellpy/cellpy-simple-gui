@@ -75,14 +75,23 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
     from ..jobs import Cancelled
 
     lib = get_library()
-    progress.update(0.05, f"Reading journal {Path(path).name} …")
+    name = Path(path).name
+    log.info("Journal job: start “%s”", name)
     progress.check_cancel()
     try:
-        # Long cellpy call — cancel cannot interrupt mid-call; UI has Dismiss.
-        triples = cellpy_adapter.load_journal_cells(path)
+        # Long cellpy call — cancel cannot interrupt mid-cell; UI has Dismiss.
+        # Adapter reports from_journal / per-cell batch.load progress + logs.
+        triples = cellpy_adapter.load_journal_cells(
+            path,
+            progress=lambda f, m: progress.update(f, m),
+        )
+    except Cancelled:
+        raise
     except Exception as exc:  # noqa: BLE001 - surface to the user via job result
+        log.error("Journal job failed for “%s”: %s", name, exc)
         return {"added": [], "errors": [f"Failed to load journal: {exc}"]}
     progress.check_cancel()
+    log.info("Journal job: cellpy returned %d linkable cell(s)", len(triples))
     if not triples:
         return {"added": [], "errors": [
             "No cells could be linked from that journal "
@@ -92,15 +101,26 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
     total = len(triples)
     for i, (label, cell, group) in enumerate(triples):
         try:
-            progress.update(i / total, f"Loading “{label}” …")
+            progress.update(
+                0.85 + 0.15 * (i / total),
+                f"Adding to library {i + 1}/{total}: “{label}” …",
+            )
         except Cancelled:
             log.info("Journal load cancelled after %d cell(s)", len(added))
             raise
         try:
             rec = lib.restore_cell(cell, source="journal", group=group, label=label, selected=True)
             added.append(rec.id)
+            log.info("Journal job: added %d/%d “%s” (group %s)", i + 1, total, label, group)
         except Exception as exc:  # noqa: BLE001
+            log.error("Journal job: failed “%s”: %s", label, exc)
             errors.append(f"{label}: {exc}")
+    log.info(
+        "Journal job: done “%s” — %d added, %d error(s)",
+        name,
+        len(added),
+        len(errors),
+    )
     return {"added": added, "errors": errors}
 
 
