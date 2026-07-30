@@ -266,6 +266,22 @@
           <label class="chk" title="Use one shared y-scale across all summary panels (off = independent auto-scale)">
             <input type="checkbox" x-model="summary.share_y" @change="plotSummary()" /> Share y-scale
           </label>
+          <div class="ctl">
+            <label>Figure theme</label>
+            <select x-model="figureThemePref" @change="onAppearanceChange()">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="match">Match app</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Colors</label>
+            <select x-model="colorScheme" @change="onAppearanceChange()">
+              <option value="cellpy">cellpy default</option>
+              <option value="safe">Safe</option>
+              <option value="muted">Muted</option>
+            </select>
+          </div>
           <div class="spacer"></div>
           <!-- export menu -->
           <div class="export" @click.outside="exportOpen=false">
@@ -324,6 +340,22 @@
               <option value="forth-and-forth">forth-and-forth</option>
               <option value="back-and-forth">back-and-forth</option>
               <option value="forth">forth</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Figure theme</label>
+            <select x-model="figureThemePref" @change="onAppearanceChange()">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="match">Match app</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Colors</label>
+            <select x-model="colorScheme" @change="onAppearanceChange()">
+              <option value="cellpy">cellpy default</option>
+              <option value="safe">Safe</option>
+              <option value="muted">Muted</option>
             </select>
           </div>
           <div class="spacer"></div>

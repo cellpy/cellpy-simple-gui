@@ -20,9 +20,42 @@ import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_summaries, from_cells
 from cellpy.collect.options import CurveOptions
 
-from .library import CellRecord
+from .library import PALETTE, CellRecord
 
 log = logging.getLogger(__name__)
+
+# Curated plot colorways (UI swatches stay on library.PALETTE independently).
+COLOR_SCHEMES: dict[str, list[str] | None] = {
+    "cellpy": None,  # keep upstream / Plotly defaults
+    "safe": list(PALETTE),
+    "muted": [
+        "#6B7C93", "#C48A5A", "#6A9A6E", "#B86B6B", "#6E9A96",
+        "#C4B05A", "#9A7A9E", "#C48A92", "#8A7460", "#9A9690",
+    ],
+}
+
+_THEME_TOKENS: dict[str, dict[str, str]] = {
+    "light": {
+        "paper_bgcolor": "white",
+        "plot_bgcolor": "white",
+        "font_color": "#1f2933",
+        "gridcolor": "#eceff3",
+        "linecolor": "#c7ccd4",
+        "tickcolor": "#c7ccd4",
+        "legend_bg": "rgba(255,255,255,0.6)",
+        "annotation": "#7b8794",
+    },
+    "dark": {
+        "paper_bgcolor": "#1a1f26",
+        "plot_bgcolor": "#1a1f26",
+        "font_color": "#e6edf3",
+        "gridcolor": "#2d3640",
+        "linecolor": "#4a5560",
+        "tickcolor": "#4a5560",
+        "legend_bg": "rgba(26,31,38,0.75)",
+        "annotation": "#9aa5b1",
+    },
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -216,22 +249,33 @@ def is_grouped(collection) -> bool:
         return False
 
 
-def figure_json(collection, *, spread: bool = False, **plot_kwargs) -> str:
+def figure_json(
+    collection,
+    *,
+    spread: bool = False,
+    figure_theme: str = "light",
+    color_scheme: str = "cellpy",
+    **plot_kwargs,
+) -> str:
     # spread (mean ± std band) only makes sense once actually group-averaged.
     if spread and not is_grouped(collection):
         spread = False
     try:
         fig = collection.plot(spread=spread, **plot_kwargs)
-        _restyle(fig)
+        _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
-        return _empty_figure_json(f"Could not render this plot ({exc}).")
+        return _empty_figure_json(
+            f"Could not render this plot ({exc}).", figure_theme=figure_theme
+        )
 
 
 def figures_json(
     parts: list[tuple[object, bool]],
     *,
     spread: bool = False,
+    figure_theme: str = "light",
+    color_scheme: str = "cellpy",
     **plot_kwargs,
 ) -> str:
     """Plot one or more collections and merge traces onto the first figure.
@@ -240,7 +284,10 @@ def figures_json(
     :func:`summary_collections`. Spread bands apply only to averaged parts.
     """
     if not parts:
-        return _empty_figure_json("Select one or more cells to plot the cycle summary.")
+        return _empty_figure_json(
+            "Select one or more cells to plot the cycle summary.",
+            figure_theme=figure_theme,
+        )
 
     try:
         base = None
@@ -253,11 +300,16 @@ def figures_json(
                 for tr in fig.data:
                     base.add_trace(tr)
         if base is None:
-            return _empty_figure_json("Select one or more cells to plot the cycle summary.")
-        _restyle(base)
+            return _empty_figure_json(
+                "Select one or more cells to plot the cycle summary.",
+                figure_theme=figure_theme,
+            )
+        _restyle(base, figure_theme=figure_theme, color_scheme=color_scheme)
         return pio.to_json(base)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
-        return _empty_figure_json(f"Could not render this plot ({exc}).")
+        return _empty_figure_json(
+            f"Could not render this plot ({exc}).", figure_theme=figure_theme
+        )
 
 
 def combined_summary_frame(parts: list[tuple[object, bool]], columns: tuple[str, ...]):
@@ -294,13 +346,16 @@ def combined_summary_frame(parts: list[tuple[object, bool]], columns: tuple[str,
     return pl.concat(frames, how="diagonal_relaxed")
 
 
-def _empty_figure_json(message: str) -> str:
+def _empty_figure_json(message: str, *, figure_theme: str = "light") -> str:
     import plotly.graph_objects as go
 
+    tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     fig = go.Figure()
-    _restyle(fig)
-    fig.add_annotation(text=message, showarrow=False, xref="paper", yref="paper",
-                       x=0.5, y=0.5, font=dict(size=14, color="#7b8794"))
+    _restyle(fig, figure_theme=figure_theme, color_scheme="cellpy")
+    fig.add_annotation(
+        text=message, showarrow=False, xref="paper", yref="paper",
+        x=0.5, y=0.5, font=dict(size=14, color=tokens["annotation"]),
+    )
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
     return pio.to_json(fig)
@@ -381,11 +436,45 @@ def _tidy_facet_annotations(fig) -> None:
             ann.text = text.split("=", 1)[1]
 
 
-def _restyle(fig) -> None:
-    """Nudge cellpy's figure toward the app's look (white card, soft axes,
+def _apply_colorway(fig, color_scheme: str) -> None:
+    """Cycle a discrete colorway across legend series (name / legendgroup)."""
+    colors = COLOR_SCHEMES.get(color_scheme)
+    if not colors:
+        return
+    series_key: dict[str, int] = {}
+    for tr in fig.data:
+        key = getattr(tr, "legendgroup", None) or getattr(tr, "name", None) or id(tr)
+        key = str(key)
+        if key not in series_key:
+            series_key[key] = len(series_key)
+        color = colors[series_key[key] % len(colors)]
+        try:
+            if getattr(tr, "line", None) is not None:
+                tr.line.color = color
+            if getattr(tr, "marker", None) is not None:
+                tr.marker.color = color
+            # Spread / fill bands: tint the fill to match the series.
+            fill = getattr(tr, "fill", None)
+            if fill and fill != "none":
+                tr.fillcolor = color
+                if getattr(tr, "opacity", None) in (None, 1):
+                    tr.opacity = 0.25
+        except Exception:  # noqa: BLE001 - per-trace color is best-effort
+            continue
+
+
+def _restyle(
+    fig,
+    *,
+    figure_theme: str = "light",
+    color_scheme: str = "cellpy",
+) -> None:
+    """Nudge cellpy's figure toward the app's look (theme tokens, soft axes,
     a compact right-hand legend that survives long cell names)."""
     # Name truncation must not share fate with best-effort cosmetics.
     longest = _shorten_legend(fig)
+    _apply_colorway(fig, color_scheme)
+    tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     try:
         layout = fig.layout.to_plotly_json()
         rows = max(1, len([k for k in layout if k.startswith("yaxis")]))
@@ -394,21 +483,31 @@ def _restyle(fig) -> None:
         right = strip_pad + legend_w
         _tidy_facet_annotations(fig)
         fig.update_layout(
-            paper_bgcolor="white",
-            plot_bgcolor="white",
-            font=dict(family="Inter, Segoe UI, system-ui, sans-serif", size=12, color="#1f2933"),
+            paper_bgcolor=tokens["paper_bgcolor"],
+            plot_bgcolor=tokens["plot_bgcolor"],
+            font=dict(
+                family="Inter, Segoe UI, system-ui, sans-serif",
+                size=12,
+                color=tokens["font_color"],
+            ),
             margin=dict(l=64, r=right, t=44, b=48),
             height=min(250 * rows + 90, 1500),
             autosize=True,
             legend=dict(
                 orientation="v", x=1.005, xanchor="left", y=1, yanchor="top",
-                font=dict(size=10), bgcolor="rgba(255,255,255,0.6)",
+                font=dict(size=10), bgcolor=tokens["legend_bg"],
             ),
         )
-        fig.update_xaxes(showgrid=True, gridcolor="#eceff3", zeroline=False,
-                         linecolor="#c7ccd4", mirror=False, ticks="outside", tickcolor="#c7ccd4")
-        fig.update_yaxes(showgrid=True, gridcolor="#eceff3", zeroline=False,
-                         linecolor="#c7ccd4", mirror=False, ticks="outside", tickcolor="#c7ccd4")
+        fig.update_xaxes(
+            showgrid=True, gridcolor=tokens["gridcolor"], zeroline=False,
+            linecolor=tokens["linecolor"], mirror=False, ticks="outside",
+            tickcolor=tokens["tickcolor"],
+        )
+        fig.update_yaxes(
+            showgrid=True, gridcolor=tokens["gridcolor"], zeroline=False,
+            linecolor=tokens["linecolor"], mirror=False, ticks="outside",
+            tickcolor=tokens["tickcolor"],
+        )
     except Exception:  # noqa: BLE001 - cosmetics stay best-effort; names already shortened
         log.warning("figure restyle cosmetics failed", exc_info=True)
 
