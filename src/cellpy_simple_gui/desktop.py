@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from .config import get_settings
 from .server import ServerThread, pick_port
+
+log = logging.getLogger(__name__)
 
 # Packaged raster for the native window (Windows prefers .ico; GTK/Qt/Cocoa accept it too).
 _WINDOW_ICON = (
@@ -20,6 +23,7 @@ def run_desktop() -> None:
     port = pick_port(settings.host, settings.port)
     server = ServerThread(settings.host, port)
     server.start(wait=True)
+    log.info("Desktop server ready at %s", server.url)
 
     webview.create_window(
         settings.app_name,
@@ -33,6 +37,7 @@ def run_desktop() -> None:
     try:
         webview.start(icon=icon)
     finally:
+        log.info("Closing desktop window; stopping server")
         server.stop()
 
 

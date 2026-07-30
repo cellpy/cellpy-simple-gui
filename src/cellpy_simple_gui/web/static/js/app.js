@@ -52,7 +52,8 @@ function app() {
       instrument: "", model: "", mass: "", area: "",
       nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", paths: "", maxFiles: 10,
     },
-    job: { active: false, progress: 0, message: "", error: "" },
+    job: { active: false, id: "", progress: 0, message: "", error: "" },
+    _jobEs: null,
     summary: {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
@@ -269,40 +270,78 @@ function app() {
       await this.runJob("/api/ingest/example", { kind, mass: this._num(this.ingest.mass) });
     },
     async runJob(url, body) {
-      this.job = { active: true, progress: 0, message: "Starting…", error: "" };
+      this._closeJobStream();
+      this.job = { active: true, id: "", progress: 0, message: "Starting…", error: "" };
       let job_id;
       try {
         job_id = (await (await api(url, { method: "POST", body })).json()).job_id;
       } catch (e) {
-        this.job = { active: false, progress: 0, message: "", error: e.message };
+        this.job = { active: false, id: "", progress: 0, message: "", error: e.message };
         this.notify("error", e.message || "Job failed to start.");
         return;
       }
+      this.job.id = job_id;
       await this.streamJob(job_id);
     },
     streamJob(job_id) {
       return new Promise((resolve) => {
+        this._closeJobStream();
         const es = new EventSource(`/api/jobs/${job_id}/events?token=${encodeURIComponent(TOKEN)}`);
+        this._jobEs = es;
         es.onmessage = (ev) => {
+          if (this._jobEs !== es) return; // dismissed / superseded
           const s = JSON.parse(ev.data);
           this.job.progress = s.progress;
           this.job.message = s.message;
           if (["done", "error", "cancelled"].includes(s.status)) {
-            es.close();
+            this._closeJobStream();
             this.job.active = false;
             this.job.error = "";
             if (s.status === "error") this.notify("error", s.message || "Job failed.");
+            else if (s.status === "cancelled") this.notify("warn", "Cancelled.");
             else this.reportJobResult(s.result);
             this.refreshState();
             resolve();
           }
         };
         es.onerror = () => {
-          es.close(); this.job.active = false;
+          if (this._jobEs !== es) { resolve(); return; }
+          this._closeJobStream();
+          this.job.active = false;
           this.notify("error", "Lost connection to the job.");
-          this.refreshState(); resolve();
+          this.refreshState();
+          resolve();
         };
       });
+    },
+    _closeJobStream() {
+      if (this._jobEs) {
+        try { this._jobEs.close(); } catch (_) {}
+        this._jobEs = null;
+      }
+    },
+    async cancelJob() {
+      const id = this.job.id;
+      if (!id || !this.job.active) return;
+      this.job.message = "Cancelling…";
+      try {
+        await api(`/api/jobs/${id}/cancel`, { method: "POST" });
+      } catch (e) {
+        this.notify("error", e.message || "Could not cancel.");
+      }
+      // Cooperative cancel may wait on a blocked cellpy call — still free the UI.
+      this.dismissJob("Cancel requested — UI unlocked. The job will stop when possible.");
+    },
+    dismissJob(note) {
+      this._closeJobStream();
+      const id = this.job.id;
+      this.job = { active: false, id: "", progress: 0, message: "", error: "" };
+      if (id) {
+        // Best-effort: ask the backend to stop even if we already left the stream.
+        api(`/api/jobs/${id}/cancel`, { method: "POST" }).catch(() => {});
+      }
+      this.notify("warn", note || "Progress dismissed — you can keep working.");
+      this.refreshState();
     },
     reportJobResult(r) {
       if (!r || typeof r !== "object") return;

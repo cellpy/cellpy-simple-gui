@@ -82,6 +82,21 @@ def test_token_required():
     assert c.get("/api/state").status_code == 401
 
 
+def test_job_cancel_unknown(client):
+    r = client.post("/api/jobs/does-not-exist/cancel")
+    assert r.status_code == 404
+
+
+def test_job_cancel_running_load(client):
+    r = client.post("/api/load/example", json={"kinds": ["cellpy"]})
+    job_id = r.json()["job_id"]
+    cr = client.post(f"/api/jobs/{job_id}/cancel")
+    assert cr.status_code == 200
+    assert cr.json()["cancelled"] is True
+    snap = _wait_for_job(client, job_id, timeout=90)
+    assert snap["status"] in ("cancelled", "done")  # may finish before cancel lands
+
+
 @pytest.mark.essential
 def test_examples(client):
     data = client.get("/api/examples").json()

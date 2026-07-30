@@ -192,6 +192,18 @@ the collected summary path: `AxisSpec` / `PanelSpec.y_axis.range` exist but
 builders don't consume them yet; `ce_range` only helps the batch_summary path;
 `range_y` applies globally to every panel.
 
+### 12b. 🟠 `spread_plot` ignores `share_y` / `match_axes`
+
+`summary_plotter` resolves `share_y` / `match_axes` and passes `match_axes=` into
+`_cycles_plotter`, but the **spread** path (`spread_plot` / mean±std bands used
+when a group-averaged frame is plotted with `spread=True`) never links facet
+y-axes — `matches` stays unset even when `match_axes=True`. Apps that offer
+“Share y-scale” together with “Group avg + Spread” must re-apply
+`yaxisN.matches = "y"` after `collection.plot` (cellpy-simple-gui #47).
+
+**Wish:** honour `share_y` / `match_axes` in `spread_plot` the same way the
+non-spread summary path does.
+
 **Wish / tracking:** https://github.com/jepegit/cellpy/issues/804
 
 ## 13. 🟠 No app-friendly static figure export on the collect path

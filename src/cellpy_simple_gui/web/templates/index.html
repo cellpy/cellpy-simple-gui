@@ -175,6 +175,10 @@
         <div class="job-row">
           <span class="spinner" x-show="job.active"></span>
           <span class="job-msg" x-text="job.error ? job.error : job.message"></span>
+          <div class="job-actions" x-show="job.active" x-cloak>
+            <button type="button" class="mini" @click="cancelJob()" title="Request cancel (stops between steps)">Cancel</button>
+            <button type="button" class="mini danger" @click="dismissJob()" title="Unlock the UI if a job is stuck">Dismiss</button>
+          </div>
         </div>
         <div class="progress" x-show="job.active">
           <div class="progress-bar" :style="`width:${Math.round(job.progress*100)}%`"></div>

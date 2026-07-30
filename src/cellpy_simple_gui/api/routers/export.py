@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
@@ -9,6 +11,7 @@ from ...core import collect, export as export_core
 from ...core.library import get_library
 from ...core.models import CellsExportSpec, CyclesPlotSpec, SummaryPlotSpec
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 _DATA_EXT = {"csv": "csv", "xlsx": "xlsx", "parquet": "parquet", "json": "json"}
@@ -55,11 +58,13 @@ def export_summary(spec: SummaryPlotSpec, fmt: str = "csv") -> Response:
     records = get_library().selected()
     if not records:
         raise HTTPException(400, "No cells selected.")
+    log.info("Export summary as %s (%d selected)", fmt_l, len(records))
     if fmt_l in collect.FIGURE_EXPORT_FORMATS:
         fmt_l = _check_figure_fmt(fmt_l)
         try:
             data, media = export_core.summary_figure_export(records, spec, fmt_l)
         except export_core.FigureExportError as exc:
+            log.error("Summary figure export failed: %s", exc)
             raise _figure_http(exc) from exc
         return _file(data, media, f"summary.{_FIG_EXT[fmt_l]}")
     fmt_l = _check_data_fmt(fmt_l)
@@ -108,8 +113,10 @@ def export_cells(spec: CellsExportSpec | None = None, fmt: str = "cellpy") -> Re
         records = lib.selected()
     if not records:
         raise HTTPException(400, "No cells selected.")
+    log.info("Export %d cell(s) as %s", len(records), fmt_l)
     try:
         data, media, filename = export_core.cells_export(records, fmt_l)
     except Exception as exc:  # noqa: BLE001 - surface cellpy/IO failures cleanly
+        log.error("Cell export failed: %s", exc)
         raise HTTPException(500, f"Cell export failed: {exc}") from exc
     return _file(data, media, filename)
