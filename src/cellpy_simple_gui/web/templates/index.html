@@ -84,7 +84,7 @@
         <div class="field">
           <label>Add cellpy files</label>
           <div class="input-row">
-            <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*si*.h5"
+            <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*.cellpy"
                    @keydown.enter="loadFiles()" />
             <button class="btn btn-ghost pick" x-show="canPick" @click="pickCellpy()" title="Browse…">📁</button>
           </div>
@@ -96,7 +96,9 @@
               <input type="number" class="num-mini" x-model="filesMax" min="1" />
             </label>
           </div>
-          <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.</p>
+          <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.
+            Native cellpy files only (<code>.cellpy</code> / cellpy <code>.h5</code>) —
+            Arbin SQL HDF5 belongs under Import raw below.</p>
         </div>
 
         <button class="disclosure" @click="showImport = !showImport">

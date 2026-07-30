@@ -224,6 +224,23 @@ that saves the *plot* next to the data — but bytes-first matters more for apps
 
 *(cellpy-simple-gui #27 — will call `fig.write_image` directly until this exists.)*
 
+## 14. 🟠 `.h5` auto-picks cellpy format over raw instrument loaders
+
+`cellpy.get(..., auto_pick_cellpy_format=True)` (the default) treats `.h5` /
+`.hdf5` as native cellpy files whenever `instrument` is not exactly
+`arbin_sql_h5`. Other Arbin SQL variants (or a missing instrument) then hit the
+native reader and fail with `No object named data_df in the file` — easy to
+misread as a corrupt file. cellpy already special-cases `arbin_sql_h5`, but apps
+that always pass an explicit instrument still need
+`auto_pick_cellpy_format=False` for defense in depth.
+
+**Workaround (cellpy-simple-gui #41):** `load_raw` always sets
+`auto_pick_cellpy_format=False`; Load cells stays on the native path and the UI
+hints that Arbin SQL HDF5 belongs under Import raw.
+
+**Wish:** when `instrument=` is set, never auto-pick cellpy format from suffix
+(or document that callers must disable it for every raw `.h5` loader).
+
 ---
 
 ## What already works well (thank-you notes)

@@ -144,11 +144,20 @@ def load_raw(
 
     Only the metadata the caller actually supplied is passed through, so cellpy
     falls back to its own defaults for anything left blank.
+
+    Always disables ``auto_pick_cellpy_format``: cellpy otherwise treats
+    ``.h5`` / ``.hdf5`` as native cellpy files unless ``instrument`` happens to
+    be exactly ``arbin_sql_h5``, which yields a misleading ``data_df`` error for
+    Arbin SQL HDF5 (and any other raw ``.h5`` loader).
     """
     p = Path(path)
     if not p.is_file():
         raise FileNotFoundError(f"No such file: {p}")
-    kwargs: dict[str, Any] = {"filename": str(p), "instrument": instrument}
+    kwargs: dict[str, Any] = {
+        "filename": str(p),
+        "instrument": instrument,
+        "auto_pick_cellpy_format": False,
+    }
     if model:
         kwargs["model"] = model
     if mass:
@@ -161,7 +170,25 @@ def load_raw(
         kwargs["nom_cap_specifics"] = nom_cap_specifics
     if cycle_mode:
         kwargs["cycle_mode"] = cycle_mode
-    return _get(**kwargs)
+    try:
+        return _get(**kwargs)
+    except Exception as exc:  # noqa: BLE001 - rephrase loader mismatch only
+        rewritten = _rewrite_loader_error(exc, path=p, instrument=instrument)
+        if rewritten is exc:
+            raise
+        raise rewritten from exc
+
+
+def _rewrite_loader_error(exc: Exception, *, path: Path, instrument: str) -> Exception:
+    """Hint when the cellpy-native HDF5 reader ran instead of a raw loader."""
+    if "data_df" not in str(exc):
+        return exc
+    return RuntimeError(
+        f"{path}: cellpy tried its native HDF5 reader (looking for 'data_df') "
+        f"instead of instrument {instrument!r}. For Arbin SQL HDF5 use Import raw "
+        f"with Instrument = Arbin SQL (HDF5) (id arbin_sql_h5); Load cells is only "
+        f"for native cellpy .cellpy/.h5 files. Original error: {exc}"
+    )
 
 
 def example_raw_path(kind: str) -> Path:
