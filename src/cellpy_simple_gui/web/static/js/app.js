@@ -62,6 +62,10 @@ function app() {
     exportOpen: false,
     exportCellOpen: false,
     notices: [],
+    cellsManagerOpen: false,
+    cellsManagerFilter: "",
+    cellsManagerSort: "default",
+    cellsManagerGroup: "1",
 
     // ---- lifecycle ----
     async init() {
@@ -94,6 +98,17 @@ function app() {
 
     get nSelected() { return this.cells.filter((c) => c.selected).length; },
     get nGroups() { return new Set(this.cells.map((c) => c.group)).size; },
+    get filteredSortedCells() {
+      let list = this.cells.slice();
+      const q = (this.cellsManagerFilter || "").trim().toLowerCase();
+      if (q) list = list.filter((c) => (c.label || "").toLowerCase().includes(q));
+      if (this.cellsManagerSort === "group") {
+        list.sort((a, b) => a.group - b.group || (a.label || "").localeCompare(b.label || ""));
+      } else if (this.cellsManagerSort === "name") {
+        list.sort((a, b) => (a.label || "").localeCompare(b.label || ""));
+      }
+      return list;
+    },
 
     fmt(v, d = 2) {
       if (v === null || v === undefined || isNaN(v)) return "–";
@@ -257,14 +272,32 @@ function app() {
     },
 
     // ---- editing ----
-    async updateCell(id, patch) {
-      const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body: { id, ...patch } })).json();
+    openCellsManager() {
+      this.cellsManagerOpen = true;
+      this.$nextTick(() => this.$refs.cellsManagerFilter?.focus());
+    },
+    closeCellsManager() {
+      this.cellsManagerOpen = false;
+    },
+    async updateCell(id, patch, { plot = true } = {}) {
+      const body = { id, ...patch };
+      if ("mass" in patch && (patch.mass === null || patch.mass === undefined)) {
+        delete body.mass; // library.update ignores non-positive / missing mass
+      }
+      const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
       this.cells = r.state.cells;
-      if (this.tab === "summary") this.plotSummary();
+      if (plot && this.tab === "summary") this.plotSummary();
     },
     async selectAll(v) {
       const s = await (await api(`/api/cells/select?value=${v}`, { method: "POST" })).json();
       this.cells = s.cells; this.plotSummary();
+    },
+    async selectGroup() {
+      const g = parseInt(this.cellsManagerGroup, 10);
+      if (!Number.isFinite(g) || g < 1) return;
+      const targets = this.cells.filter((c) => c.group === g && !c.selected);
+      for (const c of targets) await this.updateCell(c.id, { selected: true }, { plot: false });
+      if (this.tab === "summary") this.plotSummary();
     },
     async removeCell(id) {
       const s = await (await api(`/api/cells/${id}`, { method: "DELETE" })).json();
@@ -275,6 +308,7 @@ function app() {
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
       this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
+      this.cellsManagerOpen = false;
       Plotly.purge("summaryChart"); Plotly.purge("cellChart");
       this.plotSummary();
     },

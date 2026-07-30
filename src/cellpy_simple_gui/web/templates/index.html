@@ -178,6 +178,7 @@
         <div class="panel-head">
           <h2 class="panel-title">Cells</h2>
           <div class="panel-actions" x-show="cells.length">
+            <button class="mini" @click="openCellsManager()" title="Manage cells in a table">Manage</button>
             <button class="mini" @click="selectAll(true)">all</button>
             <button class="mini" @click="selectAll(false)">none</button>
             <button class="mini danger" @click="clearAll()">clear</button>
@@ -338,6 +339,87 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- ============ Manage cells modal ============ -->
+  <div class="modal-backdrop" x-show="cellsManagerOpen" x-cloak
+       @click.self="closeCellsManager()"
+       @keydown.escape.window="if (cellsManagerOpen) closeCellsManager()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cells-manager-title">
+      <div class="modal-head">
+        <h2 id="cells-manager-title" class="modal-title">Manage cells</h2>
+        <button class="icon-btn" type="button" @click="closeCellsManager()" title="Close">×</button>
+      </div>
+      <div class="modal-toolbar">
+        <div class="panel-actions">
+          <button class="mini" type="button" @click="selectAll(true)">all</button>
+          <button class="mini" type="button" @click="selectAll(false)">none</button>
+          <button class="mini danger" type="button" @click="clearAll()">clear</button>
+        </div>
+        <input class="mgr-filter" type="search" x-ref="cellsManagerFilter"
+               x-model="cellsManagerFilter" placeholder="Filter by name…" />
+        <label class="mgr-ctl">
+          Sort
+          <select x-model="cellsManagerSort">
+            <option value="default">Library order</option>
+            <option value="group">Group</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+        <label class="mgr-ctl">
+          Select group
+          <input class="num" type="number" min="1" x-model="cellsManagerGroup" />
+        </label>
+        <button class="mini" type="button" @click="selectGroup()">select</button>
+        <span class="mgr-meta" x-text="filteredSortedCells.length + ' / ' + cells.length"></span>
+      </div>
+      <div class="modal-body">
+        <table class="cells-table">
+          <thead>
+            <tr>
+              <th class="col-check"></th>
+              <th class="col-swatch"></th>
+              <th>Label</th>
+              <th class="col-num">Group</th>
+              <th class="col-num">Mass (mg)</th>
+              <th class="col-num">Cycles</th>
+              <th class="col-x"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="c in filteredSortedCells" :key="c.id">
+              <tr :class="{selected: c.selected}">
+                <td class="col-check">
+                  <input type="checkbox" :checked="c.selected"
+                         @change="updateCell(c.id, {selected: $event.target.checked})" />
+                </td>
+                <td class="col-swatch"><span class="swatch" :style="`background:${c.color}`"></span></td>
+                <td>
+                  <input class="cell-label" :value="c.label"
+                         @change="updateCell(c.id, {label: $event.target.value})" />
+                </td>
+                <td class="col-num">
+                  <input type="number" min="1" class="grp-input" :value="c.group"
+                         @change="updateCell(c.id, {group: parseInt($event.target.value)||1})" />
+                </td>
+                <td class="col-num">
+                  <input type="number" step="any" class="mass-input" :value="c.mass ?? ''"
+                         @change="updateCell(c.id, {mass: _num($event.target.value)})" />
+                </td>
+                <td class="col-num cycles" x-text="c.n_cycles"></td>
+                <td class="col-x">
+                  <button class="x" type="button" @click="removeCell(c.id)" title="Remove">×</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p class="empty" x-show="cells.length && !filteredSortedCells.length">No cells match the filter.</p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" type="button" @click="closeCellsManager()">Close</button>
+      </div>
+    </div>
   </div>
 </body>
 </html>
