@@ -422,11 +422,17 @@ function app() {
     async download(url, body, filename) {
       try {
         const res = await api(url, { method: "POST", body });
+        const cd = res.headers.get("Content-Disposition") || "";
+        const m = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(cd);
+        const name = (m ? decodeURIComponent(m[1].replace(/"/g, "")) : filename) || filename;
         const blob = await res.blob();
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+        a.href = URL.createObjectURL(blob); a.download = name; a.click();
         URL.revokeObjectURL(a.href);
-      } catch (e) { this.job.error = e.message; }
+        this.notify("ok", `Exported “${name}” to your downloads folder.`);
+      } catch (e) {
+        this.notify("error", `Export failed: ${e.message}`);
+      }
     },
 
     // ---- misc ----
