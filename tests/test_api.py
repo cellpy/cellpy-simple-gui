@@ -123,8 +123,15 @@ def test_edit_cell(client):
 
     out = client.post(
         f"/api/cells/{cell_id}/update",
-        json={"id": cell_id, "label": "renamed", "group": 5, "selected": False},
+        json={
+            "id": cell_id,
+            "label": "renamed",
+            "group": 5,
+            "selected": False,
+            "mass": 1.25,
+        },
     ).json()
     assert out["cell"]["label"] == "renamed"
     assert out["cell"]["group"] == 5
+    assert out["cell"]["mass"] == 1.25
     assert out["state"]["n_selected"] == 0
