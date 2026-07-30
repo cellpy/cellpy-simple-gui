@@ -245,6 +245,7 @@ function app() {
         job_id = (await (await api(url, { method: "POST", body })).json()).job_id;
       } catch (e) {
         this.job = { active: false, progress: 0, message: "", error: e.message };
+        this.notify("error", e.message || "Job failed to start.");
         return;
       }
       await this.streamJob(job_id);

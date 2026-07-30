@@ -286,12 +286,19 @@ def load_journal_cells(path: str | Path) -> list[tuple[str, Any, int]]:
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        batch = from_journal(str(p))
+        try:
+            batch = from_journal(str(p))
+        except Exception as exc:  # noqa: BLE001 - rephrase for the UI
+            raise RuntimeError(
+                f"Could not parse batch journal “{p.name}”: {exc}"
+            ) from exc
         # from_journal builds the journal/pages but doesn't eagerly load the
         # cell data — batch.load() links & loads the referenced .cellpy files.
+        load_exc: Exception | None = None
         try:
             batch.load()
-        except Exception:  # noqa: BLE001 - surfaced below as "no linkable cells"
+        except Exception as exc:  # noqa: BLE001 - may still have partial cells
+            load_exc = exc
             log.warning("batch.load() failed for journal %s", p, exc_info=True)
 
     groups: dict[str, int] = {}
@@ -315,6 +322,11 @@ def load_journal_cells(path: str | Path) -> list[tuple[str, Any, int]]:
         except Exception:  # noqa: BLE001
             continue
         out.append((str(label), cell, groups.get(str(label), 1)))
+
+    if not out and load_exc is not None:
+        raise RuntimeError(
+            f"Could not load cells from journal “{p.name}”: {load_exc}"
+        ) from load_exc
     return out
 
 
