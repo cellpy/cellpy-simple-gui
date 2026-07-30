@@ -31,6 +31,7 @@ def _wait_for_job(client, job_id, timeout=90):
     raise AssertionError("job did not finish in time")
 
 
+@pytest.mark.essential
 def test_healthz(client):
     assert client.get("/healthz").json() == {"ok": True}
 
@@ -65,17 +66,20 @@ def test_system_pick_rejected_without_webview(client):
     assert "desktop" in r.json()["detail"].lower()
 
 
+@pytest.mark.essential
 def test_token_required():
     c = TestClient(create_app())  # no token header
     assert c.get("/api/state").status_code == 401
 
 
+@pytest.mark.essential
 def test_examples(client):
     data = client.get("/api/examples").json()
     ids = {e["id"] for e in data}
     assert {"cellpy", "old_cellpy", "rate"} <= ids
 
 
+@pytest.mark.essential
 def test_load_and_plot_flow(client):
     # kick off a load job for one example cell
     r = client.post("/api/load/example", json={"kinds": ["cellpy"]})

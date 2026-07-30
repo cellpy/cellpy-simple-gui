@@ -1,0 +1,33 @@
+# Document mock flow — same check name as Essential tests / essential.
+# Runs when a PR/push touches no code paths, so required checks stay green
+# instead of going stale on docs-only changes.
+name: Essential tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - ".github/workflows/essential-tests.yml"
+  pull_request:
+    paths-ignore:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - ".github/workflows/essential-tests.yml"
+
+jobs:
+  essential:
+    name: essential
+    runs-on: ubuntu-latest
+    steps:
+      - name: Document-only change — mock essential tests
+        run: |
+          echo "No code paths changed; skipping real essential pytest run."
+          echo "This mock keeps the 'Essential tests / essential' check fresh."

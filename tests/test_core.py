@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from cellpy_simple_gui.core import collect, export, plotting
 from cellpy_simple_gui.core.models import CyclesPlotSpec, SummaryPlotSpec
 
 
+@pytest.mark.essential
 def test_read_meta(example_cell):
     from cellpy_simple_gui.core import cellpy_adapter
 
@@ -28,6 +31,7 @@ def test_summary_frame_has_expected_columns(example_cell):
 
 # ---- dynamic instrument discovery ---------------------------------------- #
 
+@pytest.mark.essential
 def test_list_instruments_dynamic():
     from cellpy_simple_gui.core import cellpy_adapter
 
@@ -39,6 +43,7 @@ def test_list_instruments_dynamic():
 
 # ---- column mapping ------------------------------------------------------ #
 
+@pytest.mark.essential
 def test_summary_columns_for_types():
     assert collect.summary_columns_for("capacity_ce", "gravimetric") == (
         "charge_capacity_gravimetric",
@@ -64,6 +69,7 @@ def test_plot_type_renders_end_voltages(loaded_library):
     assert len(fig["data"]) >= 1
 
 
+@pytest.mark.essential
 def test_summary_columns_mapping():
     assert collect.summary_columns("gravimetric", True, True, True) == (
         "charge_capacity_gravimetric",
@@ -96,6 +102,7 @@ def test_summary_figure_via_plotting(loaded_library):
     assert len(fig["data"]) >= 1
 
 
+@pytest.mark.essential
 def test_summary_figure_empty():
     fig = json.loads(plotting.summary_figure([], SummaryPlotSpec()))
     assert "layout" in fig  # placeholder figure, no crash

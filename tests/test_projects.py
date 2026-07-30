@@ -46,6 +46,7 @@ def test_save_open_roundtrip(loaded_library, temp_projects_root):
     assert fresh.project_name == "Round Trip"
 
 
+@pytest.mark.essential
 def test_open_missing_raises(temp_projects_root):
     with pytest.raises(FileNotFoundError):
         projects.open_project(Library(), "does-not-exist")
@@ -87,6 +88,7 @@ def test_api_save_and_open(temp_projects_root):
     assert state["project"] == "API Proj"
 
 
+@pytest.mark.essential
 def test_api_open_unknown_404(temp_projects_root):
     client = TestClient(create_app())
     client.headers.update({"X-CSG-Token": get_settings().token})
