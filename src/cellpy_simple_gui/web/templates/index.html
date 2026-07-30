@@ -271,7 +271,12 @@
           <div class="export" @click.outside="exportOpen=false">
             <button class="btn btn-ghost" @click="exportOpen=!exportOpen" :disabled="!nSelected">⭳ Export ▾</button>
             <div class="export-menu" x-show="exportOpen" x-cloak>
+              <div class="export-heading">Data</div>
               <template x-for="f in exportFormats" :key="f">
+                <button @click="exportSummary(f); exportOpen=false" x-text="f.toUpperCase()"></button>
+              </template>
+              <div class="export-heading">Figure</div>
+              <template x-for="f in figureFormats" :key="'fig-'+f">
                 <button @click="exportSummary(f); exportOpen=false" x-text="f.toUpperCase()"></button>
               </template>
             </div>
@@ -325,7 +330,12 @@
           <div class="export" @click.outside="exportCellOpen=false">
             <button class="btn btn-ghost" @click="exportCellOpen=!exportCellOpen" :disabled="!cell.cell_id">⭳ Export ▾</button>
             <div class="export-menu" x-show="exportCellOpen" x-cloak>
+              <div class="export-heading">Data</div>
               <template x-for="f in exportFormats" :key="f">
+                <button @click="exportCycles(f); exportCellOpen=false" x-text="f.toUpperCase()"></button>
+              </template>
+              <div class="export-heading">Figure</div>
+              <template x-for="f in figureFormats" :key="'fig-'+f">
                 <button @click="exportCycles(f); exportCellOpen=false" x-text="f.toUpperCase()"></button>
               </template>
             </div>

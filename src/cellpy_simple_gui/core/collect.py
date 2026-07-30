@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import logging
+from collections import Counter
 
 import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_summaries, from_cells
@@ -124,6 +125,63 @@ def summary_collection(
     )
 
 
+def partition_by_group_size(
+    records: list[CellRecord], *, min_size: int = 2
+) -> tuple[list[CellRecord], list[CellRecord]]:
+    """Split records into multi-member groups vs singletons (among *these* records).
+
+    cellpy's ``group_it=True`` silently skips averaging when *any* group has
+    fewer than ``min_size`` cells, so callers that want mixed behaviour must
+    partition first (see :func:`summary_collections`).
+    """
+    sizes = Counter(r.group for r in records)
+    multi = [r for r in records if sizes[r.group] >= min_size]
+    solo = [r for r in records if sizes[r.group] < min_size]
+    return multi, solo
+
+
+def summary_collections(
+    records: list[CellRecord],
+    *,
+    columns: tuple[str, ...],
+    group_it: bool = False,
+    max_cycle: int | None = None,
+) -> list[tuple[object, bool]]:
+    """Build one or two summary collections for plotting/export.
+
+    When ``group_it`` is True, multi-member groups are averaged and singleton
+    groups stay as ordinary per-cell series (so cellpy's all-or-nothing
+    ``group_it`` guard cannot wipe out averaging for everyone). Each item is
+    ``(collection, is_group_averaged)``.
+    """
+    if not records:
+        return []
+    if not group_it:
+        return [(summary_collection(records, columns=columns, max_cycle=max_cycle), False)]
+
+    multi, solo = partition_by_group_size(records)
+    out: list[tuple[object, bool]] = []
+    if multi:
+        out.append(
+            (
+                summary_collection(
+                    multi, columns=columns, group_it=True, max_cycle=max_cycle
+                ),
+                True,
+            )
+        )
+    if solo:
+        out.append(
+            (
+                summary_collection(
+                    solo, columns=columns, group_it=False, max_cycle=max_cycle
+                ),
+                False,
+            )
+        )
+    return out
+
+
 def cycles_collection(
     records: list[CellRecord],
     *,
@@ -168,6 +226,72 @@ def figure_json(collection, *, spread: bool = False, **plot_kwargs) -> str:
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(f"Could not render this plot ({exc}).")
+
+
+def figures_json(
+    parts: list[tuple[object, bool]],
+    *,
+    spread: bool = False,
+    **plot_kwargs,
+) -> str:
+    """Plot one or more collections and merge traces onto the first figure.
+
+    ``parts`` is ``[(collection, is_group_averaged), ...]`` from
+    :func:`summary_collections`. Spread bands apply only to averaged parts.
+    """
+    if not parts:
+        return _empty_figure_json("Select one or more cells to plot the cycle summary.")
+
+    try:
+        base = None
+        for collection, averaged in parts:
+            use_spread = bool(spread and averaged and is_grouped(collection))
+            fig = collection.plot(spread=use_spread, **plot_kwargs)
+            if base is None:
+                base = fig
+            else:
+                for tr in fig.data:
+                    base.add_trace(tr)
+        if base is None:
+            return _empty_figure_json("Select one or more cells to plot the cycle summary.")
+        _restyle(base)
+        return pio.to_json(base)
+    except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
+        return _empty_figure_json(f"Could not render this plot ({exc}).")
+
+
+def combined_summary_frame(parts: list[tuple[object, bool]], columns: tuple[str, ...]):
+    """Unify averaged + per-cell summary frames for a single export table.
+
+    Averaged parts keep ``mean`` / ``std``. Singleton parts are melted to the
+    same long shape with ``mean`` = value and ``std`` null, plus ``cell``.
+    """
+    import polars as pl
+
+    frames = []
+    for collection, averaged in parts:
+        data = collection.data
+        if data is None or data.height == 0:
+            continue
+        if averaged and is_grouped(collection):
+            keep = [c for c in ("group", "group_label", "cycle_num", "variable", "mean", "std") if c in data.columns]
+            frame = data.select(keep)
+            if "cell" not in frame.columns:
+                frame = frame.with_columns(pl.lit(None).cast(pl.Utf8).alias("cell"))
+            frames.append(frame)
+            continue
+        id_vars = [c for c in ("cell", "group", "group_label", "cycle_num") if c in data.columns]
+        value_vars = [c for c in columns if c in data.columns]
+        if not value_vars:
+            continue
+        long = data.unpivot(
+            index=id_vars, on=value_vars, variable_name="variable", value_name="mean"
+        ).with_columns(pl.lit(None).cast(pl.Float64).alias("std"))
+        frames.append(long)
+
+    if not frames:
+        return pl.DataFrame()
+    return pl.concat(frames, how="diagonal_relaxed")
 
 
 def _empty_figure_json(message: str) -> str:
@@ -294,19 +418,22 @@ def _restyle(fig) -> None:
 # --------------------------------------------------------------------------- #
 
 EXPORT_FORMATS = ("csv", "xlsx", "parquet", "json")
+FIGURE_EXPORT_FORMATS = ("png", "svg", "pdf")
 
 _MEDIA = {
     "csv": "text/csv",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "parquet": "application/octet-stream",
     "json": "application/json",
+    "png": "image/png",
+    "svg": "image/svg+xml",
+    "pdf": "application/pdf",
 }
 
 
-def export_bytes(collection, fmt: str) -> tuple[bytes, str]:
-    """Serialise a collection's tidy frame in-memory. Returns (bytes, media_type)."""
+def export_frame_bytes(data, fmt: str) -> tuple[bytes, str]:
+    """Serialise a tidy polars frame in-memory. Returns (bytes, media_type)."""
     fmt = fmt.lower()
-    data = collection.data
     buf = io.BytesIO()
     if fmt == "csv":
         buf.write(data.write_csv().encode("utf-8"))
@@ -319,3 +446,8 @@ def export_bytes(collection, fmt: str) -> tuple[bytes, str]:
     else:
         raise ValueError(f"Unsupported export format: {fmt}")
     return buf.getvalue(), _MEDIA[fmt]
+
+
+def export_bytes(collection, fmt: str) -> tuple[bytes, str]:
+    """Serialise a collection's tidy frame in-memory. Returns (bytes, media_type)."""
+    return export_frame_bytes(collection.data, fmt)

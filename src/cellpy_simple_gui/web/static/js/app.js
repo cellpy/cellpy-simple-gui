@@ -60,6 +60,7 @@ function app() {
     cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
             mode: "gravimetric", method: "forth-and-forth" },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
+    figureFormats: ["png", "svg", "pdf"],
     exportOpen: false,
     exportCellOpen: false,
     notices: [],
@@ -418,7 +419,7 @@ function app() {
       } catch (e) { console.error(e); }
     },
 
-    // ---- exports (csv / xlsx / parquet / json) ----
+    // ---- exports (data + static figures via kaleido) ----
     async exportSummary(fmt) {
       await this.download(`/api/export/summary?fmt=${fmt}`, this.summarySpec(), `summary.${fmt}`);
     },
