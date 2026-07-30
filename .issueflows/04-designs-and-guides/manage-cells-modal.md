@@ -9,6 +9,9 @@
 - Edits reuse existing APIs (`POST /api/cells/{id}/update`, select-all, delete, clear) via Alpine `updateCell` / `selectAll` / `removeCell` / `clearAll` — no new persistence model.
 - Table fields: selected, label, group, mass (API already supports), cycles (read-only), remove.
 - Client-only niceties: filter by label, sort by group/name, select-by-group (sequential updates; replot once at end).
+- **Export ▾** (issue #28): exports **selected** cells via cellpy `save` / `to_csv` / `to_excel`
+  (`POST /api/export/cells?fmt=cellpy|csv|xlsx`). One cellpy/xlsx file is returned bare;
+  csv (multi-file) and multi-cell exports are zipped. Reuses `download()` (desktop Save As).
 
 ## UI location
 

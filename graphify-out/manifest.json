@@ -48,8 +48,8 @@
     "hash": "274e85c6c7202008778e1bce6f398a12"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\api\\routers\\export.py": {
-    "mtime": 1785409406.4728577,
-    "hash": "8e94d6dfe6ae4aca2fa392077905130b"
+    "mtime": 1785414465.9939644,
+    "hash": "ccf8e82b24e7c9ac391aa94bc48315c8"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\api\\routers\\ingest.py": {
     "mtime": 1785343623.6435962,
@@ -68,24 +68,24 @@
     "hash": "2309679f8c66280a6b1e00619547ede7"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\api\\routers\\system.py": {
-    "mtime": 1785410419.019247,
-    "hash": "fbd53cf2a6895309d6d4ba24c29a0d3c"
+    "mtime": 1785414467.3274696,
+    "hash": "c09dd0fd7abcf809e8832467472e3733"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\api\\routers\\__init__.py": {
     "mtime": 1785279159.4411674,
     "hash": "22a53a3723b4f578fb7b229913890f2d"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\cellpy_adapter.py": {
-    "mtime": 1785406115.627493,
-    "hash": "b5b9f04770640794c7cbc3198efab530"
+    "mtime": 1785414447.39157,
+    "hash": "d291ebc6e50181fb2dec4703d39140d4"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\collect.py": {
     "mtime": 1785409406.4728577,
     "hash": "1e9aada957c96d99ba088efa7a34b4ba"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\export.py": {
-    "mtime": 1785409406.4728577,
-    "hash": "0dd70e1abe68501c6804ab08efa864b1"
+    "mtime": 1785414533.8723404,
+    "hash": "bb90fe47bc0d61cbf537bdc97c93d656"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\files.py": {
     "mtime": 1785343583.5275342,
@@ -96,8 +96,8 @@
     "hash": "2d9ff68df0c47f81d08b6f04b5e7eda5"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\models.py": {
-    "mtime": 1785395108.795289,
-    "hash": "2a7874d8fc4df92ceae8c5ed15bbc9f8"
+    "mtime": 1785414448.4084263,
+    "hash": "d984886805587b0c4385d71431f15677"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\plotting.py": {
     "mtime": 1785409406.481565,
@@ -116,8 +116,8 @@
     "hash": "8ff95ecd7ce47a261b8ea81f5a2f9198"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\web\\static\\js\\app.js": {
-    "mtime": 1785410421.6715434,
-    "hash": "14ae88c1b2248f1aaf090b6428b4ae81"
+    "mtime": 1785414470.753447,
+    "hash": "c0af612fb6739a80c25d8acfc9805eb9"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\web\\static\\js\\plotly.min.js": {
     "mtime": 1785279245.8473854,
@@ -128,12 +128,12 @@
     "hash": "bdc509bdae95957a4a892207554180fb"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_api.py": {
-    "mtime": 1785410425.5384486,
-    "hash": "4f62eb0f9caf77fd888eab96e11dc683"
+    "mtime": 1785414491.5251772,
+    "hash": "099730ac0517fd4632c233ac779625fa"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_core.py": {
-    "mtime": 1785409406.4928725,
-    "hash": "e2a05be6a7b67ffec36dc78be2320d95"
+    "mtime": 1785414501.926617,
+    "hash": "357994ee2b5d27998fa1496b5a7945b6"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_files.py": {
     "mtime": 1785405692.65657,
@@ -168,8 +168,8 @@
     "hash": "d626dbab36ae5ef0d0c737a33e461414"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\web\\templates\\index.html": {
-    "mtime": 1785409406.4898732,
-    "hash": "eefd63277268519b1f664e4ad875dcab"
+    "mtime": 1785414474.7856965,
+    "hash": "14be5b2d80c53ef2670349c5509f8e33"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\assets\\cellpy-icon-bw.png": {
     "mtime": 1785352806.1186004,

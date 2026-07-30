@@ -261,6 +261,8 @@ input:focus, select:focus { border-color: var(--accent); }
 .export-heading:not(:first-child) {
   margin-top: 4px; border-top: 1px solid var(--line); padding-top: 10px;
 }
+.mgr-export { margin-left: auto; }
+.mgr-export .export-menu { right: 0; left: auto; }
 
 /* ---------- chart ---------- */
 .chart-card {

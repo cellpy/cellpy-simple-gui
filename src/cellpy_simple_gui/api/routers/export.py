@@ -1,4 +1,4 @@
-"""Export endpoints: collected data + static figures (png / svg / pdf)."""
+"""Export endpoints: collected data, library cells, and static figures."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from fastapi.responses import Response
 
 from ...core import collect, export as export_core
 from ...core.library import get_library
-from ...core.models import CyclesPlotSpec, SummaryPlotSpec
+from ...core.models import CellsExportSpec, CyclesPlotSpec, SummaryPlotSpec
 
 router = APIRouter()
 
@@ -85,3 +85,31 @@ def export_cycles(spec: CyclesPlotSpec, fmt: str = "csv") -> Response:
     fmt_l = _check_data_fmt(fmt_l)
     data, media = export_core.cycles_export(rec, spec, fmt_l)
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
+
+
+@router.post("/export/cells")
+def export_cells(spec: CellsExportSpec | None = None, fmt: str = "cellpy") -> Response:
+    """Export selected (or listed) library cells via cellpy save/to_csv/to_excel."""
+    fmt_l = fmt.lower()
+    if fmt_l not in export_core.CELL_EXPORT_FORMATS:
+        raise HTTPException(
+            400,
+            f"Unsupported cell format '{fmt}'. Use one of {export_core.CELL_EXPORT_FORMATS}.",
+        )
+    lib = get_library()
+    if spec and spec.cell_ids:
+        records = []
+        for cid in spec.cell_ids:
+            try:
+                records.append(lib.get(cid))
+            except KeyError:
+                raise HTTPException(404, f"No such cell: {cid}") from None
+    else:
+        records = lib.selected()
+    if not records:
+        raise HTTPException(400, "No cells selected.")
+    try:
+        data, media, filename = export_core.cells_export(records, fmt_l)
+    except Exception as exc:  # noqa: BLE001 - surface cellpy/IO failures cleanly
+        raise HTTPException(500, f"Cell export failed: {exc}") from exc
+    return _file(data, media, filename)
