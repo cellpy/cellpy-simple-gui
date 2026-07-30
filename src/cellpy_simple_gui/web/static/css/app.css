@@ -143,6 +143,7 @@ input:focus, select:focus { border-color: var(--accent); }
   border: 1px solid var(--line); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .proj-tag.saved { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
+.proj-tag.dirty { color: var(--warn, #e0a24a); border-color: color-mix(in srgb, var(--warn, #e0a24a) 45%, var(--line)); }
 .proj-open, .proj-save { display: flex; gap: 6px; margin-top: 10px; }
 .proj-open select, .proj-save input { flex: 1; min-width: 0; }
 .proj-open .btn, .proj-save .btn { padding: 8px 11px; font-size: 15px; flex: none; }

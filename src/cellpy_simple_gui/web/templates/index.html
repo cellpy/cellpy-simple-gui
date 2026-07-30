@@ -44,7 +44,9 @@
       <section class="panel">
         <div class="panel-head">
           <h2 class="panel-title">Project</h2>
-          <span class="proj-tag" x-text="project || 'unsaved'" :class="{saved: project}"></span>
+          <span class="proj-tag" x-text="projectTagLabel"
+                :class="{saved: project && !dirty, dirty: project && dirty}"
+                :title="projectTagTitle"></span>
         </div>
         <div class="proj-open" x-show="projects.length">
           <select x-model="openTarget">
@@ -57,9 +59,12 @@
         </div>
         <div class="proj-save">
           <input type="text" x-model="saveName" placeholder="Project name" @keydown.enter="saveProject()" />
-          <button class="btn btn-ghost" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length" title="Save">⤓</button>
+          <button class="btn btn-ghost" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length" title="Save project">⤓</button>
+          <button class="btn btn-ghost" @click="closeProject()"
+                  :disabled="job.active || (!cells.length && !project)"
+                  title="Close project">✕</button>
         </div>
-        <p class="hint">Saves every loaded cell into a portable project folder.</p>
+        <p class="hint">Not automatic — click <b>Save</b> to write every loaded cell into a portable project folder.</p>
 
         <div class="proj-save" style="margin-top:10px">
           <input type="text" x-model="journalPath" placeholder="cellpy batch journal (.json)" @keydown.enter="loadJournal()" />
@@ -181,7 +186,7 @@
             <button class="mini" @click="openCellsManager()" title="Manage cells in a table">Manage</button>
             <button class="mini" @click="selectAll(true)">all</button>
             <button class="mini" @click="selectAll(false)">none</button>
-            <button class="mini danger" @click="clearAll()">clear</button>
+            <button class="mini danger" @click="clearAll()" title="Clear all loaded cells">clear cells</button>
           </div>
         </div>
 
