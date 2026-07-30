@@ -46,8 +46,9 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
 - **Clear feedback**: toast notifications for loads, saves, opens, exports, and
   errors (including corrupt journals).
 - **Background loading** with live progress (SSE) — the UI never freezes.
-- **Export** collected data to **CSV / Excel / Parquet / JSON** (with a success
-  toast naming the file); save charts as PNG from the chart toolbar.
+- **Export** collected data to **CSV / Excel / Parquet / JSON**, and charts as
+  **PNG / SVG / PDF** from **Export ▾** (server-side via kaleido — install with
+  `uv sync --extra export`); the chart toolbar camera still saves a quick PNG.
 - **Light & dark themes.**
 - **Colorized terminal logging** via loguru (`CSG_LOG_LEVEL`, default `INFO`).
 
@@ -163,11 +164,14 @@ uv run pytest -m essential   # critical-path subset (also run in CI)
 GitHub Actions runs the `essential` marker on code changes; a matching
 document-mock workflow keeps the same check name green on docs-only PRs.
 
-Optional static image export (server-side PNG/SVG/PDF via kaleido):
+Optional static figure export (**Export ▾ → Figure → PNG / SVG / PDF**, via kaleido):
 
 ```bash
 uv sync --extra export
 ```
+
+Without that extra, data export still works; figure formats show a toast pointing
+at the install command above.
 
 ### Why we develop this app
 

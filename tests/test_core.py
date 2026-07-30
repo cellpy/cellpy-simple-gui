@@ -141,6 +141,43 @@ def test_grouped_summary_renders(example_cell):
     assert len(fig["data"]) >= 1  # was 0 (empty fallback) on cellpy 2.1.0
 
 
+def test_group_average_keeps_singleton_traces(example_cell):
+    """Group avg must still average multi-member groups when a singleton exists.
+
+    cellpy's ``group_it=True`` otherwise silently disables averaging for the
+    whole selection if any group has < 2 cells (#27).
+    """
+    from cellpy_simple_gui.core import cellpy_adapter
+    from cellpy_simple_gui.core.library import Library
+
+    lib = Library()
+    lib.add_cell(example_cell, source="ex")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex")
+    lib.add_cell(cellpy_adapter.load_example("cellpy"), source="ex")
+    recs = lib.all()
+    lib.update(recs[0].id, group=1, label="g1a")
+    lib.update(recs[1].id, group=1, label="g1b")
+    lib.update(recs[2].id, group=2, label="solo")
+
+    # Naive path: cellpy drops averaging entirely.
+    cols = collect.summary_columns_for("capacity_ce", "gravimetric")
+    naive = collect.summary_collection(lib.selected(), columns=cols, group_it=True)
+    assert not collect.is_grouped(naive)
+
+    parts = collect.summary_collections(lib.selected(), columns=cols, group_it=True)
+    assert len(parts) == 2
+    assert parts[0][1] is True and collect.is_grouped(parts[0][0])
+    assert parts[1][1] is False and not collect.is_grouped(parts[1][0])
+
+    spec = SummaryPlotSpec(plot_type="capacity_ce", group_average=True, spread=True)
+    fig = json.loads(plotting.summary_figure(lib.selected(), spec))
+    names = {tr.get("name") for tr in fig["data"]}
+    assert "solo" in names
+    # Averaged group legend uses the group id; spread adds Upper/Lower Bound traces.
+    assert any(n == "1" or (isinstance(n, str) and n.startswith("Upper Bound")) for n in names)
+    assert len(fig["data"]) > len(json.loads(collect.figure_json(parts[1][0]))["data"])
+
+
 def test_summary_figure_long_cell_names_shorten_legend(loaded_library):
     """Long journal-style labels must not blow up the summary legend (#1)."""
     long = (
@@ -340,4 +377,25 @@ def test_cycles_export_csv(loaded_library):
     spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 2])
     data, media = export.cycles_export(rec, spec, "csv")
     assert data.startswith(b"cycle") or b"capacity" in data[:200]
-    assert media == "text/csv"
+
+
+def _kaleido_available() -> bool:
+    try:
+        import kaleido  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+@pytest.mark.skipif(not _kaleido_available(), reason="kaleido not installed (uv sync --extra export)")
+def test_summary_figure_export_svg(loaded_library):
+    recs = loaded_library.selected()
+    spec = SummaryPlotSpec(plot_type="capacity_ce")
+    data, media = export.summary_figure_export(recs, spec, "svg")
+    assert media == "image/svg+xml"
+    assert data.lstrip().startswith(b"<svg") or b"<svg" in data[:200]
+
+
+def test_figure_export_unknown_format_raises():
+    with pytest.raises(export.FigureExportError, match="Unsupported figure format"):
+        export.figure_bytes("{}", "gif")

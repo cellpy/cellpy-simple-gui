@@ -70,15 +70,25 @@ and exposing group-averaging as a data/export feature only.
 (`groupby("group")` when there is no `cell` column), so `group_it=True` is
 plottable end-to-end.
 
-## 3. 🟠 Silent group-averaging fallback with no signal on the result
+## 3. 🟠 Silent all-or-nothing group-averaging when any group is a singleton
 
-`group_it=True` silently returns a *wide, non-averaged* frame when any group has
-< 2 cells (the "std needs ≥ 2 cells" guard in `collect/summary.py`). Sensible,
-but the returned `Collection` carries no flag saying whether averaging actually
-happened, so I sniff for a `mean` column (`collect.is_grouped`).
+`group_it=True` silently returns a *wide, non-averaged* frame when **any** group
+has < 2 cells (the "std needs ≥ 2 cells" guard in `collect/summary.py`). One
+singleton in the selection disables averaging for *every* group — including
+those with plenty of members. GUIs that default each cell to its own group (or
+mix multi-cell and single-cell groups) see "Group average" appear to do nothing.
+The returned `Collection` also carries no flag saying whether averaging actually
+happened, so callers sniff for a `mean` column (`collect.is_grouped`).
 
-**Wish:** `Collection.meta.grouped: bool` (or `collection.is_grouped`) so callers
-can adapt UI/labels without inspecting columns.
+Workaround in this app (#27): partition selected cells into multi-member vs
+singleton groups, `group_it=True` only the multi set, keep singletons as plain
+per-cell series (no spread), then merge Plotly traces / export frames.
+
+**Wish:**
+1. Average groups that have ≥ 2 cells and leave singletons as ordinary (non-spread)
+   series in the same collection — not all-or-nothing.
+2. `Collection.meta.grouped: bool` (or `collection.is_grouped`) so callers can
+   adapt UI/labels without inspecting columns.
 
 ## 4. 🟠 `CurveOptions` can't set capacity mode / method
 
@@ -164,6 +174,36 @@ builders don't consume them yet; `ce_range` only helps the batch_summary path;
 `range_y` applies globally to every panel.
 
 **Wish / tracking:** https://github.com/jepegit/cellpy/issues/804
+
+## 13. 🟠 No app-friendly static figure export on the collect path
+
+`collection.plot()` is the right way for an app to get a Plotly figure, but there
+is no matching collect-level API to turn that figure into PNG / SVG / PDF bytes.
+`Collection.save(...)` is **data-only** (parquet/csv/json/xlsx). The kaleido-based
+helper that does exist — `cellpy.utils.plotutils.save_image_files` — lives outside
+collect, writes to **disk**, spawns a **subprocess** around `fig.write_image`, and
+prints status to stdout. That fits notebooks/scripts; it does not fit a desktop
+or FastAPI app that wants `(bytes, media_type)` for a download response (and a
+clear error when kaleido is missing).
+
+This is exactly the kind of gap this app is meant to surface: the science path
+(`from_cells` → `collect_summaries` → `.plot()`) is great, then static export
+falls off the paved road and each app reinvents Plotly/kaleido wiring.
+
+**Wish:** something on the collect / plotting surface, e.g.
+
+```python
+collection.to_image("svg")           # -> bytes
+# or
+fig = collection.plot(...)
+cellpy.plotting.write_image(fig, "pdf")  # -> bytes, raises if kaleido missing
+```
+
+Same formats users expect from kaleido (`png` / `svg` / `pdf`), in-memory, no
+subprocess or cwd side effects. Optional: `Collection.save(..., formats=("svg",))`
+that saves the *plot* next to the data — but bytes-first matters more for apps.
+
+*(cellpy-simple-gui #27 — will call `fig.write_image` directly until this exists.)*
 
 ---
 

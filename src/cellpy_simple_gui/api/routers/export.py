@@ -1,4 +1,4 @@
-"""Export endpoints: collected data as csv / xlsx / parquet / json."""
+"""Export endpoints: collected data + static figures (png / svg / pdf)."""
 
 from __future__ import annotations
 
@@ -11,13 +11,28 @@ from ...core.models import CyclesPlotSpec, SummaryPlotSpec
 
 router = APIRouter()
 
-_EXT = {"csv": "csv", "xlsx": "xlsx", "parquet": "parquet", "json": "json"}
+_DATA_EXT = {"csv": "csv", "xlsx": "xlsx", "parquet": "parquet", "json": "json"}
+_FIG_EXT = {f: f for f in collect.FIGURE_EXPORT_FORMATS}
 
 
-def _check_fmt(fmt: str) -> str:
+def _check_data_fmt(fmt: str) -> str:
     fmt = fmt.lower()
     if fmt not in collect.EXPORT_FORMATS:
-        raise HTTPException(400, f"Unsupported format '{fmt}'. Use one of {collect.EXPORT_FORMATS}.")
+        raise HTTPException(
+            400,
+            f"Unsupported format '{fmt}'. "
+            f"Data: {collect.EXPORT_FORMATS}; figures: {collect.FIGURE_EXPORT_FORMATS}.",
+        )
+    return fmt
+
+
+def _check_figure_fmt(fmt: str) -> str:
+    fmt = fmt.lower()
+    if fmt not in collect.FIGURE_EXPORT_FORMATS:
+        raise HTTPException(
+            400,
+            f"Unsupported figure format '{fmt}'. Use one of {collect.FIGURE_EXPORT_FORMATS}.",
+        )
     return fmt
 
 
@@ -29,23 +44,44 @@ def _file(data: bytes, media: str, name: str) -> Response:
     )
 
 
+def _figure_http(exc: export_core.FigureExportError) -> HTTPException:
+    status = 503 if exc.missing_kaleido else 400
+    return HTTPException(status, str(exc))
+
+
 @router.post("/export/summary")
 def export_summary(spec: SummaryPlotSpec, fmt: str = "csv") -> Response:
-    fmt = _check_fmt(fmt)
+    fmt_l = fmt.lower()
     records = get_library().selected()
     if not records:
         raise HTTPException(400, "No cells selected.")
-    data, media = export_core.summary_export(records, spec, fmt)
-    return _file(data, media, f"summary.{_EXT[fmt]}")
+    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+        fmt_l = _check_figure_fmt(fmt_l)
+        try:
+            data, media = export_core.summary_figure_export(records, spec, fmt_l)
+        except export_core.FigureExportError as exc:
+            raise _figure_http(exc) from exc
+        return _file(data, media, f"summary.{_FIG_EXT[fmt_l]}")
+    fmt_l = _check_data_fmt(fmt_l)
+    data, media = export_core.summary_export(records, spec, fmt_l)
+    return _file(data, media, f"summary.{_DATA_EXT[fmt_l]}")
 
 
 @router.post("/export/cycles")
 def export_cycles(spec: CyclesPlotSpec, fmt: str = "csv") -> Response:
-    fmt = _check_fmt(fmt)
+    fmt_l = fmt.lower()
     try:
         rec = get_library().get(spec.cell_id)
     except KeyError:
         raise HTTPException(404, "No such cell")
-    data, media = export_core.cycles_export(rec, spec, fmt)
-    name = f"cycles_{rec.label or rec.name}".replace(" ", "_")
-    return _file(data, media, f"{name}.{_EXT[fmt]}")
+    name = f"cycles_{(rec.label or rec.name)}".replace(" ", "_")
+    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+        fmt_l = _check_figure_fmt(fmt_l)
+        try:
+            data, media = export_core.cycles_figure_export(rec, spec, fmt_l)
+        except export_core.FigureExportError as exc:
+            raise _figure_http(exc) from exc
+        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+    fmt_l = _check_data_fmt(fmt_l)
+    data, media = export_core.cycles_export(rec, spec, fmt_l)
+    return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
