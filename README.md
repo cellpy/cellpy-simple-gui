@@ -74,7 +74,8 @@ run --server              # local server + browser tab
 run --server --no-open    # headless: just serve
 ```
 
-Equivalent without the helper: `uv run cellpy-simple-gui` (same flags).
+The helpers use `uv run --extra export` so PNG/SVG/PDF figure export works.
+Equivalent without them: `uv run --extra export cellpy-simple-gui` (same flags).
 Then click **Load demo cells** and explore.
 
 > First run downloads a few small example cells from the cellpy example-data
