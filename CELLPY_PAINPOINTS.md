@@ -162,8 +162,17 @@ boxes, right-side facet titles spelled `variable=charge_capacity_gravimetric`, a
 an auto height that grows with facet count. I re-style every figure
 (`core/collect.py::_restyle`) to fit the app shell.
 
-**Wish:** a theme/label/height hook (or a `FigureSpec` the caller can pass) so the
-returned figure drops cleanly into an app without post-processing.
+cellpy-simple-gui #32 layered **light/dark theme tokens** and curated **colorways**
+onto that restyle, and registers cellpy's collector templates via
+`make_collector_templates` (already done inside cellpy's plot path). Those
+templates still don't cover app needs for: compact right-hand legend + long-name
+truncation, facet-strip shortening, per-theme paper/plot colors, or a discrete
+colorway switch independent of the science plot family.
+
+**Wish:** a first-class theme/label/height/colorway hook (or a `FigureSpec` the
+caller can pass) so the returned figure drops cleanly into an app without
+post-processing. `make_plotly_template` / collector templates help axes, not the
+full app chrome contract.
 
 ## 12. 🟢 Per-panel y-limits on collected summary facets
 

@@ -17,7 +17,8 @@ from .models import CyclesPlotSpec, SummaryPlotSpec
 def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
     if not records:
         return collect._empty_figure_json(
-            "Select one or more cells to plot the cycle summary."
+            "Select one or more cells to plot the cycle summary.",
+            figure_theme=spec.figure_theme,
         )
     columns = collect.summary_columns_for(spec.plot_type, spec.basis)
     parts = collect.summary_collections(
@@ -27,7 +28,11 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         max_cycle=spec.max_cycle,
     )
     return collect.figures_json(
-        parts, spread=spec.spread, match_axes=spec.share_y
+        parts,
+        spread=spec.spread,
+        match_axes=spec.share_y,
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
     )
 
 
@@ -35,9 +40,16 @@ def cycles_figure(record: CellRecord, spec: CyclesPlotSpec) -> str:
     cycles = tuple(sorted(set(spec.cycles)))
     if not cycles:
         return collect._empty_figure_json(
-            "Pick one or more cycles to plot the voltage curves."
+            "Pick one or more cycles to plot the voltage curves.",
+            figure_theme=spec.figure_theme,
         )
     collection = collect.cycles_collection(
         [record], cycles=cycles, mode=spec.mode, method=spec.method
     )
-    return collect.figure_json(collection, family_kind="cycles", layout="per_cell")
+    return collect.figure_json(
+        collection,
+        family_kind="cycles",
+        layout="per_cell",
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
+    )

@@ -31,6 +31,8 @@ const PLOTLY_CONFIG = {
 function app() {
   return {
     theme: localStorage.getItem("csg-theme") || "dark",
+    figureThemePref: localStorage.getItem("csg-figure-theme") || "light",
+    colorScheme: localStorage.getItem("csg-color-scheme") || "cellpy",
     cells: [],
     examples: [],
     filesPath: "",
@@ -81,8 +83,33 @@ function app() {
       await this.refreshProjects();
       await this.probeCapabilities();
       await this.refreshState();
-      this.$watch("theme", (v) => this.relayoutCharts());
+      this.$watch("theme", () => {
+        this.relayoutCharts();
+        if (this.figureThemePref === "match") this.replotCurrent();
+      });
       window.addEventListener("resize", () => this.relayoutCharts());
+    },
+
+    resolvedFigureTheme() {
+      if (this.figureThemePref === "match") {
+        return this.theme === "dark" ? "dark" : "light";
+      }
+      return this.figureThemePref === "dark" ? "dark" : "light";
+    },
+    appearanceFields() {
+      return {
+        figure_theme: this.resolvedFigureTheme(),
+        color_scheme: this.colorScheme || "cellpy",
+      };
+    },
+    onAppearanceChange() {
+      localStorage.setItem("csg-figure-theme", this.figureThemePref);
+      localStorage.setItem("csg-color-scheme", this.colorScheme);
+      this.replotCurrent();
+    },
+    replotCurrent() {
+      if (this.tab === "summary") this.plotSummary();
+      else if (this.tab === "cell") this.plotCell();
     },
 
     async refreshPlotTypes() {
@@ -373,6 +400,7 @@ function app() {
         max_cycle: this._num(this.summary.max_cycle),
         share_y: !!this.summary.share_y,
         title: "Cycle summary",
+        ...this.appearanceFields(),
       };
     },
     async plotSummary() {
@@ -411,6 +439,7 @@ function app() {
       return {
         cell_id: this.cell.cell_id, cycles: this.buildCycleList(),
         mode: this.cell.mode, method: this.cell.method, title: "",
+        ...this.appearanceFields(),
       };
     },
     async plotCell() {

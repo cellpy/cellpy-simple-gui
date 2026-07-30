@@ -248,6 +248,40 @@ def test_shorten_legend_runs_when_restyle_cosmetics_fail():
     assert fig.data[0].hovertext == long
 
 
+def test_summary_figure_dark_theme(loaded_library):
+    """Dark theme tokens land on layout (#32)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(figure_theme="dark"),
+        )
+    )
+    layout = fig["layout"]
+    assert layout.get("paper_bgcolor") == collect._THEME_TOKENS["dark"]["paper_bgcolor"]
+    assert (layout.get("font") or {}).get("color") == collect._THEME_TOKENS["dark"]["font_color"]
+
+
+def test_summary_figure_safe_color_scheme(loaded_library):
+    """safe colorway paints at least one trace from library.PALETTE (#32)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(color_scheme="safe"),
+        )
+    )
+    palette = set(collect.COLOR_SCHEMES["safe"] or [])
+    colors = []
+    for tr in fig["data"]:
+        line = tr.get("line") or {}
+        if line.get("color"):
+            colors.append(line["color"])
+        marker = tr.get("marker") or {}
+        if marker.get("color") and isinstance(marker["color"], str):
+            colors.append(marker["color"])
+    assert colors
+    assert any(c in palette for c in colors)
+
+
 def _yaxis_matches(fig: dict) -> dict[str, str | None]:
     return {
         key: (fig["layout"].get(key) or {}).get("matches")

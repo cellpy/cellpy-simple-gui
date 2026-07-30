@@ -3,7 +3,7 @@
 ## What this project is
 
 **cellpy-simple-gui** (GitHub: [cellpy/cellpy-simple-gui](https://github.com/cellpy/cellpy-simple-gui))
-is an MVP desktop app for exploring battery cell data with **cellpy ≥ 2.1.1**.
+is an MVP desktop app for exploring battery cell data with **cellpy ≥ 2.1.1.post2**.
 It is the successor to the Streamlit demo in `cell_processor_app`: same local,
 browser-feel workflow, but with a real installable shell, a thin FastAPI backend,
 and a reusable pure-Python core. Intended for single-user / offline lab use.
@@ -17,7 +17,7 @@ friction notes (mostly fixed in 2.1.1) are in repo-root `CELLPY_PAINPOINTS.md`.
 - **Language:** Python **≥ 3.13** (pinned in `.python-version`).
 - **Package manager:** **`uv`** exclusively (`uv.lock`). Never bare `python`,
   `pip`, or `poetry`.
-- **cellpy:** `cellpy>=2.1.1` (needs `pandas>=3.0`). Legacy `.h5` via `tables`.
+- **cellpy:** `cellpy>=2.1.1.post2` (needs `pandas>=3.0`). Legacy `.h5` via `tables`.
 - **Backend:** FastAPI + uvicorn on `127.0.0.1` with a per-launch token
   (cookie / header / `?token=`).
 - **Jobs:** thread-pool `JobManager` (`api/jobs.py`) with SSE progress/cancel

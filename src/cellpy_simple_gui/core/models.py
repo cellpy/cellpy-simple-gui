@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field
 CapacityMode = Literal["gravimetric", "areal", "absolute"]
 Direction = Literal["charge", "discharge"]
 CycleMethod = Literal["forth-and-forth", "back-and-forth", "forth"]
+# Resolved figure chrome (UI maps "match app" → light|dark before POST).
+FigureTheme = Literal["light", "dark"]
+# Curated plot colorways; "cellpy" keeps upstream/Plotly defaults.
+ColorScheme = Literal["cellpy", "safe", "muted"]
 
 # Human-friendly axis labels per capacity mode.
 CAPACITY_UNITS: dict[CapacityMode, str] = {
@@ -49,6 +53,8 @@ class SummaryPlotSpec(BaseModel):
     # Independent y-scales by default so CE outliers don't crush capacity panels.
     # Maps to cellpy ``match_axes`` on the collected summary path.
     share_y: bool = False
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
     title: str = "Cycle summary"
 
 
@@ -59,6 +65,8 @@ class CyclesPlotSpec(BaseModel):
     cycles: list[int] = Field(default_factory=list)
     mode: CapacityMode = "gravimetric"
     method: CycleMethod = "forth-and-forth"
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
     title: str = ""
 
 
