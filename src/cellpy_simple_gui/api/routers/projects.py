@@ -67,9 +67,13 @@ def open_project(target: str = Body(..., embed=True)) -> dict:
 
 
 def _load_journal_job(progress: Progress, path: str) -> dict:
+    """Always return a toastable result — never leave the UI waiting on a bare raise."""
     lib = get_library()
     progress.update(0.1, f"Reading journal {Path(path).name} …")
-    triples = cellpy_adapter.load_journal_cells(path)
+    try:
+        triples = cellpy_adapter.load_journal_cells(path)
+    except Exception as exc:  # noqa: BLE001 - surface to the user via job result
+        return {"added": [], "errors": [f"Failed to load journal: {exc}"]}
     if not triples:
         return {"added": [], "errors": [
             "No cells could be linked from that journal "

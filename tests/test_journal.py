@@ -68,3 +68,45 @@ def test_load_journal_missing_files_returns_empty(tmp_path):
 
     triples = cellpy_adapter.load_journal_cells(path)
     assert triples == []
+
+
+def test_load_corrupt_journal_raises_clear_error(tmp_path):
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    path = tmp_path / "corrupt.json"
+    path.write_text("{not valid json", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Could not parse batch journal"):
+        cellpy_adapter.load_journal_cells(path)
+
+
+def test_api_load_corrupt_journal_reports_error(tmp_path):
+    """Job must finish with an errors[] payload the UI can toast — not hang."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from cellpy_simple_gui.api.app import create_app
+    from cellpy_simple_gui.config import get_settings
+    from cellpy_simple_gui.core.library import get_library
+
+    path = tmp_path / "corrupt.json"
+    path.write_text("{not valid json", encoding="utf-8")
+
+    get_library().clear()
+    client = TestClient(create_app())
+    client.headers.update({"X-CSG-Token": get_settings().token})
+    job_id = client.post("/api/projects/load-journal", json={"path": str(path)}).json()["job_id"]
+
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        snap = client.get(f"/api/jobs/{job_id}").json()
+        if snap["status"] in ("done", "error", "cancelled"):
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("journal job did not finish")
+
+    assert snap["status"] == "done"
+    assert snap["result"]["added"] == []
+    assert any("Failed to load journal" in e for e in snap["result"]["errors"])
