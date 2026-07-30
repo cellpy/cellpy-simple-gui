@@ -53,6 +53,7 @@ function app() {
     summary: {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
+      share_y: false,
     },
     plotTypes: [],
     cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
@@ -286,6 +287,7 @@ function app() {
         group_average: this.summary.group_average,
         spread: this.summary.spread,
         max_cycle: this._num(this.summary.max_cycle),
+        share_y: !!this.summary.share_y,
         title: "Cycle summary",
       };
     },
