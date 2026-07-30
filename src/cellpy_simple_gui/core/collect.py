@@ -270,6 +270,61 @@ def figure_json(
         )
 
 
+def _layout_axis_title(axis: dict) -> str | None:
+    title = axis.get("title")
+    if isinstance(title, dict):
+        title = title.get("text")
+    if isinstance(title, str) and title and title != "value":
+        return title
+    return None
+
+
+def _axis_key_to_id(key: str) -> str:
+    """``yaxis`` → ``y``, ``yaxis2`` → ``y2``, ``xaxis3`` → ``x3``."""
+    prefix, rest = key[:1], key[5:]
+    return prefix if not rest else f"{prefix}{rest}"
+
+
+def _variable_axis_map(fig) -> dict[str, tuple[str, str]]:
+    """Map facet variable → ``(xaxis_id, yaxis_id)`` from base layout titles."""
+    layout = fig.layout.to_plotly_json()
+    out: dict[str, tuple[str, str]] = {}
+    for key, axis in layout.items():
+        if not key.startswith("yaxis"):
+            continue
+        var = _layout_axis_title(axis)
+        if not var:
+            continue
+        y_id = _axis_key_to_id(key)
+        anchor = axis.get("anchor")
+        if isinstance(anchor, str) and anchor.startswith("x"):
+            x_id = anchor
+        else:
+            x_id = "x" if y_id == "y" else "x" + y_id[1:]
+        out[var] = (x_id, y_id)
+    return out
+
+
+def _trace_variable(tr) -> str | None:
+    """Pull ``variable=<name>`` from a PX hovertemplate, if present."""
+    ht = getattr(tr, "hovertemplate", None) or ""
+    for part in str(ht).split("<br>"):
+        if part.startswith("variable="):
+            return part.split("=", 1)[1].split("<", 1)[0].strip() or None
+    return None
+
+
+def _remap_trace_axes(tr, var_to_axes: dict[str, tuple[str, str]]) -> None:
+    """Align a secondary figure's facet ids with the base figure's variables."""
+    var = _trace_variable(tr)
+    if not var:
+        return
+    axes = var_to_axes.get(var)
+    if not axes:
+        return
+    tr.xaxis, tr.yaxis = axes
+
+
 def figures_json(
     parts: list[tuple[object, bool]],
     *,
@@ -282,6 +337,10 @@ def figures_json(
 
     ``parts`` is ``[(collection, is_group_averaged), ...]`` from
     :func:`summary_collections`. Spread bands apply only to averaged parts.
+
+    Averaged (long) and per-cell (wide) collections can assign different Plotly
+    subplot ids to the same ``variable``; traces from later parts are remapped
+    onto the base figure's facet axes before merge.
     """
     if not parts:
         return _empty_figure_json(
@@ -291,13 +350,16 @@ def figures_json(
 
     try:
         base = None
+        var_to_axes: dict[str, tuple[str, str]] = {}
         for collection, averaged in parts:
             use_spread = bool(spread and averaged and is_grouped(collection))
             fig = collection.plot(spread=use_spread, **plot_kwargs)
             if base is None:
                 base = fig
+                var_to_axes = _variable_axis_map(base)
             else:
                 for tr in fig.data:
+                    _remap_trace_axes(tr, var_to_axes)
                     base.add_trace(tr)
         if base is None:
             return _empty_figure_json(
