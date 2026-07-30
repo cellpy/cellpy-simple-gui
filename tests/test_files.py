@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import pytest
+
 from cellpy_simple_gui.core.files import expand_paths
 
 
+@pytest.mark.essential
 def test_literal_missing(tmp_path):
     exp = expand_paths([str(tmp_path / "nope.h5")])
     assert exp.paths == []
     assert exp.errors and "Not found" in exp.errors[0]
 
 
+@pytest.mark.essential
 def test_literal_found(tmp_path):
     f = tmp_path / "a.cellpy"
     f.write_text("x")
@@ -19,6 +23,7 @@ def test_literal_found(tmp_path):
     assert not exp.errors
 
 
+@pytest.mark.essential
 def test_glob_no_match(tmp_path):
     exp = expand_paths([str(tmp_path / "*.h5")])
     assert exp.paths == []

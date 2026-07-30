@@ -30,6 +30,7 @@ def _wait(client, job_id, timeout=120):
     raise AssertionError("job timeout")
 
 
+@pytest.mark.essential
 def test_instruments_endpoint():
     client = _client()
     data = client.get("/api/instruments").json()
@@ -41,6 +42,7 @@ def test_instruments_endpoint():
     assert {e["kind"] for e in data["examples"]}
 
 
+@pytest.mark.essential
 def test_ingest_bad_instrument_400():
     client = _client()
     r = client.post("/api/ingest", json={"paths": ["x.res"], "instrument": "nope"})

@@ -40,3 +40,6 @@ packages = ["src/cellpy_simple_gui"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "essential: critical-path tests run in GitHub Actions CI",
+]
