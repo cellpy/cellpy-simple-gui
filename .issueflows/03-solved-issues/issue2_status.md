@@ -1,6 +1,6 @@
 # Issue #2 status
 
-- [ ] Done
+- [x] Done
 
 ## What's done
 
@@ -13,10 +13,12 @@
   figure-json path (binary `y` decode + facet-strip mapping).
 - Design note: `.issueflows/04-designs-and-guides/summary-independent-y-scales.md`.
 - `CELLPY_PAINPOINTS.md` §12 → cellpy #804.
-- `uv run pytest`: all passed.
+- `uv run pytest`: 44 passed.
+- No `HISTORY.md` at repo root — changelog update skipped.
+- Closed via `/iflow-close`; issue-flow files moved to `03-solved-issues/`.
 
 ## Remaining work
 
-- `/iflow-close` (finalize PR / ship).
+None.
 
-PR: https://github.com/cellpy/cellpy-simple-gui/pull/11 (#11, draft)
+PR: https://github.com/cellpy/cellpy-simple-gui/pull/11 (#11)
