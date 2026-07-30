@@ -2,7 +2,7 @@
 
 Interactive `/iflow-fix` session.
 
-- [ ] Done
+- [x] Done
 
 ## Iterative fixes log
 
@@ -11,4 +11,3 @@ Interactive `/iflow-fix` session.
   (`FileDialog.SAVE` + write bytes); desktop `download()` uses it and toasts the
   real path; browser toast says “Download started…”. Updated
   `pywebview-file-dialog.md`. Test: `test_system_save_rejected_without_webview`.
-
