@@ -337,6 +337,23 @@ def save_cell(cell: Any, path: str | Path) -> None:
         cell.save(str(path), overwrite=True)
 
 
+def export_cell_excel(cell: Any, path: str | Path) -> None:
+    """Write a cell via cellpy ``to_excel`` (default sheets / options)."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        cell.to_excel(str(path))
+
+
+def export_cell_csv(cell: Any, datadir: str | Path) -> list[Path]:
+    """Write cellpy ``to_csv`` outputs into ``datadir``; return created files."""
+    dest = Path(datadir)
+    dest.mkdir(parents=True, exist_ok=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        cell.to_csv(datadir=str(dest))
+    return sorted(p for p in dest.rglob("*") if p.is_file())
+
+
 def set_mass(cell: Any, mass: float) -> None:
     """Update the active-material mass and refresh the summary."""
     with warnings.catch_warnings():

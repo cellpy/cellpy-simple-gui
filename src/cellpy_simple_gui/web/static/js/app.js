@@ -61,8 +61,10 @@ function app() {
             mode: "gravimetric", method: "forth-and-forth" },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
     figureFormats: ["png", "svg", "pdf"],
+    cellFileFormats: ["cellpy", "csv", "xlsx"],
     exportOpen: false,
     exportCellOpen: false,
+    exportCellsOpen: false,
     notices: [],
     cellsManagerOpen: false,
     cellsManagerFilter: "",
@@ -419,13 +421,20 @@ function app() {
       } catch (e) { console.error(e); }
     },
 
-    // ---- exports (data + static figures via kaleido) ----
+    // ---- exports (data + static figures via kaleido + library cells) ----
     async exportSummary(fmt) {
       await this.download(`/api/export/summary?fmt=${fmt}`, this.summarySpec(), `summary.${fmt}`);
     },
     async exportCycles(fmt) {
       if (!this.cell.cell_id) return;
       await this.download(`/api/export/cycles?fmt=${fmt}`, this.cellSpec(), `cycles.${fmt}`);
+    },
+    async exportLibraryCells(fmt) {
+      if (!this.nSelected) {
+        this.notify("error", "Select one or more cells to export.");
+        return;
+      }
+      await this.download(`/api/export/cells?fmt=${fmt}`, {}, `cells.${fmt}`);
     },
     async download(url, body, filename) {
       try {

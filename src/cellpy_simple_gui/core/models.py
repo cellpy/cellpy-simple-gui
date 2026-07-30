@@ -70,6 +70,12 @@ class ExportSpec(BaseModel):
     cycles: Optional[CyclesPlotSpec] = None
 
 
+class CellsExportSpec(BaseModel):
+    """Optional explicit cell ids for library-cell export (default = selected)."""
+
+    cell_ids: Optional[list[str]] = None
+
+
 class JournalRowUpdate(BaseModel):
     """A single editable-grid change."""
 

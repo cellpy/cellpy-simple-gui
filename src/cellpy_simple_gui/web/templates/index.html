@@ -388,6 +388,17 @@
         <span class="mgr-meta" x-text="filteredSortedCells.length + ' / ' + cells.length"></span>
         <button class="mini danger mgr-remove-all" type="button" @click="clearAll()"
                 title="Remove every loaded cell">remove all cells</button>
+        <div class="export mgr-export" @click.outside="exportCellsOpen=false">
+          <button class="mini" type="button" @click="exportCellsOpen=!exportCellsOpen"
+                  :disabled="!nSelected" title="Export selected cells via cellpy">Export ▾</button>
+          <div class="export-menu" x-show="exportCellsOpen" x-cloak>
+            <div class="export-heading">Selected cells</div>
+            <template x-for="f in cellFileFormats" :key="'mgr-'+f">
+              <button type="button" @click="exportLibraryCells(f); exportCellsOpen=false"
+                      x-text="'.' + f"></button>
+            </template>
+          </div>
+        </div>
       </div>
       <div class="modal-body">
         <table class="cells-table">

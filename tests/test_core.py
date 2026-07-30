@@ -399,3 +399,61 @@ def test_summary_figure_export_svg(loaded_library):
 def test_figure_export_unknown_format_raises():
     with pytest.raises(export.FigureExportError, match="Unsupported figure format"):
         export.figure_bytes("{}", "gif")
+
+
+def _rate_library():
+    from cellpy_simple_gui.core import cellpy_adapter
+    from cellpy_simple_gui.core.library import Library
+
+    try:
+        cell = cellpy_adapter.load_example("rate")
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"example data unavailable: {exc}")
+    lib = Library()
+    lib.add_cell(cell, source="example:rate")
+    return lib
+
+
+def test_cells_export_cellpy_and_xlsx():
+    rec = _rate_library().selected()[0]
+    data, media, name = export.cells_export([rec], "cellpy")
+    assert media == "application/octet-stream"
+    assert name.endswith(".cellpy")
+    assert len(data) > 1000
+
+    data, media, name = export.cells_export([rec], "xlsx")
+    assert name.endswith(".xlsx")
+    assert data[:2] == b"PK"  # zip-based xlsx
+
+
+def test_cells_export_two_cells_zip():
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = _rate_library()
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex2")
+    recs = lib.selected()
+    assert len(recs) >= 2
+    data, media, name = export.cells_export(recs, "cellpy")
+    assert media == "application/zip"
+    assert name.endswith(".zip")
+    import io
+    import zipfile
+
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        names = zf.namelist()
+    assert len(names) >= 2
+    assert all(n.endswith(".cellpy") for n in names)
+
+
+def test_cells_export_csv_is_zip():
+    rec = _rate_library().selected()[0]
+    data, media, name = export.cells_export([rec], "csv")
+    assert media == "application/zip"
+    assert name.endswith(".zip")
+    import io
+    import zipfile
+
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        names = zf.namelist()
+    assert names
+    assert any(n.endswith(".csv") for n in names)

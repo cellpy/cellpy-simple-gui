@@ -2,18 +2,31 @@
 
 Data path: cellpy collections → csv / xlsx / parquet / json.
 Figure path: Plotly figure JSON → png / svg / pdf via kaleido (`fig.write_image`).
+Library cells: cellpy ``save`` / ``to_csv`` / ``to_excel`` → bytes (often zipped).
 cellpy has no in-memory collect-level image API yet (see CELLPY_PAINPOINTS §13).
 """
 
 from __future__ import annotations
 
 import io
+import re
+import tempfile
+import zipfile
+from pathlib import Path
 
 import plotly.io as pio
 
-from . import collect, plotting
+from . import cellpy_adapter, collect, plotting
 from .library import CellRecord
 from .models import CyclesPlotSpec, SummaryPlotSpec
+
+CELL_EXPORT_FORMATS = ("cellpy", "csv", "xlsx")
+_CELL_MEDIA = {
+    "cellpy": "application/octet-stream",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "zip": "application/zip",
+}
+_SAFE_STEM = re.compile(r"[^\w.\-]+", re.UNICODE)
 
 
 class FigureExportError(RuntimeError):
@@ -103,3 +116,87 @@ def _kaleido_missing() -> bool:
     except ImportError:
         return True
     return False
+
+
+def _safe_stem(record: CellRecord) -> str:
+    raw = (record.label or record.name or record.id or "cell").strip() or "cell"
+    stem = _SAFE_STEM.sub("_", raw).strip("._") or "cell"
+    return stem[:80]
+
+
+def _unique_stems(records: list[CellRecord]) -> list[str]:
+    """Stable, filesystem-safe stems; disambiguate duplicates with ``_2``, …"""
+    counts: dict[str, int] = {}
+    out: list[str] = []
+    for rec in records:
+        base = _safe_stem(rec)
+        n = counts.get(base, 0) + 1
+        counts[base] = n
+        out.append(base if n == 1 else f"{base}_{n}")
+    return out
+
+
+def _zip_members(members: list[tuple[str, Path]]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for arcname, path in members:
+            zf.write(path, arcname)
+    return buf.getvalue()
+
+
+def _export_one_cell(
+    record: CellRecord, fmt: str, work: Path, stem: str
+) -> list[tuple[str, Path]]:
+    """Write one cell into ``work``; return (archive_name, path) pairs."""
+    cell_dir = work / stem
+    cell_dir.mkdir(parents=True, exist_ok=True)
+    if fmt == "cellpy":
+        path = cell_dir / f"{stem}.cellpy"
+        cellpy_adapter.save_cell(record.cell, path)
+        return [(path.name, path)]
+    if fmt == "xlsx":
+        path = cell_dir / f"{stem}.xlsx"
+        cellpy_adapter.export_cell_excel(record.cell, path)
+        return [(path.name, path)]
+    if fmt == "csv":
+        files = cellpy_adapter.export_cell_csv(record.cell, cell_dir)
+        if not files:
+            raise RuntimeError(f"cellpy to_csv produced no files for “{stem}”.")
+        return [(f"{stem}/{p.name}", p) for p in files]
+    raise ValueError(f"Unsupported cell export format '{fmt}'.")
+
+
+def cells_export(records: list[CellRecord], fmt: str) -> tuple[bytes, str, str]:
+    """Export library cells via cellpy save/to_csv/to_excel.
+
+    Returns ``(bytes, media_type, download_filename)``. One cellpy/xlsx file is
+    returned bare; csv (often multi-file) and multi-cell exports are zipped.
+    """
+    fmt = fmt.lower()
+    if fmt not in CELL_EXPORT_FORMATS:
+        raise ValueError(
+            f"Unsupported cell export format '{fmt}'. Use one of {CELL_EXPORT_FORMATS}."
+        )
+    if not records:
+        raise ValueError("No cells to export.")
+
+    stems = _unique_stems(records)
+    with tempfile.TemporaryDirectory(prefix="csg-cells-export-") as tmp:
+        work = Path(tmp)
+        members: list[tuple[str, Path]] = []
+        for rec, stem in zip(records, stems, strict=True):
+            chunk = _export_one_cell(rec, fmt, work, stem)
+            if len(records) == 1:
+                members.extend(chunk)
+            else:
+                for arc, path in chunk:
+                    name = arc if "/" in arc or "\\" in arc else f"{stem}/{arc}"
+                    members.append((name.replace("\\", "/"), path))
+
+        if len(records) == 1 and fmt in ("cellpy", "xlsx") and len(members) == 1:
+            path = members[0][1]
+            return path.read_bytes(), _CELL_MEDIA[fmt], members[0][0]
+
+        stem0 = stems[0] if len(records) == 1 else "cells"
+        filename = f"{stem0}_{fmt}.zip" if len(records) == 1 else f"cells_{fmt}.zip"
+        return _zip_members(members), _CELL_MEDIA["zip"], filename

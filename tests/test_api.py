@@ -149,3 +149,20 @@ def test_edit_cell(client):
     assert out["cell"]["group"] == 5
     assert out["cell"]["mass"] == 1.25
     assert out["state"]["n_selected"] == 0
+
+
+def test_export_cells_requires_selection(client):
+    r = client.post("/api/export/cells?fmt=cellpy", json={})
+    assert r.status_code == 400
+    assert "selected" in r.json()["detail"].lower()
+
+
+def test_export_cells_cellpy(client):
+    r = client.post("/api/load/example", json={"kinds": ["rate"]})
+    snap = _wait_for_job(client, r.json()["job_id"])
+    if snap["status"] != "done":
+        pytest.skip("example data unavailable")
+    r = client.post("/api/export/cells?fmt=cellpy", json={})
+    assert r.status_code == 200
+    assert "attachment" in r.headers.get("content-disposition", "").lower()
+    assert len(r.content) > 1000

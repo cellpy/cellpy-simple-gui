@@ -22,6 +22,8 @@ _SAVE_TYPE_BY_EXT = {
     "png": "PNG (*.png)",
     "svg": "SVG (*.svg)",
     "pdf": "PDF (*.pdf)",
+    "cellpy": "Cellpy (*.cellpy)",
+    "zip": "ZIP archive (*.zip)",
 }
 
 
