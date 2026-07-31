@@ -7,19 +7,24 @@ roughly by impact.
 
 Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 
-> **Update — most of these are fixed in cellpy 2.1.1** 🎉 Filed upstream as
-> [jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785); the app
-> now runs on 2.1.1 and has dropped the corresponding workarounds.
+> **Update — most of these are fixed in cellpy 2.1.1+** 🎉 Filed upstream as
+> [jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785) and
+> follow-ups; the app runs on **≥2.1.1.post4** (see
+> `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
 >
-> | # | Item | Upstream | Status in 2.1.1 |
+> | # | Item | Upstream | Status |
 > |---|---|---|---|
 > | 1 | Collection from in-memory cells | [#787](https://github.com/jepegit/cellpy/issues/787) | ✅ `cellpy.collect.from_cells` / `Batch.from_cells` |
 > | 2 | Group-averaged summary can't plot | [#785](https://github.com/jepegit/cellpy/issues/785) | ✅ renders (bug fixed) |
-> | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | ✅ `Collection.is_grouped` + `meta.grouped` |
+> | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | ✅ `Collection.is_grouped` + `meta.grouped` (all-or-nothing avg still app-partitioned) |
 > | 4 | `CurveOptions` mode/method | [#788](https://github.com/jepegit/cellpy/issues/788) | ✅ added |
-> | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | ◑ `cellpy.list_instruments()` added (labels + suffixes); still logs loader-probe warnings |
+> | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | ✅ quiet by contract in **2.1.1.post3** |
 > | 6 | `Collection.save` xlsx/json | [#789](https://github.com/jepegit/cellpy/issues/789) | ✅ supported |
-> | 7–11 | polars/pandas docs, warnings, metadata read, per-instrument schema, figure theming | [#791](https://github.com/jepegit/cellpy/issues/791) | ◑ suffixes now exposed; rest open |
+> | 9 | Lightweight `read_meta` | [#799](https://github.com/jepegit/cellpy/issues/799) | ✅ **2.1.1.post4** — app wraps as `cellpy_adapter.read_file_meta` |
+> | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | ✅ **2.1.1.post4** — app wraps as `instrument_meta_schema` (UI follow-up) |
+> | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
+> | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (spread path still needs app `#47` re-link) |
+> | 7–8, 13–14 | polars docs, deprecation noise, figure bytes, `.h5` auto_pick | — | ◑ still open / app workarounds |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
