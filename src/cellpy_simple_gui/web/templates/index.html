@@ -241,6 +241,7 @@
     <main class="main">
       <nav class="tabs">
         <button :class="{active: tab==='summary'}" @click="tab='summary'; plotSummary(); $nextTick(() => relayoutCharts())">Cycle summary</button>
+        <button :class="{active: tab==='cycles'}" @click="tab='cycles'; ensureCyclesBounds(); $nextTick(() => relayoutCharts())">Cycles</button>
         <button :class="{active: tab==='cell'}" @click="tab='cell'; ensureCellSelected(); $nextTick(() => relayoutCharts())">Cell explorer</button>
       </nav>
 
@@ -326,6 +327,85 @@
                 </div>
               </div>
             </template>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Cycles collector tab (selected cells) -->
+      <section class="tabpane" x-show="tab==='cycles'" x-cloak>
+        <div class="controls">
+          <div class="ctl">
+            <label>Figure theme</label>
+            <select x-model="figureThemePref" @change="onAppearanceChange()">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="match">Match app</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Colors</label>
+            <select x-model="colorScheme" @change="onAppearanceChange()">
+              <option value="cellpy">cellpy default</option>
+              <option value="safe">Safe</option>
+              <option value="muted">Muted</option>
+            </select>
+          </div>
+          <div class="spacer"></div>
+          <div class="export" @click.outside="exportCyclesOpen=false">
+            <button class="btn btn-ghost" @click="exportCyclesOpen=!exportCyclesOpen" :disabled="!nSelected">⭳ Export ▾</button>
+            <div class="export-menu" x-show="exportCyclesOpen" x-cloak>
+              <div class="export-heading">Data</div>
+              <template x-for="f in exportFormats" :key="'cyc-'+f">
+                <button @click="exportCyclesCollector(f); exportCyclesOpen=false" x-text="f.toUpperCase()"></button>
+              </template>
+              <div class="export-heading">Figure</div>
+              <template x-for="f in figureFormats" :key="'cyc-fig-'+f">
+                <button @click="exportCyclesCollector(f); exportCyclesOpen=false" x-text="f.toUpperCase()"></button>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-card">
+            <div id="cyclesChart" class="chart"></div>
+          </div>
+          <aside class="plot-sidepane" aria-label="Cycles collector options">
+            <h3 class="plot-sidepane-title">Collector</h3>
+            <div class="ctl">
+              <label>Layout</label>
+              <select x-model="cycles.layout" @change="plotCycles()">
+                <option value="per_cycle">Per cycle</option>
+                <option value="per_cell">Per cell</option>
+              </select>
+            </div>
+            <div class="ctl">
+              <label>Cycles from</label>
+              <input type="number" class="num" x-model.number="cycles.from" :min="cycles.min" :max="cycles.max" @change="plotCycles()" />
+            </div>
+            <div class="ctl">
+              <label>to</label>
+              <input type="number" class="num" x-model.number="cycles.to" :min="cycles.min" :max="cycles.max" @change="plotCycles()" />
+            </div>
+            <div class="ctl">
+              <label>max curves</label>
+              <input type="number" class="num" x-model.number="cycles.maxCurves" min="1" max="40" @change="plotCycles()" />
+            </div>
+            <div class="ctl">
+              <label>Mode</label>
+              <select x-model="cycles.mode" @change="plotCycles()">
+                <option value="gravimetric">Gravimetric</option>
+                <option value="areal">Areal</option>
+                <option value="absolute">Absolute</option>
+              </select>
+            </div>
+            <div class="ctl">
+              <label>Method</label>
+              <select x-model="cycles.method" @change="plotCycles()">
+                <option value="forth-and-forth">forth-and-forth</option>
+                <option value="back-and-forth">back-and-forth</option>
+                <option value="forth">forth</option>
+              </select>
+            </div>
           </aside>
         </div>
       </section>

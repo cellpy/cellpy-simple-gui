@@ -51,9 +51,9 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
     return collect.export_frame_bytes(frame, fmt)
 
 
-def cycles_export(record: CellRecord, spec: CyclesPlotSpec, fmt: str) -> tuple[bytes, str]:
+def cycles_export(records: list[CellRecord], spec: CyclesPlotSpec, fmt: str) -> tuple[bytes, str]:
     collection = collect.cycles_collection(
-        [record], cycles=tuple(sorted(set(spec.cycles))), mode=spec.mode, method=spec.method
+        records, cycles=tuple(sorted(set(spec.cycles))), mode=spec.mode, method=spec.method
     )
     return collect.export_bytes(collection, fmt)
 
@@ -65,9 +65,9 @@ def summary_figure_export(
 
 
 def cycles_figure_export(
-    record: CellRecord, spec: CyclesPlotSpec, fmt: str
+    records: list[CellRecord], spec: CyclesPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
-    return figure_bytes(plotting.cycles_figure(record, spec), fmt)
+    return figure_bytes(plotting.cycles_figure(records, spec), fmt)
 
 
 def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:

@@ -56,12 +56,33 @@ def cell_cycles(cell_id: str) -> dict:
     }
 
 
+def _cycles_records(spec: CyclesPlotSpec):
+    """One cell when ``cell_id`` is set; otherwise library selection."""
+    lib = get_library()
+    if spec.cell_id:
+        try:
+            return [lib.get(spec.cell_id)]
+        except KeyError:
+            raise HTTPException(404, "No such cell")
+    return lib.selected()
+
+
+@router.get("/plots/cycles/bounds")
+def selected_cycles_bounds() -> dict:
+    """Union of cycle numbers across currently selected cells (Cycles tab)."""
+    records = get_library().selected()
+    numbers: set[int] = set()
+    for rec in records:
+        numbers.update(cellpy_adapter.cycle_numbers(rec.cell))
+    ordered = sorted(numbers)
+    return {
+        "n_cells": len(records),
+        "min": ordered[0] if ordered else 0,
+        "max": ordered[-1] if ordered else 0,
+    }
+
+
 @router.post("/plots/cycles")
 def cycles_plot(spec: CyclesPlotSpec) -> Response:
-    lib = get_library()
-    try:
-        rec = lib.get(spec.cell_id)
-    except KeyError:
-        raise HTTPException(404, "No such cell")
-    figure_json = plotting.cycles_figure(rec, spec)
+    figure_json = plotting.cycles_figure(_cycles_records(spec), spec)
     return _figure_response(figure_json)

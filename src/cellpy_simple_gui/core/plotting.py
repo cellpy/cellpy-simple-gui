@@ -40,7 +40,12 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
     )
 
 
-def cycles_figure(record: CellRecord, spec: CyclesPlotSpec) -> str:
+def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
+    if not records:
+        return collect._empty_figure_json(
+            "Select one or more cells to plot cycle curves.",
+            figure_theme=spec.figure_theme,
+        )
     cycles = tuple(sorted(set(spec.cycles)))
     if not cycles:
         return collect._empty_figure_json(
@@ -48,12 +53,12 @@ def cycles_figure(record: CellRecord, spec: CyclesPlotSpec) -> str:
             figure_theme=spec.figure_theme,
         )
     collection = collect.cycles_collection(
-        [record], cycles=cycles, mode=spec.mode, method=spec.method
+        records, cycles=cycles, mode=spec.mode, method=spec.method
     )
     return collect.figure_json(
         collection,
         family_kind="cycles",
-        layout="per_cell",
+        layout=spec.layout,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
     )

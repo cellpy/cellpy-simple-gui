@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, field_validator
 CapacityMode = Literal["gravimetric", "areal", "absolute"]
 Direction = Literal["charge", "discharge"]
 CycleMethod = Literal["forth-and-forth", "back-and-forth", "forth"]
+# cellpy collected cycles layouts (legacy fig_pr_cell / fig_pr_cycle).
+CyclesLayout = Literal["per_cell", "per_cycle"]
 # Resolved figure chrome (UI maps "match app" → light|dark before POST).
 FigureTheme = Literal["light", "dark"]
 # Curated plot colorways; "cellpy" keeps upstream/Plotly defaults.
@@ -80,12 +82,17 @@ class SummaryPlotSpec(BaseModel):
 
 
 class CyclesPlotSpec(BaseModel):
-    """Drives a cellpy ``collect_cycles`` collection for one cell."""
+    """Drives a cellpy ``collect_cycles`` collection.
 
-    cell_id: str
+    With ``cell_id`` set: one library cell (Cell explorer).
+    With ``cell_id`` omitted: selected library cells (Cycles collector tab).
+    """
+
+    cell_id: Optional[str] = None
     cycles: list[int] = Field(default_factory=list)
     mode: CapacityMode = "gravimetric"
     method: CycleMethod = "forth-and-forth"
+    layout: CyclesLayout = "per_cycle"
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""

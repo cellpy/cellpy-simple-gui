@@ -72,23 +72,35 @@ def export_summary(spec: SummaryPlotSpec, fmt: str = "csv") -> Response:
     return _file(data, media, f"summary.{_DATA_EXT[fmt_l]}")
 
 
+def _cycles_records(spec: CyclesPlotSpec):
+    lib = get_library()
+    if spec.cell_id:
+        try:
+            return [lib.get(spec.cell_id)]
+        except KeyError:
+            raise HTTPException(404, "No such cell")
+    return lib.selected()
+
+
 @router.post("/export/cycles")
 def export_cycles(spec: CyclesPlotSpec, fmt: str = "csv") -> Response:
     fmt_l = fmt.lower()
-    try:
-        rec = get_library().get(spec.cell_id)
-    except KeyError:
-        raise HTTPException(404, "No such cell")
-    name = f"cycles_{(rec.label or rec.name)}".replace(" ", "_")
+    records = _cycles_records(spec)
+    if not records:
+        raise HTTPException(400, "Select one or more cells to export cycles.")
+    if len(records) == 1:
+        name = f"cycles_{(records[0].label or records[0].name)}".replace(" ", "_")
+    else:
+        name = f"cycles_{len(records)}_cells"
     if fmt_l in collect.FIGURE_EXPORT_FORMATS:
         fmt_l = _check_figure_fmt(fmt_l)
         try:
-            data, media = export_core.cycles_figure_export(rec, spec, fmt_l)
+            data, media = export_core.cycles_figure_export(records, spec, fmt_l)
         except export_core.FigureExportError as exc:
             raise _figure_http(exc) from exc
         return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
     fmt_l = _check_data_fmt(fmt_l)
-    data, media = export_core.cycles_export(rec, spec, fmt_l)
+    data, media = export_core.cycles_export(records, spec, fmt_l)
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
 
 
