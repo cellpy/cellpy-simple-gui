@@ -62,8 +62,11 @@ function app() {
       yRanges: {}, // column id → {min, max} strings; both set → fixed range
     },
     plotTypes: [],
-    cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
-            mode: "gravimetric", method: "forth-and-forth" },
+    cell: {
+      cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
+      plotKind: "curves", mode: "gravimetric", method: "forth-and-forth",
+      voltageResolution: 0.005, direction: "charge",
+    },
     cycles: {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
       mode: "gravimetric", method: "forth-and-forth",
@@ -572,10 +575,23 @@ function app() {
         ...this.appearanceFields(),
       };
     },
+    icaSpec() {
+      const res = Number(this.cell.voltageResolution);
+      return {
+        cell_id: this.cell.cell_id,
+        cycles: this.buildCycleListFrom(this.cell),
+        voltage_resolution: Number.isFinite(res) && res > 0 ? res : 0.005,
+        direction: this.cell.direction === "discharge" ? "discharge" : "charge",
+        title: "",
+        ...this.appearanceFields(),
+      };
+    },
     async plotCell() {
       if (!this.cell.cell_id) return;
       try {
-        const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cellSpec() })).json();
+        const url = this.cell.plotKind === "dqdv" ? "/api/plots/ica" : "/api/plots/cycles";
+        const body = this.cell.plotKind === "dqdv" ? this.icaSpec() : this.cellSpec();
+        const fig = await (await api(url, { method: "POST", body })).json();
         Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
         this._applyFigureHeight("cellChart", fig);
         requestAnimationFrame(() => this.relayoutCharts());
@@ -588,6 +604,10 @@ function app() {
     },
     async exportCycles(fmt) {
       if (!this.cell.cell_id) return;
+      if (this.cell.plotKind === "dqdv") {
+        await this.download(`/api/export/ica?fmt=${fmt}`, this.icaSpec(), `ica.${fmt}`);
+        return;
+      }
       await this.download(`/api/export/cycles?fmt=${fmt}`, this.cellSpec(), `cycles.${fmt}`);
     },
     async exportCyclesCollector(fmt) {

@@ -465,7 +465,14 @@
             <div id="cellChart" class="chart"></div>
           </div>
           <aside class="plot-sidepane" aria-label="Curve options">
-            <h3 class="plot-sidepane-title">Curves</h3>
+            <h3 class="plot-sidepane-title" x-text="cell.plotKind === 'dqdv' ? 'dQ/dV' : 'Curves'">Curves</h3>
+            <div class="ctl">
+              <label>Plot</label>
+              <select x-model="cell.plotKind" @change="plotCell()">
+                <option value="curves">Voltage curves</option>
+                <option value="dqdv">dQ/dV</option>
+              </select>
+            </div>
             <div class="ctl">
               <label>Cycles from</label>
               <input type="number" class="num" x-model.number="cell.from" :min="cell.min" :max="cell.max" @change="plotCell()" />
@@ -478,7 +485,7 @@
               <label>max curves</label>
               <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="cell.plotKind === 'curves'">
               <label>Mode</label>
               <select x-model="cell.mode" @change="plotCell()">
                 <option value="gravimetric">Gravimetric</option>
@@ -486,12 +493,23 @@
                 <option value="absolute">Absolute</option>
               </select>
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="cell.plotKind === 'curves'">
               <label>Method</label>
               <select x-model="cell.method" @change="plotCell()">
                 <option value="forth-and-forth">forth-and-forth</option>
                 <option value="back-and-forth">back-and-forth</option>
                 <option value="forth">forth</option>
+              </select>
+            </div>
+            <div class="ctl" x-show="cell.plotKind === 'dqdv'">
+              <label>V resolution</label>
+              <input type="number" class="num" x-model.number="cell.voltageResolution" min="0.0001" step="0.001" @change="plotCell()" />
+            </div>
+            <div class="ctl" x-show="cell.plotKind === 'dqdv'">
+              <label>Direction</label>
+              <select x-model="cell.direction" @change="plotCell()">
+                <option value="charge">Charge</option>
+                <option value="discharge">Discharge</option>
               </select>
             </div>
           </aside>

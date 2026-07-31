@@ -12,6 +12,8 @@ Direction = Literal["charge", "discharge"]
 CycleMethod = Literal["forth-and-forth", "back-and-forth", "forth"]
 # cellpy collected cycles layouts (legacy fig_pr_cell / fig_pr_cycle).
 CyclesLayout = Literal["per_cell", "per_cycle"]
+# ICA plotter only accepts charge|discharge (not "both") — see CELLPY_PAINPOINTS §16.
+IcaDirection = Literal["charge", "discharge"]
 # Resolved figure chrome (UI maps "match app" → light|dark before POST).
 FigureTheme = Literal["light", "dark"]
 # Curated plot colorways; "cellpy" keeps upstream/Plotly defaults.
@@ -98,12 +100,25 @@ class CyclesPlotSpec(BaseModel):
     title: str = ""
 
 
+class IcaPlotSpec(BaseModel):
+    """Drives a cellpy ``collect_ica`` collection for one cell (Cell explorer)."""
+
+    cell_id: str
+    cycles: list[int] = Field(default_factory=list)
+    voltage_resolution: float = 0.005
+    direction: IcaDirection = "charge"
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
+    title: str = ""
+
+
 class ExportSpec(BaseModel):
     """A plot spec plus the desired file format."""
 
     fmt: str = "csv"  # csv | xlsx | parquet | json
     summary: Optional[SummaryPlotSpec] = None
     cycles: Optional[CyclesPlotSpec] = None
+    ica: Optional[IcaPlotSpec] = None
 
 
 class CellsExportSpec(BaseModel):
