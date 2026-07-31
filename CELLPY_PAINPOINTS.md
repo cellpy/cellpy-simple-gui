@@ -24,7 +24,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | ✅ **2.1.1.post4** — app wraps as `instrument_meta_schema` (UI follow-up) |
 > | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
 > | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (spread path still needs app `#47` re-link) |
-> | 7–8, 13–14 | polars docs, deprecation noise, figure bytes, `.h5` auto_pick | — | ◑ still open / app workarounds |
+> | 7–8, 13–15 | polars docs, deprecation noise, figure bytes, `.h5` auto_pick, cycles facet labels | — | ◑ still open / app workarounds |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -257,6 +257,24 @@ hints that Arbin SQL HDF5 belongs under Import raw.
 
 **Wish:** when `instrument=` is set, never auto-pick cellpy format from suffix
 (or document that callers must disable it for every raw `.h5` loader).
+
+## 15. 🟢 Cycles collector facet strips still use raw `cycle_num=` / `cell=`
+
+#801 / post4 pretty-prints **summary** facet labels (no more
+`variable=charge_capacity_gravimetric` on strips; axis titles are human-readable).
+The **cycles** family (`layout="per_cell"` / `"per_cycle"`, legacy
+`fig_pr_cell` / `fig_pr_cycle`) still annotates facets as `cycle_num=1`,
+`cell=demo`, etc. Axis titles for capacity/voltage are already fine; only the
+facet strips look unfinished next to summary plots.
+
+Surfaced while adding the multi-cell Cycles tab in cellpy-simple-gui #55 —
+same `collection.plot(family_kind="cycles", layout=…)` path, no app restyle for
+those annotations yet.
+
+**Wish:** apply the same pretty-label pass to cycles (and other non-summary)
+collected layouts — e.g. `Cycle 1` / cell label only — so apps get consistent
+chrome without per-family string scrubbing. Optionally document that `layout=`
+is preferred over legacy `method="fig_pr_*"` in `cycles_plotter` docs.
 
 ---
 
