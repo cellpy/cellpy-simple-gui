@@ -56,8 +56,9 @@ body {
 .topbar {
   height: 56px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 18px; border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 70%, transparent);
-  backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20;
+  /* Transparent so the body gradient shows through (#58). */
+  background: transparent;
+  position: sticky; top: 0; z-index: 20;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
@@ -268,7 +269,28 @@ input:focus, select:focus { border-color: var(--accent); }
 .mgr-export { margin-left: auto; }
 .mgr-export .export-menu { right: 0; left: auto; }
 
-/* ---------- chart ---------- */
+/* ---------- chart + side pane (#58) ---------- */
+.chart-row {
+  display: flex; gap: 14px; align-items: stretch; flex: 1; min-height: 0; width: 100%;
+}
+.chart-row .chart-card {
+  flex: 1; min-width: 0; width: auto;
+}
+.plot-sidepane {
+  flex: 0 0 200px; width: 200px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 14px; box-shadow: var(--shadow-sm);
+}
+.plot-sidepane-title {
+  margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.plot-sidepane .ctl { width: 100%; }
+.plot-sidepane .ctl select, .plot-sidepane .ctl .num { min-width: 0; width: 100%; }
+.plot-sidepane .yrange-inputs { width: 100%; }
+.plot-sidepane .yrange-inputs .num-mini { flex: 1; min-width: 0; width: auto; }
+
 .chart-card {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 10px; box-shadow: var(--shadow);
