@@ -41,6 +41,16 @@ def test_list_instruments_dynamic():
     assert maccor["models"]  # discovered from cellpy, not hard-coded
 
 
+def test_instrument_meta_schema_wrapper():
+    """Adapter exposes cellpy #800 schema for ingest-form follow-ups (#52)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    schema = cellpy_adapter.instrument_meta_schema("arbin_res")
+    assert schema.get("instrument") == "arbin_res"
+    names = {f["name"] for f in schema.get("fields", [])}
+    assert {"mass", "area", "nominal_capacity"} <= names
+
+
 # ---- column mapping ------------------------------------------------------ #
 
 @pytest.mark.essential
@@ -198,7 +208,40 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
             SummaryPlotSpec(plot_type="capacity_ce", group_average=True, spread=True),
         )
     )
-    y_title = {}
+
+    def _hover_var(tr) -> str | None:
+        ht = tr.get("hovertemplate") or ""
+        return next(
+            (p.split("=", 1)[1] for p in ht.split("<br>") if p.startswith("variable=")),
+            None,
+        )
+
+    # Each column id must live on a single y-axis (avg + singleton share the panel).
+    axes_by_var: dict[str, set[str]] = {}
+    for tr in fig["data"]:
+        var = _hover_var(tr)
+        if not var:
+            continue
+        axes_by_var.setdefault(var, set()).add(tr.get("yaxis") or "y")
+    assert axes_by_var
+    for var, axes in axes_by_var.items():
+        assert len(axes) == 1, (var, axes)
+
+    solo = [tr for tr in fig["data"] if tr.get("name") == "solo"]
+    assert len(solo) >= 3
+    for tr in solo:
+        assert _hover_var(tr)
+
+
+def test_summary_figure_pretty_axis_labels(loaded_library):
+    """cellpy #801 pretty-prints y-axis titles (not bare snake_case) (#52 / #38)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(plot_type="capacity_ce"),
+        )
+    )
+    titles = []
     for key, axis in fig["layout"].items():
         if not key.startswith("yaxis"):
             continue
@@ -206,20 +249,10 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
         if isinstance(title, dict):
             title = title.get("text")
         if isinstance(title, str) and title:
-            y_id = "y" if key == "yaxis" else "y" + key[5:]
-            y_title[y_id] = title
-
-    solo = [tr for tr in fig["data"] if tr.get("name") == "solo"]
-    assert len(solo) >= 3
-    for tr in solo:
-        ht = tr.get("hovertemplate") or ""
-        var = next(
-            (p.split("=", 1)[1] for p in ht.split("<br>") if p.startswith("variable=")),
-            None,
-        )
-        assert var, ht
-        yaxis = tr.get("yaxis") or "y"
-        assert y_title.get(yaxis) == var, (var, yaxis, y_title)
+            titles.append(title)
+    assert titles
+    assert any(" " in t or "(" in t for t in titles)
+    assert not any(t.startswith("charge_capacity_") for t in titles)
 
 
 def test_summary_figure_long_cell_names_shorten_legend(loaded_library):
@@ -396,26 +429,13 @@ def _numeric_y_values(y) -> list[float]:
     return vals
 
 
-def _yaxis_to_variable(fig: dict) -> dict[str, str]:
-    """Map Plotly yaxis id (``y`` / ``y2`` / …) to facet strip variable name."""
-    annotations = fig["layout"].get("annotations") or []
-    yaxes = sorted(
-        (k for k in fig["layout"] if k.startswith("yaxis")),
-        key=lambda k: (fig["layout"][k].get("domain") or [0, 0])[0],
+def _hover_variable(tr: dict) -> str | None:
+    """Column id from a PX ``variable=…`` hovertemplate fragment."""
+    ht = tr.get("hovertemplate") or ""
+    return next(
+        (p.split("=", 1)[1] for p in ht.split("<br>") if p.startswith("variable=")),
+        None,
     )
-    # Restyle tidies ``variable=…`` strips to the bare column id; keep only those.
-    labels = [
-        a.get("text")
-        for a in annotations
-        if isinstance(a.get("text"), str) and a.get("text")
-    ]
-    # Facet strips are ordered bottom→top matching yaxis domains.
-    out: dict[str, str] = {}
-    for ax_key, label in zip(yaxes, labels):
-        # layout key ``yaxis`` → trace ``yaxis`` ``y``; ``yaxis2`` → ``y2``.
-        trace_id = "y" if ax_key == "yaxis" else ax_key.replace("yaxis", "y")
-        out[trace_id] = label
-    return out
 
 
 def test_summary_figure_independent_y_by_default(loaded_library):
@@ -485,7 +505,6 @@ def test_summary_figure_ce_outlier_does_not_crush_capacity(loaded_library):
     matches = _yaxis_matches(fig)
     assert all(v in (None, "") for v in matches.values())
 
-    var_by_axis = _yaxis_to_variable(fig)
     capacity_max = 0.0
     ce_max = 0.0
     for tr in fig["data"]:
@@ -493,7 +512,7 @@ def test_summary_figure_ce_outlier_does_not_crush_capacity(loaded_library):
         if not vals:
             continue
         ymax = max(vals)
-        var = var_by_axis.get(tr.get("yaxis") or "y", "")
+        var = _hover_variable(tr) or ""
         if var == "coulombic_efficiency":
             ce_max = max(ce_max, ymax)
         elif "capacity" in var:

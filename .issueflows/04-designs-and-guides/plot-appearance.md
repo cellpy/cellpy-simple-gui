@@ -22,8 +22,11 @@ light/dark shell hook.
 - **Persistence:** `localStorage` keys `csg-figure-theme`, `csg-color-scheme`.
   Existing Light/Dark choices in localStorage stay respected.
 - **Cell-list swatches** stay on `PALETTE` and do not follow the plot scheme (v1).
-- Keep legend/facet polish in app `_restyle`; do not replace it with cellpy
-  templates until they cover height/legend/facet strip needs.
+- Keep legend truncation + colorway in app `_restyle`. As of cellpy
+  **2.1.1.post4** (#801), paper/plot/font colors and panel height go through
+  `layout_updates` / `height_per_panel` (`collect._inject_app_chrome`); facet
+  strips are pretty by default. See
+  [`cellpy-delegation-inventory.md`](cellpy-delegation-inventory.md).
 
 ## Alternatives considered
 

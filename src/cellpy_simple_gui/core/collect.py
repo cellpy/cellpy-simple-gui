@@ -276,6 +276,27 @@ def _apply_share_y(fig, share: bool) -> None:
         log.warning("could not apply shared y-axes", exc_info=True)
 
 
+def _inject_app_chrome(figure_theme: str, plot_kwargs: dict) -> dict:
+    """Fold theme tokens into cellpy #801 knobs before ``collection.plot``."""
+    tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
+    opts = dict(plot_kwargs)
+    layout_updates = {
+        "paper_bgcolor": tokens["paper_bgcolor"],
+        "plot_bgcolor": tokens["plot_bgcolor"],
+        "font": {
+            "family": "Inter, Segoe UI, system-ui, sans-serif",
+            "size": 12,
+            "color": tokens["font_color"],
+        },
+        "autosize": True,
+    }
+    caller = opts.pop("layout_updates", None) or {}
+    opts["layout_updates"] = {**layout_updates, **caller}
+    opts.setdefault("height_per_panel", 250)
+    opts.setdefault("figure_border_height", 90)
+    return opts
+
+
 def figure_json(
     collection,
     *,
@@ -288,7 +309,8 @@ def figure_json(
     if spread and not is_grouped(collection):
         spread = False
     try:
-        fig = collection.plot(spread=spread, **plot_kwargs)
+        opts = _inject_app_chrome(figure_theme, plot_kwargs)
+        fig = collection.plot(spread=spread, **opts)
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         _apply_share_y(fig, _want_share_y(plot_kwargs))
         return pio.to_json(fig)
@@ -298,38 +320,22 @@ def figure_json(
         )
 
 
-def _layout_axis_title(axis: dict) -> str | None:
-    title = axis.get("title")
-    if isinstance(title, dict):
-        title = title.get("text")
-    if isinstance(title, str) and title and title != "value":
-        return title
-    return None
-
-
-def _axis_key_to_id(key: str) -> str:
-    """``yaxis`` → ``y``, ``yaxis2`` → ``y2``, ``xaxis3`` → ``x3``."""
-    prefix, rest = key[:1], key[5:]
-    return prefix if not rest else f"{prefix}{rest}"
-
-
 def _variable_axis_map(fig) -> dict[str, tuple[str, str]]:
-    """Map facet variable → ``(xaxis_id, yaxis_id)`` from base layout titles."""
-    layout = fig.layout.to_plotly_json()
+    """Map facet ``variable`` → ``(xaxis_id, yaxis_id)`` from base traces.
+
+    Prefer hover ``variable=…`` over y-axis title text: cellpy ≥2.1.1.post4
+    pretty-prints axis titles (``Charge Capacity``) while hover keeps the
+    column id (``charge_capacity_gravimetric``), which is what secondary
+    figures still use for remapping.
+    """
     out: dict[str, tuple[str, str]] = {}
-    for key, axis in layout.items():
-        if not key.startswith("yaxis"):
+    for tr in fig.data:
+        var = _trace_variable(tr)
+        if not var or var in out:
             continue
-        var = _layout_axis_title(axis)
-        if not var:
-            continue
-        y_id = _axis_key_to_id(key)
-        anchor = axis.get("anchor")
-        if isinstance(anchor, str) and anchor.startswith("x"):
-            x_id = anchor
-        else:
-            x_id = "x" if y_id == "y" else "x" + y_id[1:]
-        out[var] = (x_id, y_id)
+        x_id = getattr(tr, "xaxis", None) or "x"
+        y_id = getattr(tr, "yaxis", None) or "y"
+        out[var] = (str(x_id), str(y_id))
     return out
 
 
@@ -377,11 +383,12 @@ def figures_json(
         )
 
     try:
+        opts = _inject_app_chrome(figure_theme, plot_kwargs)
         base = None
         var_to_axes: dict[str, tuple[str, str]] = {}
         for collection, averaged in parts:
             use_spread = bool(spread and averaged and is_grouped(collection))
-            fig = collection.plot(spread=use_spread, **plot_kwargs)
+            fig = collection.plot(spread=use_spread, **opts)
             if base is None:
                 base = fig
                 var_to_axes = _variable_axis_map(base)
@@ -519,7 +526,11 @@ def _has_right_facet_strips(fig) -> bool:
 
 
 def _tidy_facet_annotations(fig) -> None:
-    """Shorten ``variable=…`` facet strip text so it fights the legend less."""
+    """Best-effort cleanup if a ``variable=…`` strip slipped past cellpy.
+
+    cellpy ≥2.1.1.post4 pretty-prints facet labels by default (#801); keep this
+    as a narrow fallback for older frames or edge paths.
+    """
     annotations = getattr(fig.layout, "annotations", None) or ()
     for ann in annotations:
         text = getattr(ann, "text", None)
@@ -572,19 +583,23 @@ def _restyle(
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
 ) -> None:
-    """Nudge cellpy's figure toward the app's look (theme tokens, soft axes,
-    a compact right-hand legend that survives long cell names)."""
+    """Post-plot polish: legend truncation, colorway, margins, soft axes.
+
+    Paper/plot/font colors and panel height are preferably applied via cellpy
+    ``layout_updates`` / ``height_per_panel`` (#801) in :func:`_inject_app_chrome`.
+    This pass keeps app-owned legend/colorway behaviour and axis grid styling.
+    """
     # Name truncation must not share fate with best-effort cosmetics.
     longest = _shorten_legend(fig)
     _apply_colorway(fig, color_scheme)
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     try:
         layout = fig.layout.to_plotly_json()
-        rows = max(1, len([k for k in layout if k.startswith("yaxis")]))
         strip_pad = _FACET_STRIP_RIGHT_PAD if _has_right_facet_strips(fig) else 0
         legend_w = 40 + min(longest, _LEGEND_NAME_LIMIT) * 7 if longest else 28
         right = strip_pad + legend_w
         _tidy_facet_annotations(fig)
+        # Re-assert theme tokens (covers empty figures that never hit #801 knobs).
         fig.update_layout(
             paper_bgcolor=tokens["paper_bgcolor"],
             plot_bgcolor=tokens["plot_bgcolor"],
@@ -594,7 +609,6 @@ def _restyle(
                 color=tokens["font_color"],
             ),
             margin=dict(l=64, r=right, t=44, b=48),
-            height=min(250 * rows + 90, 1500),
             autosize=True,
             legend=dict(
                 orientation="v", x=1.005, xanchor="left", y=1, yanchor="top",

@@ -81,10 +81,9 @@ _INSTRUMENTS_CACHE: list[dict[str, Any]] | None = None
 def list_instruments() -> list[dict[str, Any]]:
     """The available instrument loaders (id / label / models / suffixes).
 
-    Uses cellpy 2.1.1's public :func:`cellpy.list_instruments` (added in
-    response to issue #786), which returns display labels and raw suffixes.
-    We drop the implicit ``"default"`` pseudo-model (the UI treats "no model
-    selected" as default) and quiet the loader-probe warnings it still emits.
+    Uses cellpy's :func:`cellpy.list_instruments` (quiet by contract since
+    2.1.1.post3 / #786). Drops the implicit ``"default"`` pseudo-model (the UI
+    treats "no model selected" as default).
     """
     global _INSTRUMENTS_CACHE
     if _INSTRUMENTS_CACHE is not None:
@@ -92,18 +91,11 @@ def list_instruments() -> list[dict[str, Any]]:
 
     import cellpy
 
-    root_log = logging.getLogger()
-    prev = root_log.level
-    root_log.setLevel(logging.ERROR)  # still noisy about skipped non-loader modules
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            raw = cellpy.list_instruments()
+        raw = cellpy.list_instruments()
     except Exception:  # noqa: BLE001 - never let discovery break the app
         log.warning("Could not discover cellpy instruments", exc_info=True)
         raw = []
-    finally:
-        root_log.setLevel(prev)
 
     instruments: list[dict[str, Any]] = []
     for entry in raw:
@@ -123,6 +115,20 @@ def list_instruments() -> list[dict[str, Any]]:
 
 def instrument_ids() -> set[str]:
     return {i["id"] for i in list_instruments()}
+
+
+def instrument_meta_schema(instrument: str | None = None) -> dict[str, Any]:
+    """Describe ``cellpy.get`` metadata knobs for an ingestion form (#800)."""
+    import cellpy
+
+    return cellpy.instrument_meta_schema(instrument)
+
+
+def read_file_meta(path: str | Path) -> Any:
+    """Peek cellpy-file metadata without loading raw/steps/summary (#799)."""
+    import cellpy
+
+    return cellpy.read_meta(path)
 
 #: Bundled raw files that "Import raw demo" can pull in with zero setup.
 EXAMPLE_RAW = {
