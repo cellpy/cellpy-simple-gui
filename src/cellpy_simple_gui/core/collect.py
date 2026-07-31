@@ -124,6 +124,40 @@ def summary_columns_for(plot_type: str, basis: str) -> tuple[str, ...]:
     return table.get(plot_type, table["capacity_ce"])
 
 
+_PANEL_LABELS = {
+    "charge_capacity": "Charge",
+    "discharge_capacity": "Discharge",
+    "coulombic_efficiency": "CE",
+    "cumulated_coulombic_efficiency": "Cum. CE",
+    "charge_capacity_loss": "Charge loss",
+    "discharge_capacity_loss": "Discharge loss",
+    "potential_end_charge": "EOC V",
+    "potential_end_discharge": "EOD V",
+    "ir_charge": "IR charge",
+    "ir_discharge": "IR discharge",
+    "charge_c_rate": "Charge C-rate",
+    "discharge_c_rate": "Discharge C-rate",
+}
+
+
+def _panel_label(column: str) -> str:
+    """Short UI label for a summary facet column id."""
+    base = column
+    for suffix in ("_gravimetric", "_areal"):
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
+    return _PANEL_LABELS.get(base, base.replace("_", " "))
+
+
+def summary_panels_for(plot_type: str, basis: str) -> list[dict[str, str]]:
+    """Panel descriptors (column id + short label) for summary y-range widgets."""
+    return [
+        {"id": col, "label": _panel_label(col)}
+        for col in summary_columns_for(plot_type, basis)
+    ]
+
+
 def summary_columns(basis: str, charge: bool, discharge: bool, efficiency: bool) -> tuple[str, ...]:
     """Legacy charge/discharge/CE column selection (kept for tests)."""
     suffix = _BASIS_SUFFIX.get(basis, "_gravimetric")
@@ -250,7 +284,13 @@ def is_grouped(collection) -> bool:
 
 
 def _want_share_y(plot_kwargs: dict) -> bool:
-    """True when the caller asked for shared facet y-scales (``share_y`` wins)."""
+    """True when the caller asked for shared facet y-scales (``share_y`` wins).
+
+    Non-empty ``y_ranges`` always wins: fixed per-panel limits need unmatched
+    axes (cellpy #804), and re-linking here would defeat them (#54).
+    """
+    if plot_kwargs.get("y_ranges"):
+        return False
     if plot_kwargs.get("share_y") is not None:
         return bool(plot_kwargs["share_y"])
     if plot_kwargs.get("match_axes") is not None:

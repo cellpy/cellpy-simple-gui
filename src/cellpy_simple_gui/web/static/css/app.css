@@ -238,8 +238,11 @@ input:focus, select:focus { border-color: var(--accent); }
 .ctl label { font-size: 11px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
 .ctl select, .ctl .num { min-width: 90px; }
 .num { width: 84px; }
+.yrange-inputs { display: flex; align-items: center; gap: 4px; }
+.yrange-sep { color: var(--text-faint); font-size: 12px; }
 .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); cursor: pointer; }
 .chk input { accent-color: var(--accent); width: 15px; height: 15px; }
+.chk:has(input:disabled) { opacity: .55; cursor: not-allowed; }
 .spacer { flex: 1; }
 
 /* export dropdown */

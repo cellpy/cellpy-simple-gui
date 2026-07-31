@@ -13,8 +13,18 @@ router = APIRouter()
 
 
 @router.get("/plot-types")
-def plot_types() -> dict:
-    return {"types": collect.SUMMARY_PLOT_TYPES}
+def plot_types(basis: str = "gravimetric") -> dict:
+    """Curated summary plot types, with panel ids for the current capacity basis."""
+    types = []
+    for entry in collect.SUMMARY_PLOT_TYPES:
+        panel_basis = basis if entry.get("basis") else "absolute"
+        types.append(
+            {
+                **entry,
+                "panels": collect.summary_panels_for(entry["id"], panel_basis),
+            }
+        )
+    return {"types": types}
 
 
 def _figure_response(figure_json: str) -> Response:

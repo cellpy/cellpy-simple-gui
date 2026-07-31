@@ -464,6 +464,63 @@ def test_summary_figure_share_y_matches_axes(loaded_library):
     assert any(v == "y" for v in matches.values())
 
 
+def _yaxis_for_variable(fig: dict, variable: str) -> str | None:
+    """Plotly layout key (``yaxis`` / ``yaxis2`` / …) for a facet variable."""
+    for tr in fig["data"]:
+        if _hover_variable(tr) != variable:
+            continue
+        axis = tr.get("yaxis") or "y"
+        return "yaxis" if axis == "y" else f"yaxis{axis[1:]}"
+    return None
+
+
+def test_summary_figure_y_ranges_sets_panel_limits(loaded_library):
+    """Per-panel y_ranges land on the matching facet axis (#54 / cellpy #804)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                y_ranges={"coulombic_efficiency": [0.9, 1.05]},
+            ),
+        )
+    )
+    axis = _yaxis_for_variable(fig, "coulombic_efficiency")
+    assert axis is not None
+    layout_axis = fig["layout"][axis]
+    assert layout_axis.get("range") == [0.9, 1.05]
+    assert layout_axis.get("autorange") is False
+
+
+def test_summary_figure_y_ranges_wins_over_share_y(loaded_library):
+    """Fixed ranges must not be defeated by app share_y re-link (#54)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                share_y=True,
+                y_ranges={"coulombic_efficiency": [0.95, 1.02]},
+            ),
+        )
+    )
+    matches = _yaxis_matches(fig)
+    assert all(v in (None, "") for v in matches.values())
+    axis = _yaxis_for_variable(fig, "coulombic_efficiency")
+    assert fig["layout"][axis].get("range") == [0.95, 1.02]
+
+
+def test_summary_panels_for_capacity_ce():
+    panels = collect.summary_panels_for("capacity_ce", "gravimetric")
+    ids = [p["id"] for p in panels]
+    assert ids == [
+        "charge_capacity_gravimetric",
+        "discharge_capacity_gravimetric",
+        "coulombic_efficiency",
+    ]
+    assert panels[-1]["label"] == "CE"
+
+
 def test_summary_figure_share_y_with_group_avg_and_spread(loaded_library):
     """Group avg + Spread must still honour share_y (#47; cellpy spread_plot gap)."""
     from cellpy_simple_gui.core import cellpy_adapter

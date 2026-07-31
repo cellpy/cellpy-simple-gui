@@ -249,7 +249,7 @@
         <div class="controls">
           <div class="ctl">
             <label>Plot type</label>
-            <select x-model="summary.plot_type" @change="plotSummary()">
+            <select x-model="summary.plot_type" @change="onSummaryPlotOptionsChange()">
               <template x-for="t in plotTypes" :key="t.id">
                 <option :value="t.id" x-text="t.label"></option>
               </template>
@@ -257,7 +257,7 @@
           </div>
           <div class="ctl" x-show="currentPlotTypeBasis()">
             <label>Basis</label>
-            <select x-model="summary.basis" @change="plotSummary()">
+            <select x-model="summary.basis" @change="onSummaryPlotOptionsChange()">
               <option value="gravimetric">Gravimetric (mAh/g)</option>
               <option value="areal">Areal (mAh/cm²)</option>
               <option value="absolute">Absolute (mAh)</option>
@@ -273,9 +273,21 @@
           <label class="chk" x-show="summary.group_average" title="Show mean ± std band">
             <input type="checkbox" x-model="summary.spread" @change="plotSummary()" /> Spread
           </label>
-          <label class="chk" title="Use one shared y-scale across all summary panels (off = independent auto-scale)">
-            <input type="checkbox" x-model="summary.share_y" @change="plotSummary()" /> Share y-scale
+          <label class="chk" title="Use one shared y-scale across all summary panels (off = independent auto-scale). Disabled while per-panel y-ranges are set.">
+            <input type="checkbox" x-model="summary.share_y" :disabled="hasYRanges()" @change="plotSummary()" /> Share y-scale
           </label>
+          <template x-for="p in currentSummaryPanels()" :key="p.id">
+            <div class="ctl yrange" :title="'Fixed y-range for ' + p.label + ' (leave blank for auto)'">
+              <label x-text="p.label + ' y'"></label>
+              <div class="yrange-inputs">
+                <input type="number" class="num num-mini" step="any" placeholder="min"
+                       x-model="summary.yRanges[p.id].min" @change="onYRangeChange()" />
+                <span class="yrange-sep">–</span>
+                <input type="number" class="num num-mini" step="any" placeholder="max"
+                       x-model="summary.yRanges[p.id].max" @change="onYRangeChange()" />
+              </div>
+            </div>
+          </template>
           <div class="ctl">
             <label>Figure theme</label>
             <select x-model="figureThemePref" @change="onAppearanceChange()">
