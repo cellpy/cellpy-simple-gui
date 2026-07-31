@@ -486,6 +486,7 @@ function app() {
       try {
         const fig = await (await api("/api/plots/summary", { method: "POST", body: this.summarySpec() })).json();
         Plotly.react("summaryChart", fig.data, fig.layout, PLOTLY_CONFIG);
+        requestAnimationFrame(() => this.relayoutCharts());
       } catch (e) { console.error(e); }
     },
 
@@ -526,6 +527,7 @@ function app() {
       try {
         const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cellSpec() })).json();
         Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
+        requestAnimationFrame(() => this.relayoutCharts());
       } catch (e) { console.error(e); }
     },
 

@@ -240,8 +240,8 @@
     <!-- ============ Main ============ -->
     <main class="main">
       <nav class="tabs">
-        <button :class="{active: tab==='summary'}" @click="tab='summary'; plotSummary()">Cycle summary</button>
-        <button :class="{active: tab==='cell'}" @click="tab='cell'; ensureCellSelected()">Cell explorer</button>
+        <button :class="{active: tab==='summary'}" @click="tab='summary'; plotSummary(); $nextTick(() => relayoutCharts())">Cycle summary</button>
+        <button :class="{active: tab==='cell'}" @click="tab='cell'; ensureCellSelected(); $nextTick(() => relayoutCharts())">Cell explorer</button>
       </nav>
 
       <!-- Summary tab -->
@@ -276,18 +276,6 @@
           <label class="chk" title="Use one shared y-scale across all summary panels (off = independent auto-scale). Disabled while per-panel y-ranges are set.">
             <input type="checkbox" x-model="summary.share_y" :disabled="hasYRanges()" @change="plotSummary()" /> Share y-scale
           </label>
-          <template x-for="p in currentSummaryPanels()" :key="p.id">
-            <div class="ctl yrange" :title="'Fixed y-range for ' + p.label + ' (leave blank for auto)'">
-              <label x-text="p.label + ' y'"></label>
-              <div class="yrange-inputs">
-                <input type="number" class="num num-mini" step="any" placeholder="min"
-                       x-model="summary.yRanges[p.id].min" @change="onYRangeChange()" />
-                <span class="yrange-sep">–</span>
-                <input type="number" class="num num-mini" step="any" placeholder="max"
-                       x-model="summary.yRanges[p.id].max" @change="onYRangeChange()" />
-              </div>
-            </div>
-          </template>
           <div class="ctl">
             <label>Figure theme</label>
             <select x-model="figureThemePref" @change="onAppearanceChange()">
@@ -320,8 +308,25 @@
             </div>
           </div>
         </div>
-        <div class="chart-card">
-          <div id="summaryChart" class="chart"></div>
+        <div class="chart-row">
+          <div class="chart-card">
+            <div id="summaryChart" class="chart"></div>
+          </div>
+          <aside class="plot-sidepane" aria-label="Y-axis ranges">
+            <h3 class="plot-sidepane-title">Y ranges</h3>
+            <template x-for="p in currentSummaryPanels()" :key="p.id">
+              <div class="ctl yrange" :title="'Fixed y-range for ' + p.label + ' (leave blank for auto)'">
+                <label x-text="p.label + ' y'"></label>
+                <div class="yrange-inputs">
+                  <input type="number" class="num num-mini" step="any" placeholder="min"
+                         x-model="summary.yRanges[p.id].min" @change="onYRangeChange()" />
+                  <span class="yrange-sep">–</span>
+                  <input type="number" class="num num-mini" step="any" placeholder="max"
+                         x-model="summary.yRanges[p.id].max" @change="onYRangeChange()" />
+                </div>
+              </div>
+            </template>
+          </aside>
         </div>
       </section>
 
@@ -334,34 +339,6 @@
               <template x-for="c in cells" :key="c.id">
                 <option :value="c.id" x-text="c.label"></option>
               </template>
-            </select>
-          </div>
-          <div class="ctl">
-            <label>Cycles from</label>
-            <input type="number" class="num" x-model.number="cell.from" :min="cell.min" :max="cell.max" @change="plotCell()" />
-          </div>
-          <div class="ctl">
-            <label>to</label>
-            <input type="number" class="num" x-model.number="cell.to" :min="cell.min" :max="cell.max" @change="plotCell()" />
-          </div>
-          <div class="ctl">
-            <label>max curves</label>
-            <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
-          </div>
-          <div class="ctl">
-            <label>Mode</label>
-            <select x-model="cell.mode" @change="plotCell()">
-              <option value="gravimetric">Gravimetric</option>
-              <option value="areal">Areal</option>
-              <option value="absolute">Absolute</option>
-            </select>
-          </div>
-          <div class="ctl">
-            <label>Method</label>
-            <select x-model="cell.method" @change="plotCell()">
-              <option value="forth-and-forth">forth-and-forth</option>
-              <option value="back-and-forth">back-and-forth</option>
-              <option value="forth">forth</option>
             </select>
           </div>
           <div class="ctl">
@@ -403,8 +380,41 @@
           <div class="metric"><span class="m-num" x-text="currentCell()?.n_cycles"></span><span class="m-lbl">cycles</span></div>
         </div>
 
-        <div class="chart-card">
-          <div id="cellChart" class="chart"></div>
+        <div class="chart-row">
+          <div class="chart-card">
+            <div id="cellChart" class="chart"></div>
+          </div>
+          <aside class="plot-sidepane" aria-label="Curve options">
+            <h3 class="plot-sidepane-title">Curves</h3>
+            <div class="ctl">
+              <label>Cycles from</label>
+              <input type="number" class="num" x-model.number="cell.from" :min="cell.min" :max="cell.max" @change="plotCell()" />
+            </div>
+            <div class="ctl">
+              <label>to</label>
+              <input type="number" class="num" x-model.number="cell.to" :min="cell.min" :max="cell.max" @change="plotCell()" />
+            </div>
+            <div class="ctl">
+              <label>max curves</label>
+              <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
+            </div>
+            <div class="ctl">
+              <label>Mode</label>
+              <select x-model="cell.mode" @change="plotCell()">
+                <option value="gravimetric">Gravimetric</option>
+                <option value="areal">Areal</option>
+                <option value="absolute">Absolute</option>
+              </select>
+            </div>
+            <div class="ctl">
+              <label>Method</label>
+              <select x-model="cell.method" @change="plotCell()">
+                <option value="forth-and-forth">forth-and-forth</option>
+                <option value="back-and-forth">back-and-forth</option>
+                <option value="forth">forth</option>
+              </select>
+            </div>
+          </aside>
         </div>
       </section>
     </main>
