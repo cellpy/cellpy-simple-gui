@@ -192,10 +192,10 @@ full app chrome contract.
 ## 12. 🟢 Per-panel y-limits on collected summary facets
 
 `match_axes=False` already gives independent auto-scale (cellpy-simple-gui #2
-forwards it as `share_y`). Fixed **per-facet-row** ranges are still missing on
-the collected summary path: `AxisSpec` / `PanelSpec.y_axis.range` exist but
-builders don't consume them yet; `ce_range` only helps the batch_summary path;
-`range_y` applies globally to every panel.
+forwards it as `share_y`). Fixed **per-facet-row** ranges ship via cellpy
+`y_ranges={variable: [lo, hi]}` (#804, 2.1.1.post2+); the app exposes them as
+`SummaryPlotSpec.y_ranges` + summary UI widgets (#54). Older notes about
+`AxisSpec` / `ce_range` / global `range_y` remain historical background.
 
 ### 12b. 🟠 `spread_plot` ignores `share_y` / `match_axes`
 

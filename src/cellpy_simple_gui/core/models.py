@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import math
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 CapacityMode = Literal["gravimetric", "areal", "absolute"]
 Direction = Literal["charge", "discharge"]
@@ -53,9 +54,29 @@ class SummaryPlotSpec(BaseModel):
     # Independent y-scales by default so CE outliers don't crush capacity panels.
     # Maps to cellpy ``match_axes`` on the collected summary path.
     share_y: bool = False
+    # Per-facet-row limits: summary column id → [lo, hi]. Omitted keys autorange.
+    # Non-empty values force independent axes (cellpy #804 / app #54).
+    y_ranges: Optional[dict[str, list[float]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = "Cycle summary"
+
+    @field_validator("y_ranges")
+    @classmethod
+    def _clean_y_ranges(cls, value: dict[str, list[float]] | None):
+        if not value:
+            return None
+        cleaned: dict[str, list[float]] = {}
+        for key, pair in value.items():
+            if pair is None or len(pair) != 2:
+                continue
+            try:
+                lo, hi = float(pair[0]), float(pair[1])
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(lo) and math.isfinite(hi) and lo < hi:
+                cleaned[str(key)] = [lo, hi]
+        return cleaned or None
 
 
 class CyclesPlotSpec(BaseModel):

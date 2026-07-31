@@ -59,6 +59,7 @@ function app() {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
       share_y: false,
+      yRanges: {}, // column id → {min, max} strings; both set → fixed range
     },
     plotTypes: [],
     cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
@@ -116,12 +117,48 @@ function app() {
 
     async refreshPlotTypes() {
       try {
-        this.plotTypes = (await (await api("/api/plot-types")).json()).types;
+        const basis = encodeURIComponent(this.summary.basis || "gravimetric");
+        this.plotTypes = (await (await api(`/api/plot-types?basis=${basis}`)).json()).types;
+        this.syncYRangeKeys();
       } catch (_) {}
     },
     currentPlotTypeBasis() {
       const t = this.plotTypes.find((t) => t.id === this.summary.plot_type);
       return t ? t.basis : true;
+    },
+    currentSummaryPanels() {
+      const t = this.plotTypes.find((t) => t.id === this.summary.plot_type);
+      return (t && t.panels) || [];
+    },
+    syncYRangeKeys() {
+      const next = {};
+      for (const p of this.currentSummaryPanels()) {
+        next[p.id] = this.summary.yRanges[p.id] || { min: "", max: "" };
+      }
+      this.summary.yRanges = next;
+    },
+    hasYRanges() {
+      return Object.values(this.summary.yRanges || {}).some(
+        (r) => r && r.min !== "" && r.max !== "" && this._num(r.min) != null && this._num(r.max) != null
+          && this._num(r.min) < this._num(r.max)
+      );
+    },
+    buildYRanges() {
+      const out = {};
+      for (const [key, r] of Object.entries(this.summary.yRanges || {})) {
+        const lo = this._num(r.min);
+        const hi = this._num(r.max);
+        if (lo != null && hi != null && lo < hi) out[key] = [lo, hi];
+      }
+      return Object.keys(out).length ? out : null;
+    },
+    async onSummaryPlotOptionsChange() {
+      await this.refreshPlotTypes();
+      this.plotSummary();
+    },
+    onYRangeChange() {
+      if (this.hasYRanges()) this.summary.share_y = false;
+      this.plotSummary();
     },
     async probeCapabilities() {
       try {
@@ -432,13 +469,15 @@ function app() {
 
     // ---- summary plot ----
     summarySpec() {
+      const y_ranges = this.buildYRanges();
       return {
         plot_type: this.summary.plot_type,
         basis: this.summary.basis,
         group_average: this.summary.group_average,
         spread: this.summary.spread,
         max_cycle: this._num(this.summary.max_cycle),
-        share_y: !!this.summary.share_y,
+        share_y: !!this.summary.share_y && !y_ranges,
+        ...(y_ranges ? { y_ranges } : {}),
         title: "Cycle summary",
         ...this.appearanceFields(),
       };
