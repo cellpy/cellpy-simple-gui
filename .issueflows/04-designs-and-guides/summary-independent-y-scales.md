@@ -15,10 +15,15 @@ variable. cellpy’s `_cycles_plotter` historically defaulted to
   After group-avg + spread, the app still re-applies `matches` (#47 / cellpy
   spread gap).
 - **Per-panel fixed y-limits** (#54): `SummaryPlotSpec.y_ranges` maps summary
-  column id → `[lo, hi]` and is forwarded as cellpy `y_ranges` (#804, since
-  2.1.1.post2). Omitted keys stay autorange. Non-empty `y_ranges` forces
-  independent axes; the app suppresses `_apply_share_y` and the UI disables
-  Share y-scale while any range is set.
+  column id → `[lo, hi]`. Omitted keys stay autorange. Non-empty `y_ranges`
+  forces independent axes; the app suppresses `_apply_share_y` and the UI
+  disables Share y-scale while any range is set.
+- **Apply once on the merged figure** (#60): `collect.figures_json` does **not**
+  forward `y_ranges` into every multi-part `collection.plot` (group-avg +
+  singleton merges). Ranges are applied after merge/restyle via hover
+  `variable=` → axis map, with cellpy’s pretty-title resolver as fallback
+  (spread bands). Avoids “did not match a summary facet row” warnings for
+  valid column ids.
 - UI widgets: min/max number inputs per current plot-type panel (session-only;
   both ends required).
 

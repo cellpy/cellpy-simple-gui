@@ -399,6 +399,60 @@ def _remap_trace_axes(tr, var_to_axes: dict[str, tuple[str, str]]) -> None:
     tr.xaxis, tr.yaxis = axes
 
 
+def _layout_key_for_y_id(y_id: str) -> str:
+    """Plotly layout key for a trace ``yaxis`` id (``y`` → ``yaxis``, …)."""
+    return "yaxis" if y_id == "y" else f"yaxis{y_id[1:]}"
+
+
+def _apply_y_ranges(fig, y_ranges: dict) -> None:
+    """Set per-facet ``[lo, hi]`` on the merged summary figure (#60 / #54).
+
+    Prefer hover ``variable=…`` → axis map (same source as secondary remapping).
+    Fall back to cellpy's facet/title resolver so spread bands (no hover
+    ``variable=``) still match pretty axis titles.
+    """
+    if not y_ranges:
+        return
+    try:
+        from cellpy.plotting.collected import _yaxis_key_for_variable
+    except Exception:  # noqa: BLE001
+        _yaxis_key_for_variable = None  # type: ignore[assignment]
+
+    try:
+        fig.update_yaxes(matches=None)
+    except Exception:  # noqa: BLE001
+        pass
+
+    var_to_axes = _variable_axis_map(fig)
+    for variable, y_range in y_ranges.items():
+        if y_range is None:
+            continue
+        try:
+            lo, hi = float(y_range[0]), float(y_range[1])
+        except (TypeError, ValueError, IndexError):
+            log.warning("ignoring invalid y_ranges[%r]=%r", variable, y_range)
+            continue
+        layout_key = None
+        axes = var_to_axes.get(variable)
+        if axes:
+            layout_key = _layout_key_for_y_id(axes[1])
+        elif _yaxis_key_for_variable is not None:
+            try:
+                layout_key = _yaxis_key_for_variable(fig, variable)
+            except Exception:  # noqa: BLE001
+                layout_key = None
+        if not layout_key or layout_key not in fig.layout:
+            log.warning(
+                "y_ranges key %r did not match a summary facet axis; ignoring",
+                variable,
+            )
+            continue
+        try:
+            fig.layout[layout_key].update(range=[lo, hi], autorange=False)
+        except Exception:  # noqa: BLE001
+            log.warning("could not apply y_ranges[%r]", variable, exc_info=True)
+
+
 def figures_json(
     parts: list[tuple[object, bool]],
     *,
@@ -415,6 +469,10 @@ def figures_json(
     Averaged (long) and per-cell (wide) collections can assign different Plotly
     subplot ids to the same ``variable``; traces from later parts are remapped
     onto the base figure's facet axes before merge.
+
+    ``y_ranges`` is applied once on the merged base figure (#60) rather than
+    forwarded into every ``collection.plot`` (secondary / spread parts can warn
+    and no-op when a key does not match their local facet rows).
     """
     if not parts:
         return _empty_figure_json(
@@ -423,7 +481,9 @@ def figures_json(
         )
 
     try:
+        y_ranges = plot_kwargs.get("y_ranges") or {}
         opts = _inject_app_chrome(figure_theme, plot_kwargs)
+        opts.pop("y_ranges", None)
         base = None
         var_to_axes: dict[str, tuple[str, str]] = {}
         for collection, averaged in parts:
@@ -443,6 +503,7 @@ def figures_json(
             )
         _restyle(base, figure_theme=figure_theme, color_scheme=color_scheme)
         _apply_share_y(base, _want_share_y(plot_kwargs))
+        _apply_y_ranges(base, y_ranges)
         return pio.to_json(base)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(

@@ -474,6 +474,23 @@ def _yaxis_for_variable(fig: dict, variable: str) -> str | None:
     return None
 
 
+def _yaxis_for_pretty_title(fig: dict, title_prefix: str) -> str | None:
+    """Layout y-axis whose title starts with ``title_prefix`` (spread-safe)."""
+    for key, axis in fig.get("layout", {}).items():
+        if not str(key).startswith("yaxis"):
+            continue
+        title = axis.get("title")
+        if isinstance(title, dict):
+            title = title.get("text")
+        if isinstance(title, str) and (
+            title == title_prefix
+            or title.startswith(f"{title_prefix} ")
+            or title.startswith(f"{title_prefix} (")
+        ):
+            return key
+    return None
+
+
 def test_summary_figure_y_ranges_sets_panel_limits(loaded_library):
     """Per-panel y_ranges land on the matching facet axis (#54 / cellpy #804)."""
     fig = json.loads(
@@ -508,6 +525,58 @@ def test_summary_figure_y_ranges_wins_over_share_y(loaded_library):
     assert all(v in (None, "") for v in matches.values())
     axis = _yaxis_for_variable(fig, "coulombic_efficiency")
     assert fig["layout"][axis].get("range") == [0.95, 1.02]
+
+
+def test_summary_figure_y_ranges_charge_on_multipart_group_avg(loaded_library):
+    """Charge y-range on mixed group-avg + singleton path (#60)."""
+    import warnings
+
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    lib.add_cell(cellpy_adapter.load_example("cellpy"), source="example:cellpy2")
+    recs = lib.all()
+    recs[0].group = 1
+    recs[1].group = 1
+    recs[2].group = 2
+    for rec in recs:
+        rec.selected = True
+
+    charge = [0.0, 200.0]
+    ce = [0.9, 1.05]
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        fig = json.loads(
+            plotting.summary_figure(
+                lib.selected(),
+                SummaryPlotSpec(
+                    plot_type="capacity_ce",
+                    group_average=True,
+                    y_ranges={
+                        "charge_capacity_gravimetric": charge,
+                        "coulombic_efficiency": ce,
+                    },
+                ),
+            )
+        )
+    facet_miss = [
+        w
+        for w in caught
+        if "y_ranges" in str(w.message) and "did not match" in str(w.message)
+    ]
+    assert not facet_miss, facet_miss
+
+    charge_axis = _yaxis_for_variable(fig, "charge_capacity_gravimetric") or (
+        _yaxis_for_pretty_title(fig, "Charge Capacity")
+    )
+    ce_axis = _yaxis_for_variable(fig, "coulombic_efficiency") or (
+        _yaxis_for_pretty_title(fig, "Coulombic Efficiency")
+    )
+    assert charge_axis is not None
+    assert ce_axis is not None
+    assert fig["layout"][charge_axis].get("range") == charge
+    assert fig["layout"][ce_axis].get("range") == ce
 
 
 def test_summary_panels_for_capacity_ce():
