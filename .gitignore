@@ -219,3 +219,4 @@ __marimo__/
 
 # graphify — regenerated AST cache (keep GRAPH_REPORT.md / graph artifacts tracked)
 graphify-out/cache/
+local/
