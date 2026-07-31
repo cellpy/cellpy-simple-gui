@@ -86,7 +86,7 @@ If a "fix" is really a substantial feature or sprawls across unrelated areas, sa
 
 ### Phase 3 — finish
 
-When the user is done fixing, follow `.cursor/skills/iflow-close/SKILL.md` to land the session (close keeps its own confirms).
+When the user is done fixing, follow `.cursor/skills/iflow-close/SKILL.md` to land the session (close keeps its own confirms). Remind them to run `/iflow-cleanup` after the PR merges.
 
 ## Constraints
 

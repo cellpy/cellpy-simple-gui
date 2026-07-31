@@ -35,7 +35,7 @@ fast_model_label = "fast"
 linguist_attributes = false
 
 # Remind the user to run /iflow-cleanup after close / cycle (true/false). Re-run 'issue-flow update' after changing.
-remind_cleanup = false
+remind_cleanup = true
 # Soft-suggest skimming GRAPH_REPORT.md / rebuilding graphify (true/false). Never auto-runs graphify. Re-run 'issue-flow update'.
 suggest_graphify = true
 # When true, /iflow-plan runs 'issue-flow graphify' (AST update) before prior-art discovery (true/false; default false). Missing graphify → note and continue. Re-run 'issue-flow update'.
