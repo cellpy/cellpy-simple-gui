@@ -7,7 +7,7 @@ from fastapi.responses import Response
 
 from ...core import cellpy_adapter, collect, plotting
 from ...core.library import get_library
-from ...core.models import CyclesPlotSpec, SummaryPlotSpec
+from ...core.models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
 
 router = APIRouter()
 
@@ -85,4 +85,15 @@ def selected_cycles_bounds() -> dict:
 @router.post("/plots/cycles")
 def cycles_plot(spec: CyclesPlotSpec) -> Response:
     figure_json = plotting.cycles_figure(_cycles_records(spec), spec)
+    return _figure_response(figure_json)
+
+
+@router.post("/plots/ica")
+def ica_plot(spec: IcaPlotSpec) -> Response:
+    lib = get_library()
+    try:
+        rec = lib.get(spec.cell_id)
+    except KeyError:
+        raise HTTPException(404, "No such cell")
+    figure_json = plotting.ica_figure(rec, spec)
     return _figure_response(figure_json)

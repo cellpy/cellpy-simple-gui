@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from . import collect
 from .library import CellRecord
-from .models import CyclesPlotSpec, SummaryPlotSpec
+from .models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
 
 
 def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
@@ -59,6 +59,28 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         collection,
         family_kind="cycles",
         layout=spec.layout,
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
+    )
+
+
+def ica_figure(record: CellRecord, spec: IcaPlotSpec) -> str:
+    cycles = tuple(sorted(set(spec.cycles)))
+    if not cycles:
+        return collect._empty_figure_json(
+            "Pick one or more cycles to plot dQ/dV.",
+            figure_theme=spec.figure_theme,
+        )
+    collection = collect.ica_collection(
+        [record],
+        cycles=cycles,
+        voltage_resolution=spec.voltage_resolution,
+    )
+    return collect.figure_json(
+        collection,
+        family_kind="ica",
+        layout="per_cell",
+        direction=spec.direction,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
     )

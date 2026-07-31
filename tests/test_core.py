@@ -7,7 +7,7 @@ import json
 import pytest
 
 from cellpy_simple_gui.core import collect, export, plotting
-from cellpy_simple_gui.core.models import CyclesPlotSpec, SummaryPlotSpec
+from cellpy_simple_gui.core.models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
 
 
 @pytest.mark.essential
@@ -151,6 +151,30 @@ def test_cycles_collector_layouts(loaded_library):
 
 def test_cycles_figure_empty_selection():
     fig = json.loads(plotting.cycles_figure([], CyclesPlotSpec(cycles=[1])))
+    assert "layout" in fig
+
+
+def test_ica_figure(loaded_library):
+    rec = loaded_library.all()[0]
+    spec = IcaPlotSpec(
+        cell_id=rec.id, cycles=[1, 2, 3], voltage_resolution=0.005, direction="charge"
+    )
+    fig = json.loads(plotting.ica_figure(rec, spec))
+    assert len(fig["data"]) >= 1
+
+
+def test_ica_figure_discharge(loaded_library):
+    rec = loaded_library.all()[0]
+    spec = IcaPlotSpec(
+        cell_id=rec.id, cycles=[1, 2], voltage_resolution=0.005, direction="discharge"
+    )
+    fig = json.loads(plotting.ica_figure(rec, spec))
+    assert len(fig["data"]) >= 1
+
+
+def test_ica_figure_empty_cycles(loaded_library):
+    rec = loaded_library.all()[0]
+    fig = json.loads(plotting.ica_figure(rec, IcaPlotSpec(cell_id=rec.id, cycles=[])))
     assert "layout" in fig
 
 

@@ -17,8 +17,8 @@ import logging
 from collections import Counter
 
 import plotly.io as pio
-from cellpy.collect import collect_cycles, collect_summaries, from_cells
-from cellpy.collect.options import CurveOptions
+from cellpy.collect import collect_cycles, collect_ica, collect_summaries, from_cells
+from cellpy.collect.options import CurveOptions, IcaOptions
 
 from .library import PALETTE, CellRecord
 
@@ -265,6 +265,16 @@ def cycles_collection(
     if changes:
         opts = opts.replace(**changes)
     return collect_cycles(_batch(records), options=opts)
+
+
+def ica_collection(
+    records: list[CellRecord],
+    *,
+    cycles: tuple[int, ...],
+    voltage_resolution: float | None = 0.005,
+):
+    opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
+    return collect_ica(_batch(records), options=opts)
 
 
 # --------------------------------------------------------------------------- #

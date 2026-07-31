@@ -24,7 +24,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | ✅ **2.1.1.post4** — app wraps as `instrument_meta_schema` (UI follow-up) |
 > | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
 > | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (spread path still needs app `#47` re-link) |
-> | 7–8, 13–15 | polars docs, deprecation noise, figure bytes, `.h5` auto_pick, cycles facet labels | — | ◑ still open / app workarounds |
+> | 7–8, 13–16 | polars docs, deprecation noise, figure bytes, `.h5` auto_pick, cycles/ICA plot gaps | — | ◑ still open / app workarounds |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -275,6 +275,22 @@ those annotations yet.
 collected layouts — e.g. `Cycle 1` / cell label only — so apps get consistent
 chrome without per-family string scrubbing. Optionally document that `layout=`
 is preferred over legacy `method="fig_pr_*"` in `cycles_plotter` docs.
+
+## 16. 🟢 ICA plotter cannot show charge and discharge together
+
+`cellpy.utils.ica.dqdv(..., direction="both")` (and therefore `collect_ica`,
+which calls `dqdv` with the default) returns a tidy frame with both half-cycles
+(`direction` column = `charge` / `discharge`). The collected **plot** path does
+not: `ica_plotter` only accepts `direction="charge"` or `"discharge"` and
+silently coerces anything else to `"charge"` (with a `print`).
+
+Apps that want a single figure with both directions must merge two plot calls
+themselves. cellpy-simple-gui #56 therefore exposes only Charge | Discharge in
+the Cell explorer dQ/dV UI.
+
+**Wish:** honour `direction="both"` in `ica_plotter` / `collected_plot` (e.g.
+two series or grouped legend entries per cycle), and prefer a logger warning
+over `print` when coercing invalid values.
 
 ---
 

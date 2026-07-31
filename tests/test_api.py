@@ -144,6 +144,18 @@ def test_load_and_plot_flow(client):
     ).json()
     assert len(collector["data"]) >= 1
 
+    # Cell explorer dQ/dV (ICA)
+    ica = client.post(
+        "/api/plots/ica",
+        json={
+            "cell_id": cell_id,
+            "cycles": [1, 2, 3],
+            "voltage_resolution": 0.005,
+            "direction": "charge",
+        },
+    ).json()
+    assert len(ica["data"]) >= 1
+
     # multi-format export
     for fmt in ("csv", "xlsx", "parquet", "json"):
         r = client.post(f"/api/export/summary?fmt={fmt}", json={"basis": "gravimetric"})

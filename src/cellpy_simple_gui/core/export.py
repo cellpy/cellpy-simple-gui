@@ -18,7 +18,7 @@ import plotly.io as pio
 
 from . import cellpy_adapter, collect, plotting
 from .library import CellRecord
-from .models import CyclesPlotSpec, SummaryPlotSpec
+from .models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
 
 CELL_EXPORT_FORMATS = ("cellpy", "csv", "xlsx")
 _CELL_MEDIA = {
@@ -68,6 +68,21 @@ def cycles_figure_export(
     records: list[CellRecord], spec: CyclesPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
     return figure_bytes(plotting.cycles_figure(records, spec), fmt)
+
+
+def ica_export(record: CellRecord, spec: IcaPlotSpec, fmt: str) -> tuple[bytes, str]:
+    collection = collect.ica_collection(
+        [record],
+        cycles=tuple(sorted(set(spec.cycles))),
+        voltage_resolution=spec.voltage_resolution,
+    )
+    return collect.export_bytes(collection, fmt)
+
+
+def ica_figure_export(
+    record: CellRecord, spec: IcaPlotSpec, fmt: str
+) -> tuple[bytes, str]:
+    return figure_bytes(plotting.ica_figure(record, spec), fmt)
 
 
 def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:
