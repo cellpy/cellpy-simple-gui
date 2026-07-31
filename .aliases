@@ -1,0 +1,22 @@
+# Local shell helpers for cellpy-simple-gui.
+# Usage (from repo root):  source .aliases
+
+# Browser server with a stable token — CSS/HTML: edit + refresh the tab.
+# Open: http://127.0.0.1:8577/?token=dev
+alias csg-ui='CSG_TOKEN=dev uv run cellpy-simple-gui --server --port 8577'
+
+# Same, but don't auto-open a browser tab.
+alias csg-ui-headless='CSG_TOKEN=dev uv run cellpy-simple-gui --server --no-open --port 8577'
+
+# uvicorn --reload for Python changes (wipes in-memory library on each restart).
+# Open: http://127.0.0.1:8577/?token=dev
+alias csg-reload='CSG_TOKEN=dev uv run uvicorn cellpy_simple_gui.api.app:create_app --factory --reload --host 127.0.0.1 --port 8577'
+
+# `acp "commit message"` — stage all, commit, push
+acp() {
+    if [ $# -lt 1 ]; then
+        echo 'acp: usage: acp "commit message"'
+        return 1
+    fi
+    git add -A && git commit -m "$1" && git push
+}
