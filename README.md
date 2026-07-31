@@ -162,6 +162,17 @@ uv run pytest            # core unit tests + FastAPI integration tests
 uv run pytest -m essential   # critical-path subset (also run in CI)
 ```
 
+Optional Playwright GUI smoke tests (server/browser mode, not pywebview):
+
+```bash
+uv sync --extra dev --extra e2e
+uv run playwright install chromium
+uv run pytest -m e2e
+```
+
+Without the `e2e` extra / Chromium browsers, those tests skip so a plain
+`uv run pytest` stays green.
+
 GitHub Actions runs the `essential` marker on code changes; a matching
 document-mock workflow keeps the same check name green on docs-only PRs.
 

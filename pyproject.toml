@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 export = ["kaleido>=0.1,<1.4"]        # server-side static image export (optional)
 dev = ["pytest>=8", "httpx>=0.27"]
+e2e = ["playwright>=1.40"]            # browser GUI smoke tests (optional; see tests/test_gui_playwright.py)
 
 [project.scripts]
 cellpy-simple-gui = "cellpy_simple_gui.__main__:main"
@@ -42,6 +43,7 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
     "essential: critical-path tests run in GitHub Actions CI",
+    "e2e: Playwright GUI smoke tests (needs --extra e2e + playwright install chromium)",
 ]
 
 [dependency-groups]

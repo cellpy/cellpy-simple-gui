@@ -43,9 +43,18 @@ uv sync --extra dev
 ./run                                 # native window (includes --extra export / kaleido)
 ./run --server                        # browser tab
 uv run --extra export cellpy-simple-gui   # same as ./run
-uv run pytest                         # unit + FastAPI integration (~34 tests)
+uv run pytest                         # unit + FastAPI integration (+ e2e skips if no Playwright)
 ```
 Optional kaleido static export: `uv sync --extra export`.
+
+Optional Playwright GUI smoke (`tests/test_gui_playwright.py`, marker `e2e`)
+against `--server` mode — not pywebview:
+
+```bash
+uv sync --extra dev --extra e2e
+uv run playwright install chromium
+uv run pytest -m e2e
+```
 
 No ruff/formatter gate is configured in `pyproject.toml` yet — do not invent one.
 
