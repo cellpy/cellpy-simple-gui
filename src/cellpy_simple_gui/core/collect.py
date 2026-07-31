@@ -333,7 +333,8 @@ def _inject_app_chrome(figure_theme: str, plot_kwargs: dict) -> dict:
     caller = opts.pop("layout_updates", None) or {}
     opts["layout_updates"] = {**layout_updates, **caller}
     opts.setdefault("height_per_panel", 250)
-    opts.setdefault("figure_border_height", 90)
+    # Extra chrome for axis labels / bottom margin so the last facet isn't clipped (#63).
+    opts.setdefault("figure_border_height", 120)
     return opts
 
 

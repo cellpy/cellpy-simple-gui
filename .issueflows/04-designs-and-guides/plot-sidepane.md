@@ -13,6 +13,7 @@ also left unused width beside the Plotly card.
 - **Cell explorer pane:** cycles from/to, max curves, mode, method.
 - Top bar stays for global plot/appearance/export controls.
 - Sticky `.topbar` is transparent so the body gradient shows through.
+- `.plot-sidepane` is `position: sticky` while `.main` scrolls (#63).
 
 ## Alternatives considered
 

@@ -486,6 +486,7 @@ function app() {
       try {
         const fig = await (await api("/api/plots/summary", { method: "POST", body: this.summarySpec() })).json();
         Plotly.react("summaryChart", fig.data, fig.layout, PLOTLY_CONFIG);
+        this._applyFigureHeight("summaryChart", fig);
         requestAnimationFrame(() => this.relayoutCharts());
       } catch (e) { console.error(e); }
     },
@@ -527,6 +528,7 @@ function app() {
       try {
         const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cellSpec() })).json();
         Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
+        this._applyFigureHeight("cellChart", fig);
         requestAnimationFrame(() => this.relayoutCharts());
       } catch (e) { console.error(e); }
     },
@@ -594,6 +596,13 @@ function app() {
     toggleTheme() {
       this.theme = this.theme === "dark" ? "light" : "dark";
       localStorage.setItem("csg-theme", this.theme);
+    },
+    _applyFigureHeight(id, fig) {
+      // Keep the Plotly div at the figure's layout height so Plots.resize only
+      // adjusts width and does not squash the last facet / x-axis (#63).
+      const el = document.getElementById(id);
+      const h = fig && fig.layout && fig.layout.height;
+      if (el && h) el.style.height = `${h}px`;
     },
     relayoutCharts() {
       ["summaryChart", "cellChart"].forEach((id) => {
