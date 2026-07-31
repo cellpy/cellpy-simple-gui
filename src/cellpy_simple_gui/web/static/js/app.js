@@ -64,11 +64,16 @@ function app() {
     plotTypes: [],
     cell: { cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
             mode: "gravimetric", method: "forth-and-forth" },
+    cycles: {
+      layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
+      mode: "gravimetric", method: "forth-and-forth",
+    },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
     figureFormats: ["png", "svg", "pdf"],
     cellFileFormats: ["cellpy", "csv", "xlsx"],
     exportOpen: false,
     exportCellOpen: false,
+    exportCyclesOpen: false,
     exportCellsOpen: false,
     notices: [],
     cellsManagerOpen: false,
@@ -112,6 +117,7 @@ function app() {
     },
     replotCurrent() {
       if (this.tab === "summary") this.plotSummary();
+      else if (this.tab === "cycles") this.plotCycles();
       else if (this.tab === "cell") this.plotCell();
     },
 
@@ -203,6 +209,7 @@ function app() {
       this.project = s.project;
       if (this.project && !this.saveName) this.saveName = this.project;
       if (this.tab === "summary") this.plotSummary();
+      if (this.tab === "cycles") this.ensureCyclesBounds();
       if (this.tab === "cell") this.ensureCellSelected();
     },
 
@@ -430,13 +437,13 @@ function app() {
       const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
       this.cells = r.state.cells;
       this.markDirty();
-      if (plot && this.tab === "summary") this.plotSummary();
+      if (plot) this.replotCurrent();
     },
     async selectAll(v) {
       const s = await (await api(`/api/cells/select?value=${v}`, { method: "POST" })).json();
       this.cells = s.cells;
       this.markDirty();
-      this.plotSummary();
+      this.replotCurrent();
     },
     async selectGroup() {
       const g = Number(this.cellsManagerGroup);
@@ -449,22 +456,22 @@ function app() {
           await this.updateCell(c.id, { selected: want }, { plot: false });
         }
       }
-      if (this.tab === "summary") this.plotSummary();
+      this.replotCurrent();
     },
     async removeCell(id) {
       const s = await (await api(`/api/cells/${id}`, { method: "DELETE" })).json();
       this.cells = s.cells;
       this.markDirty();
       if (this.cell.cell_id === id) this.cell.cell_id = "";
-      this.plotSummary();
+      this.replotCurrent();
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
       this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
       this.dirty = false;
       this.cellsManagerOpen = false;
-      Plotly.purge("summaryChart"); Plotly.purge("cellChart");
-      this.plotSummary();
+      Plotly.purge("summaryChart"); Plotly.purge("cyclesChart"); Plotly.purge("cellChart");
+      this.replotCurrent();
     },
 
     // ---- summary plot ----
@@ -491,6 +498,57 @@ function app() {
       } catch (e) { console.error(e); }
     },
 
+    // ---- cycles collector (selected cells) ----
+    async ensureCyclesBounds() {
+      if (!this.nSelected) {
+        Plotly.purge("cyclesChart");
+        this.cycles.min = 0; this.cycles.max = 0;
+        return;
+      }
+      try {
+        const info = await (await api("/api/plots/cycles/bounds")).json();
+        this.cycles.min = info.min; this.cycles.max = info.max;
+        if (!this.cycles.from || this.cycles.from < info.min || this.cycles.from > info.max) {
+          this.cycles.from = info.min;
+        }
+        if (!this.cycles.to || this.cycles.to < this.cycles.from || this.cycles.to > info.max) {
+          this.cycles.to = Math.min(info.max, info.min + 9);
+        }
+      } catch (e) { console.error(e); }
+      this.plotCycles();
+    },
+    buildCycleListFrom(state) {
+      let { from, to, maxCurves, min, max } = state;
+      from = Math.max(min, Math.min(from, max));
+      to = Math.max(from, Math.min(to, max));
+      const span = to - from + 1;
+      const n = Math.max(1, Math.min(maxCurves, span));
+      const step = (n === 1) ? 0 : (span - 1) / (n - 1);
+      const out = new Set();
+      for (let i = 0; i < n; i++) out.add(Math.round(from + i * step));
+      return [...out].sort((a, b) => a - b);
+    },
+    cyclesSpec() {
+      return {
+        cycles: this.buildCycleListFrom(this.cycles),
+        mode: this.cycles.mode, method: this.cycles.method,
+        layout: this.cycles.layout, title: "",
+        ...this.appearanceFields(),
+      };
+    },
+    async plotCycles() {
+      if (!this.nSelected) {
+        Plotly.purge("cyclesChart");
+        return;
+      }
+      try {
+        const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cyclesSpec() })).json();
+        Plotly.react("cyclesChart", fig.data, fig.layout, PLOTLY_CONFIG);
+        this._applyFigureHeight("cyclesChart", fig);
+        requestAnimationFrame(() => this.relayoutCharts());
+      } catch (e) { console.error(e); }
+    },
+
     // ---- cell explorer ----
     ensureCellSelected() {
       if (!this.cells.length) { Plotly.purge("cellChart"); return; }
@@ -505,21 +563,12 @@ function app() {
       this.cell.to = Math.min(info.max, info.min + 9);
       this.plotCell();
     },
-    buildCycleList() {
-      let { from, to, maxCurves } = this.cell;
-      from = Math.max(this.cell.min, Math.min(from, this.cell.max));
-      to = Math.max(from, Math.min(to, this.cell.max));
-      const span = to - from + 1;
-      const n = Math.max(1, Math.min(maxCurves, span));
-      const step = (n === 1) ? 0 : (span - 1) / (n - 1);
-      const out = new Set();
-      for (let i = 0; i < n; i++) out.add(Math.round(from + i * step));
-      return [...out].sort((a, b) => a - b);
-    },
     cellSpec() {
       return {
-        cell_id: this.cell.cell_id, cycles: this.buildCycleList(),
-        mode: this.cell.mode, method: this.cell.method, title: "",
+        cell_id: this.cell.cell_id,
+        cycles: this.buildCycleListFrom(this.cell),
+        mode: this.cell.mode, method: this.cell.method,
+        layout: "per_cell", title: "",
         ...this.appearanceFields(),
       };
     },
@@ -540,6 +589,10 @@ function app() {
     async exportCycles(fmt) {
       if (!this.cell.cell_id) return;
       await this.download(`/api/export/cycles?fmt=${fmt}`, this.cellSpec(), `cycles.${fmt}`);
+    },
+    async exportCyclesCollector(fmt) {
+      if (!this.nSelected) return;
+      await this.download(`/api/export/cycles?fmt=${fmt}`, this.cyclesSpec(), `cycles.${fmt}`);
     },
     async exportLibraryCells(fmt) {
       if (!this.nSelected) {
@@ -605,7 +658,7 @@ function app() {
       if (el && h) el.style.height = `${h}px`;
     },
     relayoutCharts() {
-      ["summaryChart", "cellChart"].forEach((id) => {
+      ["summaryChart", "cyclesChart", "cellChart"].forEach((id) => {
         const el = document.getElementById(id);
         if (el && el.data) Plotly.Plots.resize(el);
       });

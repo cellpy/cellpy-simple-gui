@@ -153,7 +153,8 @@ cancel. Persist job history was a design goal (SQLite); MVP keeps jobs in-proces
 | Raw-file Loader | Ingest wizard (raw → metadata → SSE progress) — **done** |
 | Journal Loader | Open project / journal / glob load — **done** |
 | Summary Plotter / Collectors | Cycle summary via cellpy collect — **done** |
-| Cell Plotter | Cell explorer (cycles collect) — **done** |
+| Cycles collector | Cycles tab (`per_cell` / `per_cycle`) — **done** (#55) |
+| Cell Plotter | Cell explorer (one cell) — **done** |
 | Packaging / first-run | **Not done** |
 
 ---

@@ -125,14 +125,24 @@ def test_load_and_plot_flow(client):
     ).json()
     assert len(fig["data"]) >= 1
 
-    # cycles info + figure
+    # cycles info + single-cell figure (Cell explorer)
     info = client.get(f"/api/cells/{cell_id}/cycles").json()
     assert info["max"] > info["min"]
     cfig = client.post(
         "/api/plots/cycles",
-        json={"cell_id": cell_id, "cycles": [1, 5, 10]},
+        json={"cell_id": cell_id, "cycles": [1, 5, 10], "layout": "per_cell"},
     ).json()
     assert len(cfig["data"]) >= 1
+
+    # Cycles collector (selected cells, no cell_id)
+    bounds = client.get("/api/plots/cycles/bounds").json()
+    assert bounds["n_cells"] >= 1
+    assert bounds["max"] >= bounds["min"]
+    collector = client.post(
+        "/api/plots/cycles",
+        json={"cycles": [1, 2, 3], "layout": "per_cycle"},
+    ).json()
+    assert len(collector["data"]) >= 1
 
     # multi-format export
     for fmt in ("csv", "xlsx", "parquet", "json"):

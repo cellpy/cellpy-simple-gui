@@ -120,16 +120,38 @@ def test_summary_figure_empty():
 
 def test_cycles_figure(loaded_library):
     rec = loaded_library.all()[0]
-    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5, 10])
-    fig = json.loads(plotting.cycles_figure(rec, spec))
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5, 10], layout="per_cell")
+    fig = json.loads(plotting.cycles_figure([rec], spec))
     assert len(fig["data"]) >= 1
 
 
 def test_cycles_figure_areal_mode(loaded_library):
     rec = loaded_library.all()[0]
-    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5], mode="areal", method="back-and-forth")
-    fig = json.loads(plotting.cycles_figure(rec, spec))
+    spec = CyclesPlotSpec(
+        cell_id=rec.id, cycles=[1, 5], mode="areal", method="back-and-forth", layout="per_cell"
+    )
+    fig = json.loads(plotting.cycles_figure([rec], spec))
     assert len(fig["data"]) >= 1
+
+
+def test_cycles_collector_layouts(loaded_library):
+    """Multi-cell collector supports per_cell and per_cycle layouts (#55)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    if len(lib.all()) < 2:
+        lib.add_cell(cellpy_adapter.load_example("rate"), source="ex")
+    recs = lib.selected()
+    assert len(recs) >= 1
+    for layout in ("per_cell", "per_cycle"):
+        spec = CyclesPlotSpec(cycles=[1, 2, 3], layout=layout)
+        fig = json.loads(plotting.cycles_figure(recs, spec))
+        assert len(fig["data"]) >= 1, layout
+
+
+def test_cycles_figure_empty_selection():
+    fig = json.loads(plotting.cycles_figure([], CyclesPlotSpec(cycles=[1])))
+    assert "layout" in fig
 
 
 def test_grouped_summary_renders(example_cell):
@@ -662,8 +684,8 @@ def test_summary_export_all_formats(loaded_library):
 
 def test_cycles_export_csv(loaded_library):
     rec = loaded_library.all()[0]
-    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 2])
-    data, media = export.cycles_export(rec, spec, "csv")
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 2], layout="per_cell")
+    data, media = export.cycles_export([rec], spec, "csv")
     assert data.startswith(b"cycle") or b"capacity" in data[:200]
 
 

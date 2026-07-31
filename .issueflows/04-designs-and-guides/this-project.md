@@ -107,7 +107,8 @@ cellpy repo.
 
 - Not multi-user / hosted / auth / cloud storage (single-user desktop).
 - Not feature-parity with every Streamlit demo page yet (MVP covers load,
-  ingest, summary/cell explorers, journal edits, projects, export).
+  ingest, summary / cycles collector / cell explorer, journal edits, projects,
+  export).
 - **Next major gap:** Windows installer packaging (PyInstaller + InnoSetup,
   WebView2) — reuse patterns from sibling `cellpy_streamlit_installer`.
 - SQLite job/project registry, ProcessPool workers, and full batbase-as-native
