@@ -262,6 +262,11 @@ export = [
     { name = "kaleido" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "issue-flow" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cellpy", specifier = ">=2.1.1.post2" },
@@ -283,6 +288,9 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 provides-extras = ["export", "dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "issue-flow", specifier = ">=0.4.9.post1" }]
 
 [[package]]
 name = "cellpycore"
@@ -1028,6 +1036,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/c6/a19dd99ae36a28c984aaeb77e06dedaac0d0d413c40792e37461fe0a228a/isal-1.8.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:e4f46ec4289e8dc74777a0199528f612f2b8aecd9f60a932990a4f66062bc509", size = 236583, upload-time = "2025-09-10T09:13:18.179Z" },
     { url = "https://files.pythonhosted.org/packages/4d/b2/47ee5ec9b9b67a792225895fb4683a1e3c721e8fe0a4d79d2822e43e4c59/isal-1.8.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:914442a3da17812fc5ab136da6aad2c5cee59d17bb9382b59f7a55efeea28988", size = 267585, upload-time = "2025-09-10T08:47:08.928Z" },
     { url = "https://files.pythonhosted.org/packages/e0/8a/768d91b6078f283c521b79e0a59d7e07a54a0bfab690ab90bcf4c641cc93/isal-1.8.0-cp314-cp314t-win_amd64.whl", hash = "sha256:e76946e7455b1614a6a00bf9ec6444baa3a5217e6806836e0e9a271f0d18f84d", size = 209399, upload-time = "2025-09-10T08:49:19.2Z" },
+]
+
+[[package]]
+name = "issue-flow"
+version = "0.4.9.post1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "python-dotenv" },
+    { name = "rich" },
+    { name = "tomlkit" },
+    { name = "typer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a5/f8/70d58c66cd57b75eef727016fb5f74cf20963c0e2f9d12ee2ff30038de50/issue_flow-0.4.9.post1.tar.gz", hash = "sha256:9a8f4cf925762dc10461e73926d2c14259ba5fe859e5a230dc5b09a3a910c6e6", size = 211375, upload-time = "2026-07-30T12:22:32.594Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/dc/d865f6190700a366e79204a444f7f329d76603f2dbf9f4a999571e9124aa/issue_flow-0.4.9.post1-py3-none-any.whl", hash = "sha256:303d6da71021e4af83805297a30ee13e0de2ea26f08c51f92e676641a822ad36", size = 271949, upload-time = "2026-07-30T12:22:30.929Z" },
 ]
 
 [[package]]
@@ -2733,6 +2757,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b7/4d/08c89e34946fce2aec4fbb45c9016efd5f4d7f24af8e5d93296e935631d8/threadpoolctl-3.6.0.tar.gz", hash = "sha256:8ab8b4aa3491d812b623328249fab5302a68d2d71745c8a4c719a2fcaba9f44e", size = 21274, upload-time = "2025-03-13T13:49:23.031Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/d5/f9a850d79b0851d1d4ef6456097579a9005b31fea68726a4ae5f2d82ddd9/threadpoolctl-3.6.0-py3-none-any.whl", hash = "sha256:43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb", size = 18638, upload-time = "2025-03-13T13:49:21.846Z" },
+]
+
+[[package]]
+name = "tomlkit"
+version = "0.15.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/96/e07752635b98536177fa1f37671c8f3cdde2e724c6bcf6034b2cfb571565/tomlkit-0.15.1.tar.gz", hash = "sha256:e25bbf38843005246210a12982776f27f99cb9be67160e14434d0c0d21ee1e97", size = 180129, upload-time = "2026-07-17T01:48:04.562Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/bc/8c13eb66537dce1d2bd3a57132902f38d0e7f5bb46fa9f4daed9fe9d76ee/tomlkit-0.15.1-py3-none-any.whl", hash = "sha256:177a05aece5a8ca5266fd3c448abb47b8d352f09d477d3ca8332db4d89b24304", size = 49449, upload-time = "2026-07-17T01:48:05.728Z" },
 ]
 
 [[package]]

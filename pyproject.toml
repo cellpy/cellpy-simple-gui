@@ -43,3 +43,8 @@ addopts = "-q"
 markers = [
     "essential: critical-path tests run in GitHub Actions CI",
 ]
+
+[dependency-groups]
+dev = [
+    "issue-flow>=0.4.9.post1",
+]
