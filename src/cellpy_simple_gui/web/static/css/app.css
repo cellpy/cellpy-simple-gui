@@ -177,7 +177,11 @@ input:focus, select:focus { border-color: var(--accent); }
 /* ---------- job / progress ---------- */
 .job { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
 .job-row { display: flex; align-items: center; gap: 10px; }
-.job-msg { font-size: 12.5px; color: var(--text-dim); flex: 1; min-width: 0; }
+/* min-width: 0 + ellipsis — long filenames must not paint over Cancel/Dismiss (#73). */
+.job-msg {
+  font-size: 12.5px; color: var(--text-dim); flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .job-actions { display: flex; gap: 6px; flex: none; margin-left: auto; }
 .progress { height: 6px; background: var(--chip); border-radius: 999px; margin-top: 10px; overflow: hidden; }
 .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }

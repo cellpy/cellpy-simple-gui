@@ -15,3 +15,8 @@ only between steps. A stuck spinner left the UI unusable.
   user can keep working; still best-effort cancels the backend job.
 - Cellpy calls that block mid-call cannot be interrupted; Dismiss is the escape
   hatch for that case.
+
+## Layout (#73)
+
+`.job-msg` truncates with ellipsis inside its flex slot so Cancel / Dismiss stay
+visible; full text is on the element's `title` hover.
