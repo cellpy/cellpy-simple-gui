@@ -3,4 +3,7 @@
 # Usage: ./run [--server] [--no-open] [--port N]
 set -euo pipefail
 cd "$(dirname "$0")"
+echo "Launching cellpy-simple-gui from $(pwd)"
+echo "Using uv $(uv --version)"
+echo "It sometimes takes a while to start the server..."
 exec uv run --extra export cellpy-simple-gui "$@"

@@ -11,6 +11,10 @@ A project is a portable folder::
 Saving writes every loaded cell to its own ``.cellpy`` file, so a project is
 fully self-contained and can be zipped/moved. Opening reloads those files and
 restores the user's grouping / labels / selection from the manifest.
+
+Saves are atomic: cells are written into a staging folder first, then ``data/``
+and ``project.json`` are swapped into place. An interrupted save leaves the
+previous project untouched.
 """
 
 from __future__ import annotations
@@ -18,8 +22,10 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import logging
+import os
 import re
 import shutil
+import uuid
 from pathlib import Path
 from typing import Callable, Literal, Optional
 
@@ -138,6 +144,17 @@ def classify_import_path(path: str) -> Literal["project", "journal"]:
 # --------------------------------------------------------------------------- #
 
 
+def _cleanup_save_artifacts(pdir: Path) -> None:
+    """Remove leftover staging / backup dirs from interrupted saves."""
+    if not pdir.is_dir():
+        return
+    for child in pdir.iterdir():
+        if child.is_dir() and (
+            child.name.startswith(".staging-") or child.name.startswith(".data-bak-")
+        ):
+            shutil.rmtree(child, ignore_errors=True)
+
+
 def save_project(library: Library, name: str, progress: ProgressFn = None) -> ProjectManifest:
     records = library.all()
     if not records:
@@ -145,8 +162,8 @@ def save_project(library: Library, name: str, progress: ProgressFn = None) -> Pr
 
     slug = slugify(name)
     pdir = projects_root() / slug
-    data_dir = pdir / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
+    pdir.mkdir(parents=True, exist_ok=True)
+    _cleanup_save_artifacts(pdir)
 
     # preserve original creation time if re-saving
     created = _now()
@@ -157,32 +174,62 @@ def save_project(library: Library, name: str, progress: ProgressFn = None) -> Pr
         except Exception:  # noqa: BLE001
             pass
 
-    # clear stale .cellpy files (cells removed since last save)
-    for old in data_dir.glob("*.cellpy"):
-        old.unlink(missing_ok=True)
+    staging = pdir / f".staging-{uuid.uuid4().hex}"
+    staging_data = staging / "data"
+    staging_data.mkdir(parents=True)
+    bak_data: Path | None = None
 
-    total = len(records)
-    entries: list[CellEntry] = []
-    for i, rec in enumerate(records):
-        if progress:
-            progress(i / total, f"Saving “{rec.label or rec.name}” …")
-        data_file = f"{rec.id}.cellpy"
-        adapter.save_cell(rec.cell, data_dir / data_file)
-        entries.append(
-            CellEntry(
-                id=rec.id, name=rec.name, source=rec.source,
-                data_file=f"data/{data_file}",
-                group=rec.group, label=rec.label, selected=rec.selected,
-                mass=rec.mass, area=rec.area,
-                nominal_capacity=rec.nominal_capacity, n_cycles=rec.n_cycles,
+    try:
+        total = len(records)
+        entries: list[CellEntry] = []
+        for i, rec in enumerate(records):
+            if progress:
+                progress(i / total, f"Saving “{rec.label or rec.name}” …")
+            data_file = f"{rec.id}.cellpy"
+            adapter.save_cell(rec.cell, staging_data / data_file)
+            entries.append(
+                CellEntry(
+                    id=rec.id, name=rec.name, source=rec.source,
+                    data_file=f"data/{data_file}",
+                    group=rec.group, label=rec.label, selected=rec.selected,
+                    mass=rec.mass, area=rec.area,
+                    nominal_capacity=rec.nominal_capacity, n_cycles=rec.n_cycles,
+                )
             )
-        )
 
-    manifest = ProjectManifest(
-        name=name, slug=slug, created=created, modified=_now(),
-        cellpy_version=_safe_cellpy_version(), cells=entries,
-    )
-    (pdir / "project.json").write_text(json.dumps(manifest.model_dump(), indent=2))
+        manifest = ProjectManifest(
+            name=name, slug=slug, created=created, modified=_now(),
+            cellpy_version=_safe_cellpy_version(), cells=entries,
+        )
+        staging_manifest = staging / "project.json"
+        staging_manifest.write_text(json.dumps(manifest.model_dump(), indent=2))
+
+        # Commit: swap data/, then atomically replace project.json.
+        live_data = pdir / "data"
+        if live_data.exists():
+            bak_data = pdir / f".data-bak-{uuid.uuid4().hex}"
+            live_data.rename(bak_data)
+        try:
+            staging_data.rename(live_data)
+        except Exception:
+            if bak_data is not None and bak_data.exists() and not live_data.exists():
+                bak_data.rename(live_data)
+                bak_data = None
+            raise
+        try:
+            os.replace(staging_manifest, pdir / "project.json")
+        except Exception:
+            if bak_data is not None and bak_data.exists():
+                shutil.rmtree(live_data, ignore_errors=True)
+                bak_data.rename(live_data)
+                bak_data = None
+            raise
+        if bak_data is not None and bak_data.exists():
+            shutil.rmtree(bak_data, ignore_errors=True)
+            bak_data = None
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
 
     library.project_name = name
     library.project_path = str(pdir)

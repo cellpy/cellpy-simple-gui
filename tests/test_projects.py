@@ -46,6 +46,30 @@ def test_save_open_roundtrip(loaded_library, temp_projects_root):
     assert fresh.project_name == "Round Trip"
 
 
+def test_failed_resave_keeps_previous_project(loaded_library, temp_projects_root, monkeypatch):
+    """Interrupted save must not wipe or corrupt the previous project on disk."""
+    lib = loaded_library
+    projects.save_project(lib, "Atomic")
+    pdir = temp_projects_root / "atomic"
+    cell_path = pdir / "data" / f"{lib.all()[0].id}.cellpy"
+    before_cell = cell_path.read_bytes()
+    before_manifest = (pdir / "project.json").read_text(encoding="utf-8")
+
+    def boom(cell, path):
+        raise RuntimeError("simulated save failure")
+
+    monkeypatch.setattr(projects.adapter, "save_cell", boom)
+    with pytest.raises(RuntimeError, match="simulated save failure"):
+        projects.save_project(lib, "Atomic")
+
+    assert cell_path.read_bytes() == before_cell
+    assert (pdir / "project.json").read_text(encoding="utf-8") == before_manifest
+    assert not any(
+        p.name.startswith(".staging-") or p.name.startswith(".data-bak-")
+        for p in pdir.iterdir()
+    )
+
+
 @pytest.mark.essential
 def test_open_missing_raises(temp_projects_root):
     with pytest.raises(FileNotFoundError):
