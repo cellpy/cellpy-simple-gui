@@ -38,6 +38,8 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         group_legend_muting=spec.group_legend_muting,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
+        # Unit-bearing titles; cellpy defaults are pretty but unit-less (§18 / #38).
+        y_label_mapper=collect.summary_y_label_mapper(columns),
     )
 
 
