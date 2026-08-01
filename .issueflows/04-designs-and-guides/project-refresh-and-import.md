@@ -13,8 +13,9 @@ portable app projects even though `open_project` already accepts absolute paths.
 - `classify_import_path` (filename/dir only): dir/`project.json` → project;
   other file → journal. Exposed as `POST /api/projects/classify-import`.
 - `resolve_project_path` accepts a `project.json` file path (uses parent).
-- Import UI routes to `/api/projects/open` or `load-journal`; folder browse via
-  `POST /api/system/pick` `kind=folder` (`FileDialog.FOLDER`).
+- Import UI routes to `/api/projects/open` or `load-journal`; one desktop
+  browse control for JSON (`project.json` or batch journal). Paste a folder
+  path to open a portable project directory.
 - Do not auto-copy external projects into `projects_root`.
 
 ## Alternatives considered

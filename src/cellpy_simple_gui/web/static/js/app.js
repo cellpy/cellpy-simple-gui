@@ -55,6 +55,7 @@ function app() {
     },
     job: { active: false, id: "", progress: 0, message: "", error: "" },
     _jobEs: null,
+    plotBusy: { summary: false, cycles: false, cell: false },
     summary: {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
@@ -300,7 +301,6 @@ function app() {
     pickCellpy() { this.pick("cellpy", (p) => { this.filesPath = p.join("; "); }); },
     pickRaw() { this.pick("raw", (p) => { this.ingest.paths = p.join("; "); }); },
     pickImportFile() { this.pick("journal", (p) => { this.journalPath = p[0]; this.loadImportPath(); }); },
-    pickImportFolder() { this.pick("folder", (p) => { this.journalPath = p[0]; this.loadImportPath(); }); },
     pickJournal() { this.pickImportFile(); },
 
     async refreshInstruments() {
@@ -516,13 +516,23 @@ function app() {
         ...this.appearanceFields(),
       };
     },
-    async plotSummary() {
+    async _withPlotBusy(kind, fn) {
+      this.plotBusy[kind] = true;
       try {
+        await fn();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.plotBusy[kind] = false;
+      }
+    },
+    async plotSummary() {
+      await this._withPlotBusy("summary", async () => {
         const fig = await (await api("/api/plots/summary", { method: "POST", body: this.summarySpec() })).json();
         Plotly.react("summaryChart", fig.data, fig.layout, PLOTLY_CONFIG);
         this._applyFigureHeight("summaryChart", fig);
         requestAnimationFrame(() => this.relayoutCharts());
-      } catch (e) { console.error(e); }
+      });
     },
 
     // ---- cycles collector (selected cells) ----
@@ -532,17 +542,19 @@ function app() {
         this.cycles.min = 0; this.cycles.max = 0;
         return;
       }
-      try {
-        const info = await (await api("/api/plots/cycles/bounds")).json();
-        this.cycles.min = info.min; this.cycles.max = info.max;
-        if (!this.cycles.from || this.cycles.from < info.min || this.cycles.from > info.max) {
-          this.cycles.from = info.min;
-        }
-        if (!this.cycles.to || this.cycles.to < this.cycles.from || this.cycles.to > info.max) {
-          this.cycles.to = Math.min(info.max, info.min + 9);
-        }
-      } catch (e) { console.error(e); }
-      this.plotCycles();
+      await this._withPlotBusy("cycles", async () => {
+        try {
+          const info = await (await api("/api/plots/cycles/bounds")).json();
+          this.cycles.min = info.min; this.cycles.max = info.max;
+          if (!this.cycles.from || this.cycles.from < info.min || this.cycles.from > info.max) {
+            this.cycles.from = info.min;
+          }
+          if (!this.cycles.to || this.cycles.to < this.cycles.from || this.cycles.to > info.max) {
+            this.cycles.to = Math.min(info.max, info.min + 9);
+          }
+        } catch (e) { console.error(e); }
+        await this._plotCyclesFigure();
+      });
     },
     buildCycleListFrom(state) {
       let { from, to, maxCurves, min, max } = state;
@@ -565,17 +577,22 @@ function app() {
         ...this.appearanceFields(),
       };
     },
+    async _plotCyclesFigure() {
+      if (!this.nSelected) {
+        Plotly.purge("cyclesChart");
+        return;
+      }
+      const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cyclesSpec() })).json();
+      Plotly.react("cyclesChart", fig.data, fig.layout, PLOTLY_CONFIG);
+      this._applyFigureHeight("cyclesChart", fig);
+      requestAnimationFrame(() => this.relayoutCharts());
+    },
     async plotCycles() {
       if (!this.nSelected) {
         Plotly.purge("cyclesChart");
         return;
       }
-      try {
-        const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cyclesSpec() })).json();
-        Plotly.react("cyclesChart", fig.data, fig.layout, PLOTLY_CONFIG);
-        this._applyFigureHeight("cyclesChart", fig);
-        requestAnimationFrame(() => this.relayoutCharts());
-      } catch (e) { console.error(e); }
+      await this._withPlotBusy("cycles", () => this._plotCyclesFigure());
     },
 
     // ---- cell explorer ----
@@ -586,11 +603,13 @@ function app() {
     },
     async onCellChange() {
       if (!this.cell.cell_id) return;
-      const info = await (await api(`/api/cells/${this.cell.cell_id}/cycles`)).json();
-      this.cell.min = info.min; this.cell.max = info.max;
-      this.cell.from = info.min;
-      this.cell.to = Math.min(info.max, info.min + 9);
-      this.plotCell();
+      await this._withPlotBusy("cell", async () => {
+        const info = await (await api(`/api/cells/${this.cell.cell_id}/cycles`)).json();
+        this.cell.min = info.min; this.cell.max = info.max;
+        this.cell.from = info.min;
+        this.cell.to = Math.min(info.max, info.min + 9);
+        await this._plotCellFigure();
+      });
     },
     cellSpec() {
       return {
@@ -612,16 +631,18 @@ function app() {
         ...this.appearanceFields(),
       };
     },
+    async _plotCellFigure() {
+      if (!this.cell.cell_id) return;
+      const url = this.cell.plotKind === "dqdv" ? "/api/plots/ica" : "/api/plots/cycles";
+      const body = this.cell.plotKind === "dqdv" ? this.icaSpec() : this.cellSpec();
+      const fig = await (await api(url, { method: "POST", body })).json();
+      Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
+      this._applyFigureHeight("cellChart", fig);
+      requestAnimationFrame(() => this.relayoutCharts());
+    },
     async plotCell() {
       if (!this.cell.cell_id) return;
-      try {
-        const url = this.cell.plotKind === "dqdv" ? "/api/plots/ica" : "/api/plots/cycles";
-        const body = this.cell.plotKind === "dqdv" ? this.icaSpec() : this.cellSpec();
-        const fig = await (await api(url, { method: "POST", body })).json();
-        Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
-        this._applyFigureHeight("cellChart", fig);
-        requestAnimationFrame(() => this.relayoutCharts());
-      } catch (e) { console.error(e); }
+      await this._withPlotBusy("cell", () => this._plotCellFigure());
     },
 
     // ---- exports (data + static figures via kaleido + library cells) ----

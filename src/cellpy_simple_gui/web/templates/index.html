@@ -65,15 +65,15 @@
                   :disabled="job.active || (!cells.length && !project)"
                   title="Close project">✕</button>
         </div>
-        <p class="hint">Not automatic — click <b>Save</b> to write every loaded cell into a portable project folder. Use <b>↻</b> after copy-pasting into the projects folder.</p>
+        <p class="hint">Click <b>Save</b> to write every loaded cell into a portable project folder. Use <b>↻</b> to refresh the project list.</p>
 
         <div class="proj-save" style="margin-top:10px">
-          <input type="text" x-model="journalPath" placeholder="project folder, project.json, or batch journal" @keydown.enter="loadImportPath()" />
-          <button class="btn btn-ghost" x-show="canPick" @click="pickImportFile()" title="Browse JSON…">📁</button>
-          <button class="btn btn-ghost" x-show="canPick" @click="pickImportFolder()" title="Browse folder…">📂</button>
+          <input type="text" x-model="journalPath" placeholder="project.json, batch journal, or project folder path" @keydown.enter="loadImportPath()" />
+          <button class="btn btn-ghost" @click="pickImportFile()" :disabled="!canPick || job.active"
+                  :title="canPick ? 'Browse JSON…' : 'Browse is desktop-only — paste a path in the field'">📁</button>
           <button class="btn btn-ghost" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()" title="Load project or journal">↧</button>
         </div>
-        <p class="hint">Open a portable <b>app project</b> (folder / <code>project.json</code>) or a native cellpy <b>batch journal</b>.</p>
+        <p class="hint">Open <b>app project</b> (<code>project.json</code> or paste a folder path) or a native cellpy <b>batch journal</b></p>
       </section>
 
       <section class="panel">
@@ -317,6 +317,10 @@
         <div class="chart-row">
           <div class="chart-card">
             <div id="summaryChart" class="chart"></div>
+            <div class="chart-busy" x-show="plotBusy.summary" x-cloak aria-live="polite">
+              <span class="spinner"></span>
+              <span>Updating plot…</span>
+            </div>
           </div>
           <aside class="plot-sidepane" aria-label="Y-axis ranges">
             <h3 class="plot-sidepane-title">Y ranges</h3>
@@ -373,6 +377,10 @@
         <div class="chart-row">
           <div class="chart-card">
             <div id="cyclesChart" class="chart"></div>
+            <div class="chart-busy" x-show="plotBusy.cycles" x-cloak aria-live="polite">
+              <span class="spinner"></span>
+              <span>Updating plot…</span>
+            </div>
           </div>
           <aside class="plot-sidepane" aria-label="Cycles collector options">
             <h3 class="plot-sidepane-title">Collector</h3>
@@ -471,6 +479,10 @@
         <div class="chart-row">
           <div class="chart-card">
             <div id="cellChart" class="chart"></div>
+            <div class="chart-busy" x-show="plotBusy.cell" x-cloak aria-live="polite">
+              <span class="spinner"></span>
+              <span>Updating plot…</span>
+            </div>
           </div>
           <aside class="plot-sidepane" aria-label="Curve options">
             <h3 class="plot-sidepane-title" x-text="cell.plotKind === 'dqdv' ? 'dQ/dV' : 'Curves'">Curves</h3>
