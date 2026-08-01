@@ -77,10 +77,7 @@
       </section>
 
       <section class="panel">
-        <button type="button" class="panel-toggle" @click="showData = !showData" :aria-expanded="showData">
-          <h2 class="panel-title"><span x-text="showData ? '▾' : '▸'"></span> Data</h2>
-        </button>
-        <div x-show="showData" x-cloak>
+        <h2 class="panel-title">Data</h2>
         <button class="disclosure" style="margin-top:0" @click="showDemo = !showDemo">
           <span x-text="showDemo ? '▾' : '▸'"></span> Load demo cells
         </button>
@@ -181,7 +178,6 @@
               </template>
             </div>
           </div>
-        </div>
         </div>
       </section>
 
