@@ -180,11 +180,17 @@ def test_edit_cell(client):
             "group": 5,
             "selected": False,
             "mass": 1.25,
+            "area": 2.5,
+            "nominal_capacity": 1500.0,
+            "cycle_mode": "cathode",
         },
     ).json()
     assert out["cell"]["label"] == "renamed"
     assert out["cell"]["group"] == 5
     assert out["cell"]["mass"] == 1.25
+    assert out["cell"]["area"] == 2.5
+    assert out["cell"]["nominal_capacity"] == 1500.0
+    assert out["cell"]["cycle_mode"] == "cathode"
     assert out["state"]["n_selected"] == 0
 
 

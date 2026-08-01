@@ -415,6 +415,27 @@ put CE first in the app’s `capacity_ce` column tuple.
 so averaged and per-cell figures stay consistent without every app re-passing
 Plotly category orders.
 
+## 21. 🟠 No selective summary rebuild after meta edits
+
+Editing physical metadata (mass, active electrode area, nominal capacity,
+cycle mode) requires a **full** `cell.make_summary()` — there is no public API
+to rebuild only the dependent summary columns (e.g. gravimetric capacities
+after mass, C-rates after nominal capacity).
+
+Surfaced in cellpy-simple-gui #69: Manage Cells lets users change these knobs
+post-load. The app assigns attributes (`cell.mass`, `cell.active_electrode_area`,
+`cell.nominal_capacity`, `cell.cycle_mode`) and always remakes the whole
+summary. That is correct but opaque and potentially expensive for large cells.
+
+There is also no documented **meta → summary-column dependency graph**
+(which parameters invalidate which columns), so app builders cannot do
+targeted updates or warn users precisely.
+
+**Wish:** either (a) cheap selective refresh helpers keyed by meta field, or
+(b) a small dependency map / docs (“`nominal_capacity` affects …”) so GUIs can
+scope rebuilds and UX messaging. Dedicated setters (vs bare attribute assign)
+would also help discoverability.
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args

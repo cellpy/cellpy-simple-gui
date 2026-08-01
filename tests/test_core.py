@@ -18,6 +18,30 @@ def test_read_meta(example_cell):
     assert meta["name"]
     assert meta["n_cycles"] > 0
     assert meta["mass"] and meta["mass"] > 0
+    assert meta["cycle_mode"] in ("anode", "cathode", "full_cell", None)
+
+
+def test_apply_physical_meta_updates_and_summary(example_cell):
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    before = cellpy_adapter.summary_frame(example_cell)
+    assert len(before) > 0
+    changed = cellpy_adapter.apply_physical_meta(
+        example_cell,
+        mass=1.5,
+        area=2.0,
+        nominal_capacity=1800.0,
+        cycle_mode="cathode",
+    )
+    assert set(changed) == {"mass", "area", "nominal_capacity", "cycle_mode"}
+    meta = cellpy_adapter.read_meta(example_cell)
+    assert abs(meta["mass"] - 1.5) < 1e-9
+    assert abs(meta["area"] - 2.0) < 1e-9
+    assert abs(meta["nominal_capacity"] - 1800.0) < 1e-9
+    assert meta["cycle_mode"] == "cathode"
+    after = cellpy_adapter.summary_frame(example_cell)
+    assert len(after) > 0
+    assert "charge_capacity_gravimetric" in after.columns
 
 
 def test_summary_frame_has_expected_columns(example_cell):

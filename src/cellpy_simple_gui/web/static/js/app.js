@@ -468,8 +468,14 @@ function app() {
     },
     async updateCell(id, patch, { plot = true } = {}) {
       const body = { id, ...patch };
-      if ("mass" in patch && (patch.mass === null || patch.mass === undefined)) {
-        delete body.mass; // library.update ignores non-positive / missing mass
+      // library.update ignores non-positive / missing physical numerics
+      for (const key of ["mass", "area", "nominal_capacity"]) {
+        if (key in patch && (patch[key] === null || patch[key] === undefined)) {
+          delete body[key];
+        }
+      }
+      if ("cycle_mode" in patch && !patch.cycle_mode) {
+        delete body.cycle_mode;
       }
       const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
       this.cells = r.state.cells;

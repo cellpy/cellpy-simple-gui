@@ -113,6 +113,9 @@ def update_cell(cell_id: str, update: JournalRowUpdate) -> dict:
             label=update.label,
             selected=update.selected,
             mass=update.mass,
+            area=update.area,
+            nominal_capacity=update.nominal_capacity,
+            cycle_mode=update.cycle_mode,
         )
     except KeyError:
         raise HTTPException(404, "No such cell")
