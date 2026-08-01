@@ -48,7 +48,7 @@
                 :class="{saved: project && !dirty, dirty: project && dirty}"
                 :title="projectTagTitle"></span>
         </div>
-        <div class="proj-open" x-show="projects.length">
+        <div class="proj-open">
           <select x-model="openTarget">
             <option value="" disabled>Open a project…</option>
             <template x-for="p in projects" :key="p.slug">
@@ -56,6 +56,7 @@
             </template>
           </select>
           <button class="btn btn-ghost" @click="openProject()" :disabled="job.active || !openTarget" title="Open">↥</button>
+          <button class="btn btn-ghost" @click="refreshProjects()" :disabled="job.active" title="Refresh project list">↻</button>
         </div>
         <div class="proj-save">
           <input type="text" x-model="saveName" placeholder="Project name" @keydown.enter="saveProject()" />
@@ -64,14 +65,15 @@
                   :disabled="job.active || (!cells.length && !project)"
                   title="Close project">✕</button>
         </div>
-        <p class="hint">Not automatic — click <b>Save</b> to write every loaded cell into a portable project folder.</p>
+        <p class="hint">Not automatic — click <b>Save</b> to write every loaded cell into a portable project folder. Use <b>↻</b> after copy-pasting into the projects folder.</p>
 
         <div class="proj-save" style="margin-top:10px">
-          <input type="text" x-model="journalPath" placeholder="cellpy batch journal (.json)" @keydown.enter="loadJournal()" />
-          <button class="btn btn-ghost" x-show="canPick" @click="pickJournal()" title="Browse…">📁</button>
-          <button class="btn btn-ghost" @click="loadJournal()" :disabled="job.active || !journalPath.trim()" title="Load journal">↧</button>
+          <input type="text" x-model="journalPath" placeholder="project folder, project.json, or batch journal" @keydown.enter="loadImportPath()" />
+          <button class="btn btn-ghost" x-show="canPick" @click="pickImportFile()" title="Browse JSON…">📁</button>
+          <button class="btn btn-ghost" x-show="canPick" @click="pickImportFolder()" title="Browse folder…">📂</button>
+          <button class="btn btn-ghost" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()" title="Load project or journal">↧</button>
         </div>
-        <p class="hint">Load a native cellpy <b>batch journal</b> (links its <code>.cellpy</code> files).</p>
+        <p class="hint">Open a portable <b>app project</b> (folder / <code>project.json</code>) or a native cellpy <b>batch journal</b>.</p>
       </section>
 
       <section class="panel">

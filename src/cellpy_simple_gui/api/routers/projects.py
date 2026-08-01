@@ -70,6 +70,16 @@ def open_project(target: str = Body(..., embed=True)) -> dict:
     return {"job_id": job.id}
 
 
+@router.post("/projects/classify-import")
+def classify_import(path: str = Body(..., embed=True)) -> dict:
+    """Return whether a path is a portable project or a batch journal (#75)."""
+    try:
+        kind = projects.classify_import_path(path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"kind": kind, "path": path.strip()}
+
+
 def _load_journal_job(progress: Progress, path: str) -> dict:
     """Always return a toastable result — never leave the UI waiting on a bare raise."""
     from ..jobs import Cancelled
