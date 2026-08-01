@@ -21,7 +21,7 @@ import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -95,14 +95,42 @@ def _now() -> str:
 
 
 def resolve_project_path(path_or_slug: str) -> Path:
-    """Accept either an absolute project-folder path or a known project slug/name."""
+    """Accept a project folder, ``project.json`` file, or known slug/name."""
     p = Path(path_or_slug)
+    if p.is_file() and p.name == "project.json":
+        p = p.parent
     if p.is_dir() and (p / "project.json").exists():
         return p
     cand = projects_root() / slugify(path_or_slug)
     if (cand / "project.json").exists():
         return cand
     raise FileNotFoundError(f"No project found for {path_or_slug!r}")
+
+
+def classify_import_path(path: str) -> Literal["project", "journal"]:
+    """Decide whether ``path`` is a portable app project or a batch journal.
+
+    Rules (filename / directory only — no JSON sniffing):
+
+    - Directory containing ``project.json`` → ``"project"``
+    - File named ``project.json`` → ``"project"``
+    - Any other existing file → ``"journal"`` (cellpy validates)
+    """
+    raw = (path or "").strip()
+    if not raw:
+        raise ValueError("A project folder, project.json, or journal path is required.")
+    p = Path(raw)
+    if p.is_dir() and (p / "project.json").is_file():
+        return "project"
+    if p.is_file() and p.name == "project.json":
+        return "project"
+    if p.is_file():
+        return "journal"
+    if p.is_dir():
+        raise ValueError(
+            f"Folder is not a portable project (missing project.json): {p}"
+        )
+    raise ValueError(f"Path not found: {p}")
 
 
 # --------------------------------------------------------------------------- #

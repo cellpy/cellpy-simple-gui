@@ -224,6 +224,9 @@ function app() {
         this.projects = r.projects;
         this.project = r.current.name;
         if (this.project && !this.saveName) this.saveName = this.project;
+        if (this.openTarget && !this.projects.some((p) => p.slug === this.openTarget)) {
+          this.openTarget = "";
+        }
       } catch (_) {}
     },
 
@@ -263,13 +266,29 @@ function app() {
       await this.runJob("/api/load/files", { paths, max_files: this._num(this.filesMax) || 10 });
       this.filesPath = "";
     },
-    async loadJournal() {
+    async loadImportPath() {
       const path = this.journalPath.trim();
       if (!path) return;
-      await this.runJob("/api/projects/load-journal", { path });
+      let kind;
+      try {
+        kind = (await (await api("/api/projects/classify-import", {
+          method: "POST", body: { path },
+        })).json()).kind;
+      } catch (e) {
+        this.notify("error", e.message || String(e));
+        return;
+      }
+      if (kind === "project") {
+        await this.runJob("/api/projects/open", { target: path });
+        this.dirty = false;
+      } else {
+        await this.runJob("/api/projects/load-journal", { path });
+      }
       this.journalPath = "";
       await this.refreshProjects();
     },
+    /** @deprecated use loadImportPath — kept for any leftover call sites */
+    async loadJournal() { return this.loadImportPath(); },
 
     // ---- native file pickers (desktop only) ----
     async pick(kind, assign) {
@@ -280,7 +299,9 @@ function app() {
     },
     pickCellpy() { this.pick("cellpy", (p) => { this.filesPath = p.join("; "); }); },
     pickRaw() { this.pick("raw", (p) => { this.ingest.paths = p.join("; "); }); },
-    pickJournal() { this.pick("journal", (p) => { this.journalPath = p[0]; this.loadJournal(); }); },
+    pickImportFile() { this.pick("journal", (p) => { this.journalPath = p[0]; this.loadImportPath(); }); },
+    pickImportFolder() { this.pick("folder", (p) => { this.journalPath = p[0]; this.loadImportPath(); }); },
+    pickJournal() { this.pickImportFile(); },
 
     async refreshInstruments() {
       try {

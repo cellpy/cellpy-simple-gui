@@ -52,6 +52,55 @@ def test_open_missing_raises(temp_projects_root):
         projects.open_project(Library(), "does-not-exist")
 
 
+def test_classify_import_path(temp_projects_root, tmp_path):
+    proj = temp_projects_root / "copied"
+    proj.mkdir()
+    (proj / "project.json").write_text(
+        '{"schema_version":1,"name":"Copied","slug":"copied",'
+        '"created":"x","modified":"x","cells":[]}',
+        encoding="utf-8",
+    )
+    assert projects.classify_import_path(str(proj)) == "project"
+    assert projects.classify_import_path(str(proj / "project.json")) == "project"
+
+    journal = tmp_path / "batch.json"
+    journal.write_text("{}", encoding="utf-8")
+    assert projects.classify_import_path(str(journal)) == "journal"
+
+    empty = tmp_path / "empty_dir"
+    empty.mkdir()
+    with pytest.raises(ValueError, match="missing project.json"):
+        projects.classify_import_path(str(empty))
+    with pytest.raises(ValueError, match="not found"):
+        projects.classify_import_path(str(tmp_path / "nope.json"))
+
+
+def test_open_via_project_json_file_and_absolute_path(loaded_library, temp_projects_root, tmp_path):
+    """#75: open works for absolute folders and project.json file paths."""
+    projects.save_project(loaded_library, "Abs Path")
+    src = temp_projects_root / "abs_path"
+    external = tmp_path / "external_proj"
+    # Simulate copy-paste outside projects_root
+    import shutil
+
+    shutil.copytree(src, external)
+
+    fresh = Library()
+    projects.open_project(fresh, str(external))
+    assert fresh.project_name == "Abs Path"
+    assert len(fresh) >= 1
+
+    fresh2 = Library()
+    projects.open_project(fresh2, str(external / "project.json"))
+    assert fresh2.project_name == "Abs Path"
+
+    # Newly copied into projects_root appears in list (refresh data path)
+    shutil.copytree(external, temp_projects_root / "pasted_in")
+    names = {s.slug for s in projects.list_projects()}
+    assert "pasted_in" in names or "abs_path" in names
+    assert any(s.path.endswith("pasted_in") or "pasted_in" in s.path for s in projects.list_projects())
+
+
 def _wait(client, job_id, timeout=120):
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -93,3 +142,28 @@ def test_api_open_unknown_404(temp_projects_root):
     client = TestClient(create_app())
     client.headers.update({"X-CSG-Token": get_settings().token})
     assert client.post("/api/projects/open", json={"target": "nope"}).status_code == 404
+
+
+def test_api_classify_import(temp_projects_root, tmp_path):
+    client = TestClient(create_app())
+    client.headers.update({"X-CSG-Token": get_settings().token})
+
+    proj = temp_projects_root / "cls"
+    proj.mkdir()
+    (proj / "project.json").write_text(
+        '{"schema_version":1,"name":"Cls","slug":"cls",'
+        '"created":"x","modified":"x","cells":[]}',
+        encoding="utf-8",
+    )
+    r = client.post("/api/projects/classify-import", json={"path": str(proj)})
+    assert r.status_code == 200
+    assert r.json()["kind"] == "project"
+
+    journal = tmp_path / "j.json"
+    journal.write_text("{}", encoding="utf-8")
+    r = client.post("/api/projects/classify-import", json={"path": str(journal)})
+    assert r.status_code == 200
+    assert r.json()["kind"] == "journal"
+
+    r = client.post("/api/projects/classify-import", json={"path": str(tmp_path / "missing")})
+    assert r.status_code == 400

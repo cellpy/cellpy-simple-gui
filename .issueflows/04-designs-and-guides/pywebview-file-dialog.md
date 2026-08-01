@@ -8,7 +8,8 @@
 
 | Endpoint | Dialog | Notes |
 |---|---|---|
-| `POST /api/system/pick` | `FileDialog.OPEN` | Load cellpy / raw / journal paths |
+| `POST /api/system/pick` | `FileDialog.OPEN` | Load cellpy / raw / journal (JSON) paths |
+| `POST /api/system/pick` `kind=folder` | `FileDialog.FOLDER` | Portable project folder (#75) |
 | `POST /api/system/save?filename=` | `FileDialog.SAVE` | Write export body to chosen path (#31) |
 
 Server mode has no window → capabilities report `file_picker: false`; pick/save return 400.

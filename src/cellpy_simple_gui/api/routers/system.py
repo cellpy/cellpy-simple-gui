@@ -13,7 +13,7 @@ router = APIRouter()
 _FILE_TYPES = {
     "cellpy": ("Cellpy files (*.cellpy;*.h5)", "All files (*.*)"),
     "raw": ("All files (*.*)",),
-    "journal": ("Journal files (*.json)", "All files (*.*)"),
+    "journal": ("JSON project.json / journal (*.json)", "All files (*.*)"),
 }
 
 _SAVE_TYPE_BY_EXT = {
@@ -62,11 +62,16 @@ def capabilities() -> dict:
 
 @router.post("/system/pick")
 def pick(kind: str = Body("cellpy", embed=True)) -> dict:
-    """Open a native file-open dialog and return the chosen absolute paths."""
+    """Open a native file-open (or folder) dialog and return chosen absolute paths."""
     win = _webview_window()
     if win is None:
         raise HTTPException(400, "The file picker is only available in the desktop app.")
     import webview
+
+    if kind == "folder":
+        result = win.create_file_dialog(webview.FileDialog.FOLDER)
+        path = _normalize_dialog_path(result)
+        return {"paths": [path] if path else []}
 
     file_types = _FILE_TYPES.get(kind, ("All files (*.*)",))
     result = win.create_file_dialog(
