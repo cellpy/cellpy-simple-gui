@@ -34,6 +34,7 @@ class CellRecord:
     mass: float | None = None
     area: float | None = None
     nominal_capacity: float | None = None
+    nom_cap_specifics: str | None = None
     cycle_mode: str | None = None
     n_cycles: int = 0
     group: int = 1
@@ -51,6 +52,7 @@ class CellRecord:
             mass=self.mass,
             area=self.area,
             nominal_capacity=self.nominal_capacity,
+            nom_cap_specifics=self.nom_cap_specifics,  # type: ignore[arg-type]
             cycle_mode=self.cycle_mode,  # type: ignore[arg-type]
             n_cycles=self.n_cycles,
             group=self.group,
@@ -63,6 +65,7 @@ class CellRecord:
         self.mass = meta["mass"]
         self.area = meta["area"]
         self.nominal_capacity = meta["nominal_capacity"]
+        self.nom_cap_specifics = meta.get("nom_cap_specifics")
         self.cycle_mode = meta.get("cycle_mode")
         if "n_cycles" in meta:
             self.n_cycles = int(meta["n_cycles"] or 0)
@@ -93,6 +96,7 @@ class Library:
                 mass=meta["mass"],
                 area=meta["area"],
                 nominal_capacity=meta["nominal_capacity"],
+                nom_cap_specifics=meta.get("nom_cap_specifics"),
                 cycle_mode=meta.get("cycle_mode"),
                 n_cycles=meta["n_cycles"],
                 group=n,  # each new cell starts in its own group
@@ -113,8 +117,8 @@ class Library:
     ) -> CellRecord:
         """Add a cell while preserving saved organisational metadata.
 
-        Physical quantities (mass/area/nominal capacity/cycle mode/cycles) are
-        read fresh from the ``.cellpy`` file — it is the source of truth for
+        Physical quantities (mass/area/nominal capacity/basis/cycle mode/cycles)
+        are read fresh from the ``.cellpy`` file — it is the source of truth for
         those — while group/label/selection come from the project manifest.
         """
         meta = adapter.read_meta(cell)
@@ -129,6 +133,7 @@ class Library:
                 mass=meta["mass"],
                 area=meta["area"],
                 nominal_capacity=meta["nominal_capacity"],
+                nom_cap_specifics=meta.get("nom_cap_specifics"),
                 cycle_mode=meta.get("cycle_mode"),
                 n_cycles=meta["n_cycles"],
                 group=int(group),
@@ -148,6 +153,7 @@ class Library:
         mass: float | None = None,
         area: float | None = None,
         nominal_capacity: float | None = None,
+        nom_cap_specifics: str | None = None,
         cycle_mode: str | None = None,
     ) -> CellRecord:
         with self._lock:
@@ -163,6 +169,7 @@ class Library:
                 mass=mass,
                 area=area,
                 nominal_capacity=nominal_capacity,
+                nom_cap_specifics=nom_cap_specifics,
                 cycle_mode=cycle_mode,
             )
             if changed:

@@ -32,6 +32,7 @@ def test_save_open_roundtrip(loaded_library, temp_projects_root):
         mass=0.42,
         area=1.5,
         nominal_capacity=2000.0,
+        nom_cap_specifics="areal",
         cycle_mode="cathode",
     )
 
@@ -53,6 +54,7 @@ def test_save_open_roundtrip(loaded_library, temp_projects_root):
     assert abs(r.mass - 0.42) < 1e-3
     assert abs(r.area - 1.5) < 1e-3
     assert abs(r.nominal_capacity - 2000.0) < 1e-3
+    assert r.nom_cap_specifics == "areal"
     assert r.cycle_mode == "cathode"
     assert r.n_cycles == rec.n_cycles
     assert fresh.project_name == "Round Trip"

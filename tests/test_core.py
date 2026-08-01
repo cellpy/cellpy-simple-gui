@@ -19,6 +19,7 @@ def test_read_meta(example_cell):
     assert meta["n_cycles"] > 0
     assert meta["mass"] and meta["mass"] > 0
     assert meta["cycle_mode"] in ("anode", "cathode", "full_cell", None)
+    assert meta["nom_cap_specifics"] in ("gravimetric", "areal", "absolute", None)
 
 
 def test_apply_physical_meta_updates_and_summary(example_cell):
@@ -31,13 +32,17 @@ def test_apply_physical_meta_updates_and_summary(example_cell):
         mass=1.5,
         area=2.0,
         nominal_capacity=1800.0,
+        nom_cap_specifics="areal",
         cycle_mode="cathode",
     )
-    assert set(changed) == {"mass", "area", "nominal_capacity", "cycle_mode"}
+    assert set(changed) == {
+        "mass", "area", "nominal_capacity", "nom_cap_specifics", "cycle_mode",
+    }
     meta = cellpy_adapter.read_meta(example_cell)
     assert abs(meta["mass"] - 1.5) < 1e-9
     assert abs(meta["area"] - 2.0) < 1e-9
     assert abs(meta["nominal_capacity"] - 1800.0) < 1e-9
+    assert meta["nom_cap_specifics"] == "areal"
     assert meta["cycle_mode"] == "cathode"
     after = cellpy_adapter.summary_frame(example_cell)
     assert len(after) > 0

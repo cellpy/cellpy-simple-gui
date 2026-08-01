@@ -115,6 +115,7 @@ def update_cell(cell_id: str, update: JournalRowUpdate) -> dict:
             mass=update.mass,
             area=update.area,
             nominal_capacity=update.nominal_capacity,
+            nom_cap_specifics=update.nom_cap_specifics,
             cycle_mode=update.cycle_mode,
         )
     except KeyError:
