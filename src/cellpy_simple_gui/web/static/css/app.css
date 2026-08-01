@@ -429,6 +429,12 @@ input:focus, select:focus { border-color: var(--accent); }
   background: var(--input); border: 1px solid var(--line); border-radius: 4px; color: var(--text);
 }
 .cells-table .mode-input { width: 100px; }
+.cells-table .nom-cap-cell {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+}
+.cells-table .unit-hint {
+  font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
 .cells-table input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
 
 /* scrollbars */

@@ -69,6 +69,7 @@ class CellMeta(BaseModel):
     mass: float | None = None  # mg
     area: float | None = None  # cm^2
     nominal_capacity: float | None = None
+    nom_cap_specifics: CapacityMode | None = None
     cycle_mode: CycleMode | None = None
     n_cycles: int = 0
     group: int = 1
@@ -189,6 +190,7 @@ class JournalRowUpdate(BaseModel):
     mass: Optional[float] = None
     area: Optional[float] = None
     nominal_capacity: Optional[float] = None
+    nom_cap_specifics: Optional[CapacityMode] = None
     cycle_mode: Optional[CycleMode] = None
 
 

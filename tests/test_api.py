@@ -182,6 +182,7 @@ def test_edit_cell(client):
             "mass": 1.25,
             "area": 2.5,
             "nominal_capacity": 1500.0,
+            "nom_cap_specifics": "areal",
             "cycle_mode": "cathode",
         },
     ).json()
@@ -190,6 +191,7 @@ def test_edit_cell(client):
     assert out["cell"]["mass"] == 1.25
     assert out["cell"]["area"] == 2.5
     assert out["cell"]["nominal_capacity"] == 1500.0
+    assert out["cell"]["nom_cap_specifics"] == "areal"
     assert out["cell"]["cycle_mode"] == "cathode"
     assert out["state"]["n_selected"] == 0
 

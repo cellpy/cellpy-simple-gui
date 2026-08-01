@@ -207,6 +207,9 @@ function app() {
       return list;
     },
 
+    nomCapUnit(basis) {
+      return ({ gravimetric: "mAh/g", areal: "mAh/cm²", absolute: "mAh" })[basis] || "mAh/g";
+    },
     fmt(v, d = 2) {
       if (v === null || v === undefined || isNaN(v)) return "–";
       return Number(v).toLocaleString(undefined, { maximumFractionDigits: d });
@@ -474,8 +477,10 @@ function app() {
           delete body[key];
         }
       }
-      if ("cycle_mode" in patch && !patch.cycle_mode) {
-        delete body.cycle_mode;
+      for (const key of ["cycle_mode", "nom_cap_specifics"]) {
+        if (key in patch && !patch[key]) {
+          delete body[key];
+        }
       }
       const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
       this.cells = r.state.cells;

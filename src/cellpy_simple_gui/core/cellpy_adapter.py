@@ -263,11 +263,17 @@ def read_meta(cell: Any) -> dict[str, Any]:
     if mode_s not in ("anode", "cathode", "full_cell"):
         mode_s = None
 
+    specs = getattr(cell, "nom_cap_specifics", None)
+    specs_s = str(specs).strip() if specs not in (None, "") else None
+    if specs_s not in ("gravimetric", "areal", "absolute"):
+        specs_s = None
+
     return {
         "name": str(getattr(cell, "cell_name", "") or ""),
         "mass": _num(getattr(cell, "mass", None)),
         "area": _num(getattr(cell, "active_electrode_area", None)),
         "nominal_capacity": _num(getattr(cell, "nominal_capacity", None)),
+        "nom_cap_specifics": specs_s,
         "cycle_mode": mode_s,
         "n_cycles": int(_safe(cell.get_number_of_cycles, 0) or 0),
     }
@@ -499,6 +505,7 @@ def apply_physical_meta(
     mass: float | None = None,
     area: float | None = None,
     nominal_capacity: float | None = None,
+    nom_cap_specifics: str | None = None,
     cycle_mode: str | None = None,
 ) -> list[str]:
     """Assign physical meta knobs and remake the summary once.
@@ -518,6 +525,9 @@ def apply_physical_meta(
         if nominal_capacity is not None and nominal_capacity > 0:
             cell.nominal_capacity = nominal_capacity
             changed.append("nominal_capacity")
+        if nom_cap_specifics is not None:
+            cell.nom_cap_specifics = nom_cap_specifics
+            changed.append("nom_cap_specifics")
         if cycle_mode is not None:
             cell.cycle_mode = cycle_mode
             changed.append("cycle_mode")
@@ -539,6 +549,11 @@ def set_area(cell: Any, area: float) -> None:
 def set_nominal_capacity(cell: Any, nominal_capacity: float) -> None:
     """Update nominal capacity and refresh the summary."""
     apply_physical_meta(cell, nominal_capacity=nominal_capacity)
+
+
+def set_nom_cap_specifics(cell: Any, nom_cap_specifics: str) -> None:
+    """Update nominal-capacity basis and refresh the summary."""
+    apply_physical_meta(cell, nom_cap_specifics=nom_cap_specifics)
 
 
 def set_cycle_mode(cell: Any, cycle_mode: str) -> None:
