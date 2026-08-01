@@ -37,6 +37,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open (app `#72` forwards `x_unit`) |
 > | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open (app `#38` passes `y_label_mapper`) |
 > | 19 | Non-atomic v9 `.cellpy` writes | — | ◑ open (app stages project saves; cellpy zip still truncates in place) |
+> | 20 | Summary facet order ignores collect column order on group-avg | — | ◑ open (app `#81` passes Plotly `category_orders`) |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -392,6 +393,27 @@ app now stages project folders atomically, but each individual
 **Wish:** write to a same-directory tempfile (or `path.with_suffix(".cellpy.tmp")`),
 close the zip, then `os.replace` onto the final path so readers never see a
 half-written archive. Optionally validate required members before replace.
+
+## 20. 🟠 Summary facet order ignores collect column order on group-avg
+
+`collect_summaries(..., columns=(…))` records the requested variable set, but
+the summary plot path facets on the long `variable` column without setting
+Plotly `category_orders`. On **per-cell (wide)** figures, facet order roughly
+follows the collect column tuple. On **group-averaged (long)** figures,
+`variable.unique()` / Plotly’s default order wins — typically alphabetical —
+so *Capacity + CE* becomes Charge → CE → Discharge instead of the collect
+order (or a stable CE-on-top layout).
+
+Surfaced in cellpy-simple-gui #81: toggling Group avg reshuffled the CE panel.
+
+**App workaround (#81):** pass
+`category_orders={"variable": list(columns)}` into `collection.plot` / PX, and
+put CE first in the app’s `capacity_ce` column tuple.
+
+**Wish:** honour collect column order (or an explicit
+`category_orders` / categorical dtype) by default for summary `facet_row="variable"`,
+so averaged and per-cell figures stay consistent without every app re-passing
+Plotly category orders.
 
 ## What already works well (thank-you notes)
 

@@ -9,6 +9,7 @@ keep only app chrome that cellpy still does not own.
 | Collected figure theme / label / height | #801 in **post4** (`plotly_template`, `layout_updates`, pretty labels, `height_per_panel`) | **Delegated (partial)** | `_inject_app_chrome` passes theme tokens + height; `_restyle` keeps legend truncation, colorway, axis grids |
 | Pretty axis / facet labels | #801 defaults (names only) | **Keep forwarding** | App passes unit-bearing `y_label_mapper` via `summary_y_label_mapper` (#38 / painpoint §18). Remap for #39 keys off hover `variable=` |
 | Per-panel `y_ranges` / `share_y` | #804 in **post2** | **Keep forwarding** | App still re-applies share_y after spread plots (#47 gap) |
+| Summary facet `category_orders` | Painpoint §20 open | **Keep forwarding** | App passes `category_orders={"variable": columns}` (#81); CE-first `capacity_ce` tuple |
 | `read_meta(path)` | #799 in **post4** | **Wrapper now** | `cellpy_adapter.read_file_meta` — UI wiring deferred |
 | `instrument_meta_schema` | #800 in **post4** | **Wrapper now** | `cellpy_adapter.instrument_meta_schema` — ingest form follow-up |
 | Group-avg all-or-nothing + figure merge | Still app (#27 / #39) | **Keep** | Verified post4 still disables avg when any singleton present |

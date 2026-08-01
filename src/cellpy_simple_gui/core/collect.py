@@ -110,7 +110,8 @@ SUMMARY_PLOT_TYPES = [
 def summary_columns_for(plot_type: str, basis: str) -> tuple[str, ...]:
     s = _BASIS_SUFFIX.get(basis, "_gravimetric")
     table: dict[str, tuple[str, ...]] = {
-        "capacity_ce": (f"charge_capacity{s}", f"discharge_capacity{s}", "coulombic_efficiency"),
+        # CE on top (#81); pair with category_orders so Group avg cannot reorder.
+        "capacity_ce": ("coulombic_efficiency", f"charge_capacity{s}", f"discharge_capacity{s}"),
         "capacity": (f"charge_capacity{s}", f"discharge_capacity{s}"),
         "charge_capacity": (f"charge_capacity{s}",),
         "discharge_capacity": (f"discharge_capacity{s}",),

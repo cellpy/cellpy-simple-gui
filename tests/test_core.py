@@ -56,9 +56,9 @@ def test_instrument_meta_schema_wrapper():
 @pytest.mark.essential
 def test_summary_columns_for_types():
     assert collect.summary_columns_for("capacity_ce", "gravimetric") == (
+        "coulombic_efficiency",
         "charge_capacity_gravimetric",
         "discharge_capacity_gravimetric",
-        "coulombic_efficiency",
     )
     assert collect.summary_columns_for("end_voltages", "gravimetric") == (
         "potential_end_charge",
@@ -69,8 +69,8 @@ def test_summary_columns_for_types():
         "charge_capacity_loss_areal",
         "discharge_capacity_loss_areal",
     )
-    # unknown type falls back to capacity_ce
-    assert collect.summary_columns_for("???", "gravimetric")[0] == "charge_capacity_gravimetric"
+    # unknown type falls back to capacity_ce (CE on top — #81)
+    assert collect.summary_columns_for("???", "gravimetric")[0] == "coulombic_efficiency"
 
 
 def test_plot_type_renders_end_voltages(loaded_library):
@@ -830,11 +830,52 @@ def test_summary_panels_for_capacity_ce():
     panels = collect.summary_panels_for("capacity_ce", "gravimetric")
     ids = [p["id"] for p in panels]
     assert ids == [
+        "coulombic_efficiency",
         "charge_capacity_gravimetric",
         "discharge_capacity_gravimetric",
-        "coulombic_efficiency",
     ]
-    assert panels[-1]["label"] == "CE"
+    assert panels[0]["label"] == "CE"
+
+
+def _summary_facet_titles_top_to_bottom(fig: dict) -> list[str]:
+    """Y-axis title texts ordered by Plotly domain (top facet first)."""
+    axes: list[tuple[float, str]] = []
+    for key, axis in (fig.get("layout") or {}).items():
+        if not str(key).startswith("yaxis"):
+            continue
+        domain = axis.get("domain") or [0, 1]
+        title = axis.get("title")
+        text = title.get("text") if isinstance(title, dict) else title
+        axes.append((float(domain[1]), str(text or "")))
+    axes.sort(key=lambda item: item[0], reverse=True)
+    return [text for _, text in axes]
+
+
+@pytest.mark.parametrize("group_average", [False, True])
+def test_summary_capacity_ce_facet_order_stable(loaded_library, group_average):
+    """CE stays on top with Group avg on or off (#81)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    for rec in lib.all():
+        rec.group = 1
+        rec.selected = True
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                group_average=group_average,
+                spread=False,
+            ),
+        )
+    )
+    titles = _summary_facet_titles_top_to_bottom(fig)
+    assert len(titles) >= 3
+    assert "Coulombic efficiency" in titles[0]
+    assert "Charge capacity" in titles[1]
+    assert "Discharge capacity" in titles[2]
 
 
 def test_summary_figure_share_y_with_group_avg_and_spread(loaded_library):
