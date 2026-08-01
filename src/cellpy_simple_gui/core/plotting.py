@@ -40,6 +40,9 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         color_scheme=spec.color_scheme,
         # Unit-bearing titles; cellpy defaults are pretty but unit-less (§18 / #38).
         y_label_mapper=collect.summary_y_label_mapper(columns),
+        # Honour column order on long (group-avg) frames; cellpy otherwise
+        # lets Plotly unique-order facets (#81 / painpoint §20).
+        category_orders={"variable": list(columns)},
     )
 
 
