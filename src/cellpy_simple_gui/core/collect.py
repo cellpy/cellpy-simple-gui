@@ -267,14 +267,45 @@ def cycles_collection(
     return collect_cycles(_batch(records), options=opts)
 
 
+def _filter_ica_by_direction(collection, direction: str):
+    """Keep one half-cycle in a collected ICA frame.
+
+    cellpy's ``ica_plotter`` documents ``direction`` but only applies
+    ``_select_direction`` for ``method=="film"`` — default ``fig_pr_cell``
+    line plots ignore it (CELLPY_PAINPOINTS §16 / issue #67). Filter here so
+    Charge vs Discharge in the app actually differ.
+    """
+    data = getattr(collection, "data", None)
+    if data is None or getattr(data, "height", 0) == 0:
+        return collection
+    if "direction" not in data.columns:
+        log.warning(
+            "no 'direction' column in ICA frame - direction filter skipped"
+        )
+        return collection
+    want = (direction or "charge").lower()
+    if want not in ("charge", "discharge"):
+        want = "charge"
+    try:
+        import polars as pl
+
+        filtered = data.filter(pl.col("direction").str.to_lowercase() == want)
+        collection.data = filtered
+    except Exception:  # noqa: BLE001 - plot path stays best-effort
+        log.warning("could not filter ICA by direction=%s", want, exc_info=True)
+    return collection
+
+
 def ica_collection(
     records: list[CellRecord],
     *,
     cycles: tuple[int, ...],
     voltage_resolution: float | None = 0.005,
+    direction: str = "charge",
 ):
     opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-    return collect_ica(_batch(records), options=opts)
+    collection = collect_ica(_batch(records), options=opts)
+    return _filter_ica_by_direction(collection, direction)
 
 
 # --------------------------------------------------------------------------- #

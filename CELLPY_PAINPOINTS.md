@@ -276,21 +276,35 @@ collected layouts — e.g. `Cycle 1` / cell label only — so apps get consisten
 chrome without per-family string scrubbing. Optionally document that `layout=`
 is preferred over legacy `method="fig_pr_*"` in `cycles_plotter` docs.
 
-## 16. 🟢 ICA plotter cannot show charge and discharge together
+## 16. 🟢 ICA plotter direction gaps (line plots + `both`)
 
 `cellpy.utils.ica.dqdv(..., direction="both")` (and therefore `collect_ica`,
 which calls `dqdv` with the default) returns a tidy frame with both half-cycles
-(`direction` column = `charge` / `discharge`). The collected **plot** path does
-not: `ica_plotter` only accepts `direction="charge"` or `"discharge"` and
-silently coerces anything else to `"charge"` (with a `print`).
+(`direction` column = `charge` / `discharge`). The collected **plot** path has
+two gaps:
 
-Apps that want a single figure with both directions must merge two plot calls
-themselves. cellpy-simple-gui #56 therefore exposes only Charge | Discharge in
-the Cell explorer dQ/dV UI.
+1. **`both` unsupported.** `ica_plotter` only accepts `direction="charge"` or
+   `"discharge"` and silently coerces anything else to `"charge"` (with a
+   `print`). Apps that want a single figure with both directions must merge two
+   plot calls themselves. cellpy-simple-gui #56 therefore exposes only
+   Charge | Discharge in the Cell explorer dQ/dV UI.
 
-**Wish:** honour `direction="both"` in `ica_plotter` / `collected_plot` (e.g.
-two series or grouped legend entries per cycle), and prefer a logger warning
-over `print` when coercing invalid values.
+2. **Line / `fig_pr_cell` ignores `direction`.** `ica_plotter` →
+   `_cycles_plotter` → `sequence_plotter` only calls `_select_direction` when
+   `method=="film"`. For the default ICA line layout (`fig_pr_cell` /
+   `layout="per_cell"`), the `direction` kwarg is a no-op: both lobes stay in
+   each cycle’s trace and Plotly can draw a spurious join between half-cycles.
+   Surfaced in cellpy-simple-gui #67 after #56.
+
+**App workaround (#67):** filter the collected ICA polars frame to
+`direction == charge|discharge` in `core/collect.ica_collection` before
+`Collection.plot`, so Charge/Discharge (and figure/data export) actually differ
+without depending on cellpy’s film-only filter.
+
+**Wish:** call `_select_direction` for ICA line layouts as well as `film`;
+honour `direction="both"` (e.g. two series or grouped legend entries per cycle,
+with a break so half-cycles do not join); prefer a logger warning over `print`
+when coercing invalid values.
 
 ---
 

@@ -75,6 +75,7 @@ def ica_export(record: CellRecord, spec: IcaPlotSpec, fmt: str) -> tuple[bytes, 
         [record],
         cycles=tuple(sorted(set(spec.cycles))),
         voltage_resolution=spec.voltage_resolution,
+        direction=spec.direction,
     )
     return collect.export_bytes(collection, fmt)
 

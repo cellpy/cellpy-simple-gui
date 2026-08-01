@@ -154,6 +154,33 @@ def test_cycles_figure_empty_selection():
     assert "layout" in fig
 
 
+def _ica_y_values(fig: dict) -> list[float]:
+    """Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)."""
+    import base64
+
+    import numpy as np
+
+    ys: list[float] = []
+    for trace in fig.get("data") or []:
+        y = trace.get("y")
+        if isinstance(y, dict) and "bdata" in y:
+            arr = np.frombuffer(
+                base64.b64decode(y["bdata"]), dtype=np.dtype(y["dtype"])
+            )
+            ys.extend(float(v) for v in arr if v == v)  # skip NaN
+            continue
+        if not isinstance(y, list):
+            continue
+        for v in y:
+            if v is None:
+                continue
+            try:
+                ys.append(float(v))
+            except (TypeError, ValueError):
+                continue
+    return ys
+
+
 def test_ica_figure(loaded_library):
     rec = loaded_library.all()[0]
     spec = IcaPlotSpec(
@@ -170,6 +197,41 @@ def test_ica_figure_discharge(loaded_library):
     )
     fig = json.loads(plotting.ica_figure(rec, spec))
     assert len(fig["data"]) >= 1
+
+
+def test_ica_figure_charge_differs_from_discharge(loaded_library):
+    """Direction must filter half-cycles (#67); cellpy plot kwarg alone does not."""
+    rec = loaded_library.all()[0]
+    cycles = [1, 2, 3]
+    kwargs = dict(cell_id=rec.id, cycles=cycles, voltage_resolution=0.005)
+    charge = json.loads(
+        plotting.ica_figure(rec, IcaPlotSpec(**kwargs, direction="charge"))
+    )
+    discharge = json.loads(
+        plotting.ica_figure(rec, IcaPlotSpec(**kwargs, direction="discharge"))
+    )
+    y_c = _ica_y_values(charge)
+    y_d = _ica_y_values(discharge)
+    assert y_c and y_d
+    assert y_c != y_d
+    # Typical Si/graphite demo: charge lobe predominantly +dQ/dV, discharge −.
+    assert sum(y_c) / len(y_c) > 0
+    assert sum(y_d) / len(y_d) < 0
+
+
+def test_ica_collection_filters_direction(loaded_library):
+    from cellpy_simple_gui.core import collect
+
+    rec = loaded_library.all()[0]
+    charge = collect.ica_collection(
+        [rec], cycles=(1, 2), voltage_resolution=0.005, direction="charge"
+    )
+    discharge = collect.ica_collection(
+        [rec], cycles=(1, 2), voltage_resolution=0.005, direction="discharge"
+    )
+    assert charge.data.height > 0 and discharge.data.height > 0
+    assert set(charge.data["direction"].unique().to_list()) == {"charge"}
+    assert set(discharge.data["direction"].unique().to_list()) == {"discharge"}
 
 
 def test_ica_figure_empty_cycles(loaded_library):

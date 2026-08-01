@@ -75,11 +75,14 @@ def ica_figure(record: CellRecord, spec: IcaPlotSpec) -> str:
         [record],
         cycles=cycles,
         voltage_resolution=spec.voltage_resolution,
+        direction=spec.direction,
     )
     return collect.figure_json(
         collection,
         family_kind="ica",
         layout="per_cell",
+        # Forwarded for forward-compat; cellpy currently ignores this for
+        # fig_pr_cell line plots (app filters in ica_collection instead).
         direction=spec.direction,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
