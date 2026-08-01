@@ -118,6 +118,49 @@ def test_summary_figure_empty():
     assert "layout" in fig  # placeholder figure, no crash
 
 
+def test_summary_figure_forwards_group_legend_muting(loaded_library, monkeypatch):
+    """#62: SummaryPlotSpec.group_legend_muting reaches collection.plot kwargs."""
+    captured: dict = {}
+    real = collect.figures_json
+
+    def spy(*args, **kwargs):
+        captured.clear()
+        captured.update(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(collect, "figures_json", spy)
+    plotting.summary_figure(
+        loaded_library.selected(), SummaryPlotSpec(group_legend_muting=False)
+    )
+    assert captured.get("group_legend_muting") is False
+    plotting.summary_figure(
+        loaded_library.selected(), SummaryPlotSpec(group_legend_muting=True)
+    )
+    assert captured.get("group_legend_muting") is True
+
+
+def test_cycles_figure_forwards_group_legend_muting(loaded_library, monkeypatch):
+    """#62: CyclesPlotSpec.group_legend_muting reaches collection.plot kwargs."""
+    captured: dict = {}
+    real = collect.figure_json
+
+    def spy(*args, **kwargs):
+        captured.clear()
+        captured.update(kwargs)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(collect, "figure_json", spy)
+    recs = loaded_library.selected()
+    plotting.cycles_figure(
+        recs, CyclesPlotSpec(cycles=[1, 2], layout="per_cycle", group_legend_muting=False)
+    )
+    assert captured.get("group_legend_muting") is False
+    plotting.cycles_figure(
+        recs, CyclesPlotSpec(cycles=[1, 2], layout="per_cycle", group_legend_muting=True)
+    )
+    assert captured.get("group_legend_muting") is True
+
+
 def test_cycles_figure(loaded_library):
     rec = loaded_library.all()[0]
     spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5, 10], layout="per_cell")

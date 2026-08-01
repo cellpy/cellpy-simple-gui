@@ -35,6 +35,7 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         share_y=spec.share_y,
         match_axes=spec.share_y,
         y_ranges=y_ranges,
+        group_legend_muting=spec.group_legend_muting,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
     )
@@ -59,6 +60,7 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         collection,
         family_kind="cycles",
         layout=spec.layout,
+        group_legend_muting=spec.group_legend_muting,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
     )
