@@ -45,6 +45,8 @@ function app() {
     openTarget: "",
     saveName: "",
     dirty: false,
+    showData: true,
+    showDemo: false,
     showLoadFiles: false,
     showImport: false,
     instruments: [],

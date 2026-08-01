@@ -98,6 +98,14 @@ body {
 .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px;
   color: var(--text-faint); margin: 0 0 10px; font-weight: 700; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; }
+.panel-toggle {
+  display: block; width: 100%; margin: 0; padding: 0; border: none; background: transparent;
+  cursor: pointer; text-align: left; color: inherit;
+}
+.panel-toggle .panel-title {
+  display: flex; align-items: center; gap: 6px; margin: 0;
+}
+.panel-toggle:hover .panel-title { color: var(--text); }
 .panel-actions { display: flex; gap: 4px; }
 
 /* ---------- buttons ---------- */

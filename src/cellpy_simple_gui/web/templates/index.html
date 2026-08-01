@@ -77,11 +77,19 @@
       </section>
 
       <section class="panel">
-        <h2 class="panel-title">Data</h2>
-        <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
-          <span>✦</span> Load demo cells
+        <button type="button" class="panel-toggle" @click="showData = !showData" :aria-expanded="showData">
+          <h2 class="panel-title"><span x-text="showData ? '▾' : '▸'"></span> Data</h2>
         </button>
-        <p class="hint">Three bundled example cells.</p>
+        <div x-show="showData" x-cloak>
+        <button class="disclosure" style="margin-top:0" @click="showDemo = !showDemo">
+          <span x-text="showDemo ? '▾' : '▸'"></span> Load demo cells
+        </button>
+        <div class="import-form" x-show="showDemo" x-cloak>
+          <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
+            <span>✦</span> Load demo cells
+          </button>
+          <p class="hint">Three bundled example cells.</p>
+        </div>
 
         <button class="disclosure" @click="showLoadFiles = !showLoadFiles">
           <span x-text="showLoadFiles ? '▾' : '▸'"></span> Add cellpy files
@@ -173,6 +181,7 @@
               </template>
             </div>
           </div>
+        </div>
         </div>
       </section>
 
