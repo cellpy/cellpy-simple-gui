@@ -539,7 +539,7 @@
                 <option value="discharge">Discharge</option>
               </select>
             </div>
-            <div class="ctl yrange" title="Fixed x-axis range (leave blank for auto)">
+            <div class="ctl yrange" title="Fixed x-axis range — set min, max, or both (blank end uses data extent)">
               <label x-text="cell.plotKind === 'dqdv' ? 'Voltage x' : 'Capacity x'"></label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
@@ -549,7 +549,7 @@
                        x-model="cell.xRange.max" @change="plotCell()" />
               </div>
             </div>
-            <div class="ctl yrange" title="Fixed y-axis range (leave blank for auto)">
+            <div class="ctl yrange" title="Fixed y-axis range — set min, max, or both (blank end uses data extent)">
               <label x-text="cell.plotKind === 'dqdv' ? 'dQ/dV y' : 'Voltage y'"></label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"

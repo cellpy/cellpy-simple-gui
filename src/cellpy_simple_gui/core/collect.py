@@ -441,16 +441,67 @@ def _inject_app_chrome(figure_theme: str, plot_kwargs: dict) -> dict:
     return opts
 
 
-def _apply_xy_ranges(fig, *, x_range=None, y_range=None) -> None:
-    """Pin primary axes to ``[lo, hi]`` when both ends are given."""
-    if x_range:
+def _trace_axis_extent(fig, which: str) -> tuple[float, float] | None:
+    """Min/max over finite numeric samples on trace ``x`` or ``y``."""
+    import math
+
+    vals: list[float] = []
+    for tr in fig.data:
+        arr = getattr(tr, which, None)
+        if arr is None:
+            continue
         try:
-            fig.update_xaxes(range=list(x_range), autorange=False)
+            iterable = list(arr)
+        except TypeError:
+            continue
+        for raw in iterable:
+            try:
+                num = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(num):
+                vals.append(num)
+    if not vals:
+        return None
+    return min(vals), max(vals)
+
+
+def _resolve_axis_range(fig, which: str, partial) -> list[float] | None:
+    """Turn ``[lo|None, hi|None]`` into a concrete ``[lo, hi]`` using data."""
+    if not partial or len(partial) != 2:
+        return None
+    lo, hi = partial[0], partial[1]
+    if lo is None and hi is None:
+        return None
+    if lo is None or hi is None:
+        extent = _trace_axis_extent(fig, which)
+        if extent is None:
+            return None
+        if lo is None:
+            lo = extent[0]
+        if hi is None:
+            hi = extent[1]
+    try:
+        lo_f, hi_f = float(lo), float(hi)
+    except (TypeError, ValueError):
+        return None
+    if lo_f < hi_f:
+        return [lo_f, hi_f]
+    return None
+
+
+def _apply_xy_ranges(fig, *, x_range=None, y_range=None) -> None:
+    """Pin axes to ``[lo, hi]``; missing ends use the data extent."""
+    resolved_x = _resolve_axis_range(fig, "x", x_range)
+    if resolved_x:
+        try:
+            fig.update_xaxes(range=resolved_x, autorange=False)
         except Exception:  # noqa: BLE001
             log.warning("could not apply x_range=%r", x_range, exc_info=True)
-    if y_range:
+    resolved_y = _resolve_axis_range(fig, "y", y_range)
+    if resolved_y:
         try:
-            fig.update_yaxes(range=list(y_range), autorange=False)
+            fig.update_yaxes(range=resolved_y, autorange=False)
         except Exception:  # noqa: BLE001
             log.warning("could not apply y_range=%r", y_range, exc_info=True)
 

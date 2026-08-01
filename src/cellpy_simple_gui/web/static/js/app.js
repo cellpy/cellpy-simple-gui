@@ -618,8 +618,10 @@ function app() {
       if (!r) return null;
       const lo = this._num(r.min);
       const hi = this._num(r.max);
-      if (lo != null && hi != null && lo < hi) return [lo, hi];
-      return null;
+      if (lo == null && hi == null) return null;
+      if (lo != null && hi != null && lo >= hi) return null;
+      // One end may be null — server fills it from the data extent.
+      return [lo, hi];
     },
     cellAxisRangeFields() {
       const x_range = this.buildAxisRange(this.cell.xRange);

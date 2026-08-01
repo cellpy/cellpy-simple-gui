@@ -27,17 +27,32 @@ CAPACITY_UNITS: dict[CapacityMode, str] = {
 }
 
 
-def _clean_axis_range(value: list[float] | None) -> list[float] | None:
-    """Accept ``[lo, hi]`` with finite ``lo < hi``; otherwise drop."""
+def _clean_axis_range(
+    value: list[float | None] | None,
+) -> list[float | None] | None:
+    """Accept ``[lo, hi]`` with either end optional (blank → data extent).
+
+    Both ends finite requires ``lo < hi``. A single finite end is kept as
+    ``[lo, None]`` or ``[None, hi]``.
+    """
     if not value or len(value) != 2:
         return None
-    try:
-        lo, hi = float(value[0]), float(value[1])
-    except (TypeError, ValueError):
+
+    def _one(raw: object) -> float | None:
+        if raw is None or raw == "":
+            return None
+        try:
+            num = float(raw)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+        return num if math.isfinite(num) else None
+
+    lo, hi = _one(value[0]), _one(value[1])
+    if lo is None and hi is None:
         return None
-    if math.isfinite(lo) and math.isfinite(hi) and lo < hi:
-        return [lo, hi]
-    return None
+    if lo is not None and hi is not None and lo >= hi:
+        return None
+    return [lo, hi]
 
 
 class CellMeta(BaseModel):
@@ -89,8 +104,13 @@ class SummaryPlotSpec(BaseModel):
         cleaned: dict[str, list[float]] = {}
         for key, pair in value.items():
             cleaned_pair = _clean_axis_range(pair)
-            if cleaned_pair is not None:
-                cleaned[str(key)] = cleaned_pair
+            # Summary facets still require both ends.
+            if (
+                cleaned_pair is not None
+                and cleaned_pair[0] is not None
+                and cleaned_pair[1] is not None
+            ):
+                cleaned[str(key)] = [cleaned_pair[0], cleaned_pair[1]]
         return cleaned or None
 
 
@@ -109,16 +129,16 @@ class CyclesPlotSpec(BaseModel):
     # Legend click mutes whole journal group vs one cell (Plotly).
     # Meaningless for layout=per_cell (cellpy forces group_cells=False).
     group_legend_muting: bool = True
-    # Fixed axis limits ``[lo, hi]`` (omit / incomplete → autorange).
-    x_range: Optional[list[float]] = None
-    y_range: Optional[list[float]] = None
+    # Axis limits ``[lo, hi]``; either end may be null (filled from data).
+    x_range: Optional[list[Optional[float]]] = None
+    y_range: Optional[list[Optional[float]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""
 
     @field_validator("x_range", "y_range")
     @classmethod
-    def _clean_xy_range(cls, value: list[float] | None):
+    def _clean_xy_range(cls, value: list[float | None] | None):
         return _clean_axis_range(value)
 
 
@@ -129,16 +149,16 @@ class IcaPlotSpec(BaseModel):
     cycles: list[int] = Field(default_factory=list)
     voltage_resolution: float = 0.005
     direction: IcaDirection = "charge"
-    # Fixed axis limits ``[lo, hi]`` (omit / incomplete → autorange).
-    x_range: Optional[list[float]] = None
-    y_range: Optional[list[float]] = None
+    # Axis limits ``[lo, hi]``; either end may be null (filled from data).
+    x_range: Optional[list[Optional[float]]] = None
+    y_range: Optional[list[Optional[float]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""
 
     @field_validator("x_range", "y_range")
     @classmethod
-    def _clean_xy_range(cls, value: list[float] | None):
+    def _clean_xy_range(cls, value: list[float | None] | None):
         return _clean_axis_range(value)
 
 

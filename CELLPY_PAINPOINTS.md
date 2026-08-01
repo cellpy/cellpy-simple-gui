@@ -36,6 +36,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ◑ open (app `#67` filters frame) |
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open (app `#72` forwards `x_unit`) |
 > | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open (app `#38` passes `y_label_mapper`) |
+> | 19 | Non-atomic v9 `.cellpy` writes | — | ◑ open (app stages project saves; cellpy zip still truncates in place) |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -368,6 +369,29 @@ unit-bearing, mode-aware labels from the column id alone — without requiring a
 Batch `units=` payload. Add efficiency / C-rate to the unit spec (or a small
 registry of canonical summary labels) so apps need not maintain per-column
 fallbacks.
+
+## 19. 🟠 Non-atomic v9 `.cellpy` writes leave corrupt archives
+
+`cellpy.readers.cellpy_file.v9` saves with
+`zipfile.ZipFile(path, mode="w")` directly on the destination path. Mode `"w"`
+truncates the file immediately, then members are appended in order
+(`meta.json` → `raw.parquet` → `steps` / `summary` / `fid`). An interrupt,
+kill, or exception mid-write (common when parquet-serializing large raw
+tables) leaves a zip that still opens as a zip but is missing members —
+
+```
+cellpy.exceptions.CorruptCellpyFile: missing zip member 'raw.parquet'
+```
+
+Surfaced in cellpy-simple-gui when a project save was interrupted: one cell
+file contained only `meta.json` (~1 KB); later cells were never written. The
+app now stages project folders atomically, but each individual
+`cell.save(..., overwrite=True)` can still truncate a previously good
+`.cellpy` in place.
+
+**Wish:** write to a same-directory tempfile (or `path.with_suffix(".cellpy.tmp")`),
+close the zip, then `os.replace` onto the final path so readers never see a
+half-written archive. Optionally validate required members before replace.
 
 ## What already works well (thank-you notes)
 
