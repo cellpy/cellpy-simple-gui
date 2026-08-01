@@ -69,6 +69,8 @@ function app() {
       cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
       plotKind: "curves", mode: "gravimetric", method: "forth-and-forth",
       voltageResolution: 0.005, direction: "charge",
+      xRange: { min: "", max: "" },
+      yRange: { min: "", max: "" },
     },
     cycles: {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
@@ -612,12 +614,28 @@ function app() {
         await this._plotCellFigure();
       });
     },
+    buildAxisRange(r) {
+      if (!r) return null;
+      const lo = this._num(r.min);
+      const hi = this._num(r.max);
+      if (lo != null && hi != null && lo < hi) return [lo, hi];
+      return null;
+    },
+    cellAxisRangeFields() {
+      const x_range = this.buildAxisRange(this.cell.xRange);
+      const y_range = this.buildAxisRange(this.cell.yRange);
+      return {
+        ...(x_range ? { x_range } : {}),
+        ...(y_range ? { y_range } : {}),
+      };
+    },
     cellSpec() {
       return {
         cell_id: this.cell.cell_id,
         cycles: this.buildCycleListFrom(this.cell),
         mode: this.cell.mode, method: this.cell.method,
         layout: "per_cell", title: "",
+        ...this.cellAxisRangeFields(),
         ...this.appearanceFields(),
       };
     },
@@ -629,6 +647,7 @@ function app() {
         voltage_resolution: Number.isFinite(res) && res > 0 ? res : 0.005,
         direction: this.cell.direction === "discharge" ? "discharge" : "charge",
         title: "",
+        ...this.cellAxisRangeFields(),
         ...this.appearanceFields(),
       };
     },

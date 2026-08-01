@@ -441,6 +441,20 @@ def _inject_app_chrome(figure_theme: str, plot_kwargs: dict) -> dict:
     return opts
 
 
+def _apply_xy_ranges(fig, *, x_range=None, y_range=None) -> None:
+    """Pin primary axes to ``[lo, hi]`` when both ends are given."""
+    if x_range:
+        try:
+            fig.update_xaxes(range=list(x_range), autorange=False)
+        except Exception:  # noqa: BLE001
+            log.warning("could not apply x_range=%r", x_range, exc_info=True)
+    if y_range:
+        try:
+            fig.update_yaxes(range=list(y_range), autorange=False)
+        except Exception:  # noqa: BLE001
+            log.warning("could not apply y_range=%r", y_range, exc_info=True)
+
+
 def figure_json(
     collection,
     *,
@@ -453,10 +467,13 @@ def figure_json(
     if spread and not is_grouped(collection):
         spread = False
     try:
+        x_range = plot_kwargs.pop("x_range", None)
+        y_range = plot_kwargs.pop("y_range", None)
         opts = _inject_app_chrome(figure_theme, plot_kwargs)
         fig = collection.plot(spread=spread, **opts)
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         _apply_share_y(fig, _want_share_y(plot_kwargs))
+        _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(

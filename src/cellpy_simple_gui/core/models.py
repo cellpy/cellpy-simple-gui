@@ -27,6 +27,19 @@ CAPACITY_UNITS: dict[CapacityMode, str] = {
 }
 
 
+def _clean_axis_range(value: list[float] | None) -> list[float] | None:
+    """Accept ``[lo, hi]`` with finite ``lo < hi``; otherwise drop."""
+    if not value or len(value) != 2:
+        return None
+    try:
+        lo, hi = float(value[0]), float(value[1])
+    except (TypeError, ValueError):
+        return None
+    if math.isfinite(lo) and math.isfinite(hi) and lo < hi:
+        return [lo, hi]
+    return None
+
+
 class CellMeta(BaseModel):
     """Everything the UI needs to know about one loaded cell.
 
@@ -75,14 +88,9 @@ class SummaryPlotSpec(BaseModel):
             return None
         cleaned: dict[str, list[float]] = {}
         for key, pair in value.items():
-            if pair is None or len(pair) != 2:
-                continue
-            try:
-                lo, hi = float(pair[0]), float(pair[1])
-            except (TypeError, ValueError):
-                continue
-            if math.isfinite(lo) and math.isfinite(hi) and lo < hi:
-                cleaned[str(key)] = [lo, hi]
+            cleaned_pair = _clean_axis_range(pair)
+            if cleaned_pair is not None:
+                cleaned[str(key)] = cleaned_pair
         return cleaned or None
 
 
@@ -101,9 +109,17 @@ class CyclesPlotSpec(BaseModel):
     # Legend click mutes whole journal group vs one cell (Plotly).
     # Meaningless for layout=per_cell (cellpy forces group_cells=False).
     group_legend_muting: bool = True
+    # Fixed axis limits ``[lo, hi]`` (omit / incomplete → autorange).
+    x_range: Optional[list[float]] = None
+    y_range: Optional[list[float]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""
+
+    @field_validator("x_range", "y_range")
+    @classmethod
+    def _clean_xy_range(cls, value: list[float] | None):
+        return _clean_axis_range(value)
 
 
 class IcaPlotSpec(BaseModel):
@@ -113,9 +129,17 @@ class IcaPlotSpec(BaseModel):
     cycles: list[int] = Field(default_factory=list)
     voltage_resolution: float = 0.005
     direction: IcaDirection = "charge"
+    # Fixed axis limits ``[lo, hi]`` (omit / incomplete → autorange).
+    x_range: Optional[list[float]] = None
+    y_range: Optional[list[float]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""
+
+    @field_validator("x_range", "y_range")
+    @classmethod
+    def _clean_xy_range(cls, value: list[float] | None):
+        return _clean_axis_range(value)
 
 
 class ExportSpec(BaseModel):

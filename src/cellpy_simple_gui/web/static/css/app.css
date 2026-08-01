@@ -84,6 +84,7 @@ body {
 .sidebar {
   border-right: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column;
   gap: 14px; overflow-y: auto; background: color-mix(in srgb, var(--panel) 40%, transparent);
+  min-height: 0;
 }
 /* min-width: 0 — allow the grid main column to shrink so a wide Plotly
    figure cannot push the side pane off-screen (#63). */
@@ -93,11 +94,19 @@ body {
 .panel {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 14px; box-shadow: var(--shadow-sm);
+  /* Size to content; never shrink — overflow scrolls the sidebar instead. */
+  flex: 0 0 auto;
 }
-.panel.grow { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+/* Cells keeps a usable floor; list scrolls inside the panel. */
+.panel.grow {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
 .panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px;
   color: var(--text-faint); margin: 0 0 10px; font-weight: 700; }
-.panel-head { display: flex; align-items: center; justify-content: space-between; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; flex: none; }
 .panel-actions { display: flex; gap: 4px; }
 
 /* ---------- buttons ---------- */
@@ -193,7 +202,10 @@ input:focus, select:focus { border-color: var(--accent); }
 
 /* ---------- cell list ---------- */
 .empty { color: var(--text-faint); text-align: center; font-size: 13px; margin: 26px 8px; line-height: 1.6; }
-.celllist { overflow-y: auto; margin: 8px -4px 0; padding: 0 4px; display: flex; flex-direction: column; gap: 8px; }
+.celllist {
+  flex: 1; min-height: 0; overflow-y: auto;
+  margin: 8px -4px 0; padding: 0 4px; display: flex; flex-direction: column; gap: 8px;
+}
 .cell-card {
   display: flex; align-items: center; gap: 10px; padding: 9px 10px;
   border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2);

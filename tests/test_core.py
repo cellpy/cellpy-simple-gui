@@ -161,11 +161,91 @@ def test_cycles_figure_forwards_group_legend_muting(loaded_library, monkeypatch)
     assert captured.get("group_legend_muting") is True
 
 
+def test_cycles_figure_xy_ranges(loaded_library):
+    """Cell-explorer x/y range widgets pin Plotly axes."""
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.cycles_figure(
+            [rec],
+            CyclesPlotSpec(
+                cell_id=rec.id,
+                cycles=[1, 2],
+                layout="per_cell",
+                x_range=[0.0, 100.0],
+                y_range=[0.1, 1.5],
+            ),
+        )
+    )
+    xaxis = fig["layout"]["xaxis"]
+    yaxis = fig["layout"]["yaxis"]
+    assert xaxis.get("range") == [0.0, 100.0]
+    assert xaxis.get("autorange") is False
+    assert yaxis.get("range") == [0.1, 1.5]
+    assert yaxis.get("autorange") is False
+
+
+def test_ica_figure_xy_ranges(loaded_library):
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.ica_figure(
+            rec,
+            IcaPlotSpec(
+                cell_id=rec.id,
+                cycles=[1, 2],
+                x_range=[0.05, 1.2],
+                y_range=[-500.0, 500.0],
+            ),
+        )
+    )
+    assert fig["layout"]["xaxis"].get("range") == [0.05, 1.2]
+    assert fig["layout"]["yaxis"].get("range") == [-500.0, 500.0]
+
+
 def test_cycles_figure(loaded_library):
     rec = loaded_library.all()[0]
     spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 5, 10], layout="per_cell")
     fig = json.loads(plotting.cycles_figure([rec], spec))
     assert len(fig["data"]) >= 1
+
+
+def test_cycles_figure_xy_ranges(loaded_library):
+    """Cell-explorer x/y range widgets pin Plotly axes."""
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.cycles_figure(
+            [rec],
+            CyclesPlotSpec(
+                cell_id=rec.id,
+                cycles=[1, 2],
+                layout="per_cell",
+                x_range=[0.0, 100.0],
+                y_range=[0.1, 1.5],
+            ),
+        )
+    )
+    xaxis = fig["layout"]["xaxis"]
+    yaxis = fig["layout"]["yaxis"]
+    assert xaxis.get("range") == [0.0, 100.0]
+    assert xaxis.get("autorange") is False
+    assert yaxis.get("range") == [0.1, 1.5]
+    assert yaxis.get("autorange") is False
+
+
+def test_ica_figure_xy_ranges(loaded_library):
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.ica_figure(
+            rec,
+            IcaPlotSpec(
+                cell_id=rec.id,
+                cycles=[1, 2],
+                x_range=[0.05, 1.2],
+                y_range=[-500.0, 500.0],
+            ),
+        )
+    )
+    assert fig["layout"]["xaxis"].get("range") == [0.05, 1.2]
+    assert fig["layout"]["yaxis"].get("range") == [-500.0, 500.0]
 
 
 def _xaxis_title(fig: dict) -> str:

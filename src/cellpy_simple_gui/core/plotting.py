@@ -68,6 +68,8 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         x_unit=x_unit,
+        x_range=spec.x_range,
+        y_range=spec.y_range,
     )
 
 
@@ -93,4 +95,6 @@ def ica_figure(record: CellRecord, spec: IcaPlotSpec) -> str:
         direction=spec.direction,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
+        x_range=spec.x_range,
+        y_range=spec.y_range,
     )
