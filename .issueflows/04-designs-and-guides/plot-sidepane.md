@@ -12,7 +12,10 @@ collector as a third tab.
 - Pane chrome matches the app shell (`--panel` / `--line`), not figure paper.
 - **Summary pane:** per-panel y-range min/max only.
 - **Cycles pane (collector):** layout (`per_cell` / `per_cycle`), cycles
-  from/to, max curves, mode, method. Plots **selected** sidebar cells.
+  from/to, max curves, mode, method; optional Capacity x / Voltage y ranges
+  (same `x_range` / `y_range` on `CyclesPlotSpec` as Cell explorer — needed so
+  kaleido exports match zoom, since interactive Plotly zoom is not in the
+  export spec). Plots **selected** sidebar cells.
 - **Cell explorer pane:** plot kind (`Voltage curves` / `dQ/dV`), cycles
   from/to, max curves; mode/method when curves; V resolution + direction when
   dQ/dV (one cell; curves layout stays `per_cell`); optional x/y range

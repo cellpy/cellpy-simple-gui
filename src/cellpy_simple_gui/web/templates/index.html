@@ -429,6 +429,26 @@
                 <option value="forth">forth</option>
               </select>
             </div>
+            <div class="ctl yrange" title="Fixed x-axis range — set min, max, or both (blank end uses data extent)">
+              <label>Capacity x</label>
+              <div class="yrange-inputs">
+                <input type="number" class="num num-mini" step="any" placeholder="min"
+                       x-model="cycles.xRange.min" @change="plotCycles()" />
+                <span class="yrange-sep">–</span>
+                <input type="number" class="num num-mini" step="any" placeholder="max"
+                       x-model="cycles.xRange.max" @change="plotCycles()" />
+              </div>
+            </div>
+            <div class="ctl yrange" title="Fixed y-axis range — set min, max, or both (blank end uses data extent)">
+              <label>Voltage y</label>
+              <div class="yrange-inputs">
+                <input type="number" class="num num-mini" step="any" placeholder="min"
+                       x-model="cycles.yRange.min" @change="plotCycles()" />
+                <span class="yrange-sep">–</span>
+                <input type="number" class="num num-mini" step="any" placeholder="max"
+                       x-model="cycles.yRange.max" @change="plotCycles()" />
+              </div>
+            </div>
           </aside>
         </div>
       </section>

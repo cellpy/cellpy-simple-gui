@@ -76,6 +76,8 @@ function app() {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
       mode: "gravimetric", method: "forth-and-forth",
       group_legend_muting: true,
+      xRange: { min: "", max: "" },
+      yRange: { min: "", max: "" },
     },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
     figureFormats: ["png", "svg", "pdf"],
@@ -444,10 +446,16 @@ function app() {
       }
       if ("added" in r && (r.added || []).length) this.markDirty();
     },
-    notify(type, text) {
+    notify(type, text, { sticky = false } = {}) {
       const id = Date.now() + Math.random();
       this.notices.push({ id, type, text });
-      setTimeout(() => { this.notices = this.notices.filter((n) => n.id !== id); }, type === "error" ? 9000 : 5000);
+      if (!sticky) {
+        setTimeout(() => { this.notices = this.notices.filter((n) => n.id !== id); }, type === "error" ? 9000 : 5000);
+      }
+      return id;
+    },
+    dismissNotice(id) {
+      this.notices = this.notices.filter((n) => n.id !== id);
     },
 
     // ---- editing ----
@@ -577,6 +585,7 @@ function app() {
         layout: this.cycles.layout,
         group_legend_muting: !!this.cycles.group_legend_muting,
         title: "",
+        ...this.axisRangeFields(this.cycles),
         ...this.appearanceFields(),
       };
     },
@@ -623,9 +632,9 @@ function app() {
       // One end may be null — server fills it from the data extent.
       return [lo, hi];
     },
-    cellAxisRangeFields() {
-      const x_range = this.buildAxisRange(this.cell.xRange);
-      const y_range = this.buildAxisRange(this.cell.yRange);
+    axisRangeFields(state) {
+      const x_range = this.buildAxisRange(state?.xRange);
+      const y_range = this.buildAxisRange(state?.yRange);
       return {
         ...(x_range ? { x_range } : {}),
         ...(y_range ? { y_range } : {}),
@@ -637,7 +646,7 @@ function app() {
         cycles: this.buildCycleListFrom(this.cell),
         mode: this.cell.mode, method: this.cell.method,
         layout: "per_cell", title: "",
-        ...this.cellAxisRangeFields(),
+        ...this.axisRangeFields(this.cell),
         ...this.appearanceFields(),
       };
     },
@@ -649,7 +658,7 @@ function app() {
         voltage_resolution: Number.isFinite(res) && res > 0 ? res : 0.005,
         direction: this.cell.direction === "discharge" ? "discharge" : "charge",
         title: "",
-        ...this.cellAxisRangeFields(),
+        ...this.axisRangeFields(this.cell),
         ...this.appearanceFields(),
       };
     },
@@ -691,6 +700,15 @@ function app() {
       await this.download(`/api/export/cells?fmt=${fmt}`, {}, `cells.${fmt}`);
     },
     async download(url, body, filename) {
+      // Figure exports (kaleido) can take seconds before the Save dialog appears.
+      const ext = String(filename || "").split(".").pop()?.toLowerCase() || "";
+      const isFigure = this.figureFormats.includes(ext);
+      let statusId = null;
+      if (isFigure || this.canPick) {
+        statusId = this.notify("warn", "Preparing export…", { sticky: true });
+        await this.$nextTick();
+        await new Promise((r) => setTimeout(r, 0));
+      }
       try {
         const res = await api(url, { method: "POST", body });
         const cd = res.headers.get("Content-Disposition") || "";
@@ -700,6 +718,10 @@ function app() {
         // Desktop (pywebview): <a download> often never reaches the real Downloads
         // folder — use a native Save As dialog and write the bytes server-side.
         if (this.canPick) {
+          if (statusId) {
+            this.dismissNotice(statusId);
+            statusId = this.notify("warn", "Choose where to save…", { sticky: true });
+          }
           const saveRes = await fetch(
             `/api/system/save?filename=${encodeURIComponent(name)}`,
             {
@@ -731,6 +753,8 @@ function app() {
         this.notify("ok", `Download started for “${name}”.`);
       } catch (e) {
         this.notify("error", `Export failed: ${e.message}`);
+      } finally {
+        if (statusId) this.dismissNotice(statusId);
       }
     },
 

@@ -1,16 +1,16 @@
 # Graph Report - cellpy-simple-gui  (2026-08-01)
 
 ## Corpus Check
-- 43 files · ~151,712 words
+- 43 files · ~151,951 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 6790 nodes · 20663 edges · 299 communities (213 shown, 86 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 863 edges (avg confidence: 0.69)
+- 6817 nodes · 20694 edges · 321 communities (223 shown, 98 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 864 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fe6379f6`
+- Built from commit: `7b200710`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -172,7 +172,6 @@
 - [[_COMMUNITY_`00-tools` — shared helper tools|`00-tools/` — shared helper tools]]
 - [[_COMMUNITY_playwright-gui-tests|playwright-gui-tests.md]]
 - [[_COMMUNITY_Cycle status|Cycle status]]
-- [[_COMMUNITY_kn|kn]]
 - [[_COMMUNITY_Issue 15 update readme|Issue #15: update readme]]
 - [[_COMMUNITY_Issue 1 status|Issue #1 status]]
 - [[_COMMUNITY_Issue 28 status — Export cells from Manage cells|Issue #28 status — Export cells from Manage cells]]
@@ -233,6 +232,7 @@
 - [[_COMMUNITY_cellpy-delegation-inventory|cellpy-delegation-inventory.md]]
 - [[_COMMUNITY_cellpy-simple-gui|cellpy-simple-gui]]
 - [[_COMMUNITY_xc|xc]]
+- [[_COMMUNITY_.outputDefined|.outputDefined]]
 - [[_COMMUNITY_Plan — Issue 38 cellpy label builders for axis titles|Plan — Issue #38: cellpy label builders for axis titles]]
 - [[_COMMUNITY_U|U]]
 - [[_COMMUNITY_Plan — Issue 72 Cycles Mode ↔ x-axis capacity units|Plan — Issue #72: Cycles Mode ↔ x-axis capacity units]]
@@ -252,12 +252,11 @@
 - [[_COMMUNITY_Community 235|Community 235]]
 - [[_COMMUNITY_Community 236|Community 236]]
 - [[_COMMUNITY_th|th]]
-- [[_COMMUNITY_Community 239|Community 239]]
+- [[_COMMUNITY_Community 238|Community 238]]
 - [[_COMMUNITY_Community 240|Community 240]]
 - [[_COMMUNITY_Ic|Ic]]
 - [[_COMMUNITY_Community 242|Community 242]]
 - [[_COMMUNITY_Community 243|Community 243]]
-- [[_COMMUNITY_Community 244|Community 244]]
 - [[_COMMUNITY_Community 245|Community 245]]
 - [[_COMMUNITY_Community 246|Community 246]]
 - [[_COMMUNITY_Community 247|Community 247]]
@@ -279,6 +278,7 @@
 - [[_COMMUNITY_Community 263|Community 263]]
 - [[_COMMUNITY_.emplaceBack|.emplaceBack]]
 - [[_COMMUNITY_Community 265|Community 265]]
+- [[_COMMUNITY_Community 266|Community 266]]
 - [[_COMMUNITY_Community 267|Community 267]]
 - [[_COMMUNITY_Community 268|Community 268]]
 - [[_COMMUNITY_Community 269|Community 269]]
@@ -301,15 +301,36 @@
 - [[_COMMUNITY_Community 286|Community 286]]
 - [[_COMMUNITY_Community 287|Community 287]]
 - [[_COMMUNITY_Community 288|Community 288]]
+- [[_COMMUNITY_Community 289|Community 289]]
 - [[_COMMUNITY_Community 290|Community 290]]
+- [[_COMMUNITY_Community 291|Community 291]]
+- [[_COMMUNITY_Community 292|Community 292]]
+- [[_COMMUNITY_Community 293|Community 293]]
 - [[_COMMUNITY_Community 294|Community 294]]
 - [[_COMMUNITY_Community 295|Community 295]]
-- [[_COMMUNITY_Community 296|Community 296]]
 - [[_COMMUNITY_Community 297|Community 297]]
+- [[_COMMUNITY_Community 298|Community 298]]
 - [[_COMMUNITY_Community 299|Community 299]]
 - [[_COMMUNITY_Community 300|Community 300]]
+- [[_COMMUNITY_Community 302|Community 302]]
+- [[_COMMUNITY_Community 303|Community 303]]
+- [[_COMMUNITY_Community 304|Community 304]]
+- [[_COMMUNITY_Community 305|Community 305]]
+- [[_COMMUNITY_Community 306|Community 306]]
 - [[_COMMUNITY_Community 307|Community 307]]
+- [[_COMMUNITY_Community 308|Community 308]]
+- [[_COMMUNITY_Community 309|Community 309]]
+- [[_COMMUNITY_Community 310|Community 310]]
+- [[_COMMUNITY_Community 311|Community 311]]
+- [[_COMMUNITY_Community 312|Community 312]]
+- [[_COMMUNITY_Community 313|Community 313]]
+- [[_COMMUNITY_Community 314|Community 314]]
 - [[_COMMUNITY_Community 315|Community 315]]
+- [[_COMMUNITY_Community 316|Community 316]]
+- [[_COMMUNITY_Community 317|Community 317]]
+- [[_COMMUNITY_Community 318|Community 318]]
+- [[_COMMUNITY_Community 319|Community 319]]
+- [[_COMMUNITY_Community 320|Community 320]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `$` - 549 edges
@@ -326,72 +347,76 @@
 ## Surprising Connections (you probably didn't know these)
 - `_client()` --calls--> `get_settings()`  [INFERRED]
   tests/test_ingest.py → src/cellpy_simple_gui/config.py
+- `live_server()` --calls--> `pick_port()`  [INFERRED]
+  tests/test_gui_playwright.py → src/cellpy_simple_gui/server.py
+- `live_server()` --calls--> `ServerThread`  [INFERRED]
+  tests/test_gui_playwright.py → src/cellpy_simple_gui/server.py
 - `test_token_required()` --calls--> `create_app()`  [INFERRED]
   tests/test_api.py → src/cellpy_simple_gui/api/app.py
 - `_client()` --calls--> `create_app()`  [INFERRED]
   tests/test_ingest.py → src/cellpy_simple_gui/api/app.py
-- `test_group_average_keeps_singleton_traces()` --calls--> `Library`  [INFERRED]
-  tests/test_core.py → src/cellpy_simple_gui/core/library.py
-- `test_spread_fillcolor_has_alpha()` --calls--> `Library`  [INFERRED]
-  tests/test_core.py → src/cellpy_simple_gui/core/library.py
 
-## Communities (299 total, 86 thin omitted)
+## Communities (321 total, 98 thin omitted)
 
 ### Community 0 - "$"
 Cohesion: 0.02
-Nodes (99): addSprite(), bc(), completeTask(), _createCanvas(), _createDelegatedListener(), _down(), draw(), Fu() (+91 more)
+Nodes (97): addControl(), addSprite(), completeTask(), _createCanvas(), _down(), draw(), Fu(), gc() (+89 more)
 
 ### Community 1 - "CellProcessor 2.0 — design guide (for agents)"
 Cohesion: 0.14
 Nodes (14): 10. Risks & open questions, 11. Sibling repos (context only), 1. Goals & locked decisions, 2. Target architecture, 3. Technology choices (design vs MVP), 4. Package layout, 5. Core layer rules, 6. API sketch (design) (+6 more)
 
+### Community 2 - "di"
+Cohesion: 0.07
+Nodes (3): bi(), wi(), yi()
+
 ### Community 4 - "ss"
 Cohesion: 0.06
-Nodes (34): As(), bs(), cl(), cs(), ds(), el(), Es(), fs() (+26 more)
+Nodes (35): al(), As(), bs(), cl(), cs(), ds(), el(), Es() (+27 more)
+
+### Community 5 - "Si"
+Cohesion: 0.03
+Nodes (19): cr(), dr(), fr(), ge(), gr(), hr(), ir(), jr() (+11 more)
 
 ### Community 6 - "eu"
-Cohesion: 0.02
-Nodes (49): an(), bn(), cn(), cr(), Dn(), dr(), ec(), er() (+41 more)
+Cohesion: 0.03
+Nodes (33): an(), bn(), cn(), Dn(), ec(), er(), fn(), getPaintProperty() (+25 more)
 
 ### Community 7 - "cells.py"
-Cohesion: 0.06
-Nodes (59): Cancelled, Progress, Exception, Raised inside a job when cancellation has been requested., Handle passed into job functions to report progress and check cancel., clear(), delete_cell(), get_state() (+51 more)
+Cohesion: 0.07
+Nodes (68): HTTPException, api/jobs.py, Cancelled, get_job_manager(), Progress, Exception, A tiny in-process job manager for long-running work (loading cells). Single-…, Raised inside a job when cancellation has been requested. (+60 more)
 
 ### Community 8 - ".constructor"
 Cohesion: 0.02
-Nodes (64): $, aa(), addImage(), Ao(), bc(), bh(), ch(), _createDelegatedListener() (+56 more)
+Nodes (84): $, addControl(), addImage(), bc(), bh(), ch(), clearMetrics(), completeTask() (+76 more)
 
 ### Community 9 - "Issue #54 plan: per-panel summary y-range widgets"
 Cohesion: 0.09
 Nodes (19): Approach, Constraints, Files to touch, Goal, Issue #54 plan: per-panel summary y-range widgets, Open questions, Prior art, Test strategy (+11 more)
-
-### Community 11 - ".fire"
-Cohesion: 0.04
-Nodes (6): addSource(), qn(), removeControl(), rt(), ti(), vn()
 
 ### Community 12 - "test_api.py"
 Cohesion: 0.22
 Nodes (18): essential, Integration tests for the FastAPI layer using TestClient., TestClient has no pywebview window — same as --server mode., test_branding_static_assets(), test_edit_cell(), test_examples(), test_export_cells_cellpy(), test_export_cells_requires_selection() (+10 more)
 
 ### Community 13 - ".destroy"
-Cohesion: 0.14
+Cohesion: 0.11
 Nodes (5): bo(), Co(), Lo(), To(), wo()
 
 ### Community 15 - ".createVertexBuffer"
 Cohesion: 0.05
-Nodes (56): _(), a(), ar(), b(), Br(), c(), ce(), ct() (+48 more)
+Nodes (59): _(), a(), ar(), at(), b(), Br(), c(), ce() (+51 more)
 
 ### Community 16 - "_restyle"
-Cohesion: 0.02
-Nodes (21): Ai(), bi(), ci(), constructor(), _createButton(), getCanvasContainer(), getContainer(), _getUIString() (+13 more)
+Cohesion: 0.01
+Nodes (34): $n(), Ai(), bi(), ci(), constructor(), _createButton(), _createDelegatedListener(), fi() (+26 more)
 
 ### Community 17 - ".get"
-Cohesion: 0.05
-Nodes (12): _down(), E(), _getMapId(), getSource(), Je(), mr(), r(), setLayoutProperty() (+4 more)
+Cohesion: 0.07
+Nodes (9): ah, _down(), ee(), oe(), pop(), push(), r(), ua() (+1 more)
 
 ### Community 18 - ".reset"
 Cohesion: 0.05
-Nodes (39): _apply_colorway(), export_bytes(), export_frame_bytes(), _hex_to_rgba(), _preserve_full_name_on_hover(), Keep the full identity discoverable when display ``name`` is truncated.      P, Truncate long legend-facing labels; return longest *displayed* length.      Jo, Shorten ``variable=…`` facet strip text so it fights the legend less. (+31 more)
+Nodes (12): dt(), _t(), ae(), au(), bt(), ct(), ke(), se() (+4 more)
 
 ### Community 19 - "issue-flow — issue comments triage"
 Cohesion: 0.14
@@ -402,20 +427,20 @@ Cohesion: 0.14
 Nodes (13): Approach, Backend, Chrome decision: **centered modal** (not drawer / not resizable sidebar), Constraints, Files to touch, Goal, Niceties in scope, Open questions (+5 more)
 
 ### Community 22 - ".push"
-Cohesion: 0.04
-Nodes (21): Ln(), Re(), ae(), au(), Be(), Fl(), Go(), Gu() (+13 more)
+Cohesion: 0.05
+Nodes (16): feature(), Fl(), Go(), Gu(), Hl(), ho(), jh, ji() (+8 more)
 
 ### Community 23 - "get_settings"
-Cohesion: 0.06
-Nodes (38): FastAPI application factory., Shared dependencies: templates and the local-token guard., Guard API routes. The index page plants the token as a cookie; the     frontend, require_token(), BaseSettings, Application settings and paths., Settings, _close_webview_windows() (+30 more)
+Cohesion: 0.07
+Nodes (28): FastAPI application factory., Shared dependencies: templates and the local-token guard., Guard API routes. The index page plants the token as a cookie; the     frontend, require_token(), Application settings and paths., _close_webview_windows(), _install_ctrl_c_close(), Desktop shell: run the local app inside a native window via pywebview. (+20 more)
 
 ### Community 25 - "ft"
-Cohesion: 0.09
-Nodes (6): cu(), eu(), Fu(), qc(), tu, uu()
+Cohesion: 0.15
+Nodes (4): cu(), eu(), Fu(), uu()
 
 ### Community 26 - "s"
-Cohesion: 0.05
-Nodes (76): A(), B(), C(), d(), en(), fr(), H(), l (+68 more)
+Cohesion: 0.06
+Nodes (66): A(), B(), C(), d(), H(), J(), P(), R() (+58 more)
 
 ### Community 27 - "issue-flow — issue plan (`/iflow-plan`)"
 Cohesion: 0.15
@@ -426,8 +451,8 @@ Cohesion: 0.15
 Nodes (11): Approach, Constraints, Files to touch, Goal, Issue #28 plan — Export cells from Manage cells, Open questions, Prior art, Test strategy (+3 more)
 
 ### Community 29 - ".preventDefault"
-Cohesion: 0.13
-Nodes (6): ah, feature(), lh(), nh, pop(), sh()
+Cohesion: 0.1
+Nodes (9): au(), bc(), fc(), lu(), ou(), qc(), su(), tu (+1 more)
 
 ### Community 30 - "Issue #52 — Plan: bump cellpy post4 + delegate app glue"
 Cohesion: 0.15
@@ -442,32 +467,28 @@ Cohesion: 0.07
 Nodes (26): 0. `/iflow` — smart dispatcher (quick start), 0a. `/iflow-pick` — choose the next issue (front door), 10. `/iflow-issue` — create a normal (non-epic) issue, 11. `/iflow-status` — status overview of all issues (read-only), 12. `/iflow-review` — review open issues and apply labels, 13. `/iflow-epic` — plan a large change as staged issues, 14. `/iflow-cycle` — batch-process a queue of yolo-fit issues, 15. `/iflow-auto` — unattended large-change orchestration (+18 more)
 
 ### Community 33 - "vn"
-Cohesion: 0.04
-Nodes (13): ah, bh(), feature(), fo(), jo(), oh(), pop(), push() (+5 more)
+Cohesion: 0.03
+Nodes (15): ah, feature(), fo(), hc(), loadGeometry(), Ns(), oh(), Po() (+7 more)
 
 ### Community 34 - "ur"
-Cohesion: 0.05
-Nodes (13): cr(), dr(), fr(), gr(), ir(), lr(), sr(), toGeoJSON() (+5 more)
+Cohesion: 0.04
+Nodes (25): Br(), cr(), dr(), fr(), gr(), hr(), ir(), jr() (+17 more)
 
 ### Community 36 - "ye"
-Cohesion: 0.04
-Nodes (6): Dt(), ft(), ht(), Pt(), setFeatureState(), th()
+Cohesion: 0.03
+Nodes (12): ch(), Dt(), ft(), gt(), ht(), jt(), onRemove(), Pt() (+4 more)
 
 ### Community 37 - "issue-flow — issue cycle (`/iflow-cycle`)"
 Cohesion: 0.2
 Nodes (10): iflow-cycle/SKILL.md, All yolo issues + merge conflicts, Constraints, Input — queue spec, Instructions, issue-flow — issue cycle (`/iflow-cycle`), MODEL & EXECUTION DIRECTIVE, Parallel dispatch (experimental, opt-in) (+2 more)
 
 ### Community 38 - ".set"
-Cohesion: 0.02
-Nodes (39): An(), an(), bn(), cn(), di(), Dn(), En(), er() (+31 more)
+Cohesion: 0.03
+Nodes (37): An(), $n(), an(), Ao(), bn(), cn(), di(), Dn() (+29 more)
 
 ### Community 39 - "Issue #56 — Plan: single-cell dQ/dV in Cell explorer"
 Cohesion: 0.2
 Nodes (9): Approach, Constraints, Files to touch, Goal, Grill decisions (locked), Issue #56 — Plan: single-cell dQ/dV in Cell explorer, Open questions, Prior art (+1 more)
-
-### Community 40 - "Dt"
-Cohesion: 0.07
-Nodes (3): Dt(), querySourceFeatures(), setFeatureState()
 
 ### Community 41 - "Development information"
 Cohesion: 0.08
@@ -482,16 +503,16 @@ Cohesion: 0.2
 Nodes (10): iflow-history-update/SKILL.md, A. No version bump — append to `[Unreleased]`, B. Version bump happened — promote `[Unreleased]` to a new release section, Constraints, Inputs from `/iflow-close`, issue-flow — history update, MODEL & EXECUTION DIRECTIVE, Operation modes (+2 more)
 
 ### Community 44 - "get_job_manager"
-Cohesion: 0.13
-Nodes (14): load_journal_cells(), Load a cellpy batch journal (.json) and return ``(label, cell, group)``., RuntimeError, api/jobs.py, _DaemonThreadPoolExecutor, Job, _job_result_errors(), _job_result_summary() (+6 more)
+Cohesion: 0.11
+Nodes (14): load_journal_cells(), Load a cellpy batch journal (.json) and return ``(label, cell, group)``., FigureExportError, Static figure export failed (often missing kaleido)., RuntimeError, _DaemonThreadPoolExecutor, Job, _job_result_errors() (+6 more)
 
 ### Community 46 - "resize"
 Cohesion: 0.09
-Nodes (9): _containerDimensions(), ka, ma, pa(), resize(), _resizeCanvas(), sa(), setPixelRatio() (+1 more)
+Nodes (9): _containerDimensions(), ma, pa(), resize(), _resizeCanvas(), sa(), setPixelRatio(), xa (+1 more)
 
 ### Community 47 - "r"
-Cohesion: 0.14
-Nodes (3): getCanvas(), getCanvasContainer(), unproject()
+Cohesion: 0.1
+Nodes (6): aa(), addSource(), _getMapId(), onRemove(), removeControl(), _updateStyle()
 
 ### Community 48 - "Issue #48 — create gui tests (plan)"
 Cohesion: 0.22
@@ -501,9 +522,13 @@ Nodes (8): Approach, Constraints, Files to touch, Goal, Issue #48 — create gui
 Cohesion: 0.2
 Nodes (10): iflow-pick/SKILL.md, Constraints, Input, Instructions, issue-flow — pick next issue (`/iflow-pick`), MODEL & EXECUTION DIRECTIVE, Phase 1 — choose the issue, Phase 2 — create the branch (+2 more)
 
+### Community 51 - "ni"
+Cohesion: 0.09
+Nodes (5): getBounds(), getCanvas(), qi(), receive(), unproject()
+
 ### Community 52 - "ah"
-Cohesion: 0.22
-Nodes (16): cell_cycles(), cycles_plot(), _cycles_records(), _figure_response(), ica_plot(), plot_types(), get, post (+8 more)
+Cohesion: 0.07
+Nodes (50): ingest(), ingest_example(), _ingest_example_job(), _ingest_job(), list_instruments(), get, post, Raw-file ingestion: turn instrument files into cellpy cells (as jobs). (+42 more)
 
 ### Community 53 - "issue-flow — create a normal issue (`/iflow-issue`)"
 Cohesion: 0.22
@@ -530,8 +555,8 @@ Cohesion: 0.22
 Nodes (8): Approach, Constraints, Files to touch, Goal, Issue #32 — Plan: plot appearance (theme + color scheme), Open questions, Prior art, Test strategy
 
 ### Community 60 - "._updateWorkerData"
-Cohesion: 0.05
-Nodes (16): al(), au(), bl(), cu(), du(), il(), ji(), jl() (+8 more)
+Cohesion: 0.09
+Nodes (7): al(), bl(), il(), jl(), Ku(), nl(), zo()
 
 ### Community 61 - "cellpy pain-points & wishlist (from building cellpy-simple-gui)"
 Cohesion: 0.05
@@ -542,28 +567,28 @@ Cohesion: 0.25
 Nodes (7): Acceptance criteria, Comments (curated summary), Issue #62: Add checkbox for group vs individual Plotly legend muting on summary plots, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 63 - ".constructor"
-Cohesion: 0.04
-Nodes (17): As(), at(), eu(), fc(), fi(), gt(), hc(), Ns() (+9 more)
+Cohesion: 0.07
+Nodes (7): eu(), Fl(), Go(), Hl(), ho(), wt(), yc()
 
 ### Community 64 - "Original issue text"
 Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #60: fix: summary y_ranges warn/miss on charge_capacity facet, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 65 - "Library"
-Cohesion: 0.09
+Cohesion: 0.08
 Nodes (27): cellpy_version(), Library, Any, Add a cell while preserving saved organisational metadata. Physical quantities…, Thread-safe ordered collection of :class:`CellRecord`., core/projects.py, CellEntry, classify_import_path() (+19 more)
 
 ### Community 66 - "Br"
 Cohesion: 0.07
-Nodes (32): bs(), cl(), cs(), ds(), el(), Es(), fs(), gs() (+24 more)
+Nodes (34): As(), bs(), cl(), cs(), ds(), el(), Es(), fs() (+26 more)
 
 ### Community 67 - "Issue #4 plan"
 Cohesion: 0.22
 Nodes (8): Approach, Constraints, Files to touch, Goal, Issue #4 plan, Open questions, Prior art, Test strategy
 
 ### Community 68 - "._updatePlacement"
-Cohesion: 0.06
-Nodes (26): addSprite(), getLight(), getSky(), isMoving(), isRotating(), _lazyInitEmptyStyle(), moveLayer(), redraw() (+18 more)
+Cohesion: 0.1
+Nodes (19): addSprite(), getLight(), getSky(), _lazyInitEmptyStyle(), moveLayer(), removeLayer(), removeSprite(), setFilter() (+11 more)
 
 ### Community 69 - "Issue #67: Cell explorer dQ/dV: Charge/Discharge direction has no effect (and joins half-cycles)"
 Cohesion: 0.29
@@ -578,8 +603,8 @@ Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #75: Refresh project list and open portable projects from the import path, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 72 - "de"
-Cohesion: 0.06
-Nodes (7): de(), getGlyphs(), getLayer(), getLayoutProperty(), listImages(), removeFeatureState(), removeImage()
+Cohesion: 0.07
+Nodes (8): de(), getLayer(), getLayoutProperty(), listImages(), removeFeatureState(), removeImage(), setFeatureState(), showCollisionBoxes()
 
 ### Community 73 - "Issue #58 plan: plot side pane + top bar blend"
 Cohesion: 0.22
@@ -590,16 +615,16 @@ Cohesion: 0.22
 Nodes (8): Approach, Constraints, Files to touch, Goal, Issue #5 plan, Open questions, Prior art, Test strategy
 
 ### Community 75 - "rh"
-Cohesion: 0.05
-Nodes (29): ar(), B(), Ce(), ct(), d(), dt(), ei(), Fn() (+21 more)
+Cohesion: 0.06
+Nodes (26): ar(), B(), Ce(), ct(), d(), dt(), ei(), Fn() (+18 more)
 
 ### Community 76 - "Oc"
-Cohesion: 0.03
-Nodes (18): ba, ca(), _containerDimensions(), da(), ia(), ka, la(), ma (+10 more)
+Cohesion: 0.08
+Nodes (9): _containerDimensions(), ka, la(), ma, resize(), _resizeCanvas(), sa(), setPixelRatio() (+1 more)
 
 ### Community 77 - "conftest.py"
 Cohesion: 0.07
-Nodes (18): CellRecord, Library, Add a cell while preserving saved organisational metadata.          Physical qua, A loaded cell plus its mutable, user-editable metadata., Thread-safe ordered collection of :class:`CellRecord`., example_cell(), loaded_library(), parse_figure() (+10 more)
+Nodes (20): CellRecord, Library, Add a cell while preserving saved organisational metadata.          Physical qua, A loaded cell plus its mutable, user-editable metadata., Thread-safe ordered collection of :class:`CellRecord`., example_cell(), loaded_library(), parse_figure() (+12 more)
 
 ### Community 78 - "Group vs individual legend muting (#62)"
 Cohesion: 0.4
@@ -631,7 +656,7 @@ Nodes (3): Issue #55 — Status, Remaining work, What's done
 
 ### Community 85 - "ti"
 Cohesion: 0.04
-Nodes (30): addControl(), Ai(), ci(), clearMetrics(), completeTask(), constructor(), _createButton(), _createCanvas() (+22 more)
+Nodes (17): Vi(), Ai(), ci(), getCanvasContainer(), _getUIString(), hi(), ii(), Li() (+9 more)
 
 ### Community 86 - "issue-flow — issue yolo (`/iflow-yolo`)"
 Cohesion: 0.25
@@ -642,20 +667,20 @@ Cohesion: 0.5
 Nodes (3): Issue #56 — Status, Remaining work, What's done
 
 ### Community 88 - "a"
-Cohesion: 0.03
-Nodes (16): _t(), addLayer(), ae(), Be(), bt(), ee(), fe(), he() (+8 more)
+Cohesion: 0.04
+Nodes (14): _t(), ae(), Be(), bt(), ee(), fe(), he(), Le() (+6 more)
 
 ### Community 89 - "zu"
-Cohesion: 0.15
-Nodes (5): getStyle(), getTerrain(), isSourceLoaded(), isStyleLoaded(), loaded()
+Cohesion: 0.1
+Nodes (3): getGlyphs(), getStyle(), getTerrain()
 
 ### Community 90 - "Issue #32: Plot appearance options: color scheme and figure theme"
 Cohesion: 0.25
 Nodes (7): Acceptance criteria, Comments (curated summary), Issue #32: Plot appearance options: color scheme and figure theme, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 91 - "server.py"
-Cohesion: 0.07
-Nodes (42): FastAPI, LogRecord, create_app(), FastAPI application factory., Shared dependencies: templates and the local-token guard., Guard API routes. The index page plants the token as a cookie; the frontend…, require_token(), get_job_manager() (+34 more)
+Cohesion: 0.1
+Nodes (23): LogRecord, _close_webview_windows(), _install_ctrl_c_close(), Desktop shell: run the local app inside a native window via pywebview., Destroy open windows so webview.start() can return., Make Ctrl+C close the native window (SIGINT alone often never fires in the GUI…, Stop jobs + uvicorn so the process can exit and free the terminal., run_desktop() (+15 more)
 
 ### Community 92 - "Issue #60 status"
 Cohesion: 0.5
@@ -666,12 +691,12 @@ Cohesion: 0.29
 Nodes (7): caveman/SKILL.md, Auto-Clarity, Be token greedy - as a caveman, Boundaries, Intensity, Persistence, Rules
 
 ### Community 94 - "ge"
-Cohesion: 0.06
-Nodes (13): bo(), Co(), Eo(), ko(), Lo(), loadGeometry(), qo(), So() (+5 more)
+Cohesion: 0.05
+Nodes (13): Ao(), bo(), Co(), jo(), ko(), Lo(), Mo(), pl (+5 more)
 
 ### Community 95 - "alpine.min.js"
-Cohesion: 0.1
-Nodes (20): bi(), effect(), hn(), _i(), Jt(), Mn(), ni(), Nn() (+12 more)
+Cohesion: 0.09
+Nodes (25): ar(), Ce(), effect(), ei(), fe(), Fn(), hn(), jn() (+17 more)
 
 ### Community 96 - "issue-flow — advanced auto (`/iflow-auto`)"
 Cohesion: 0.29
@@ -690,20 +715,20 @@ Cohesion: 0.29
 Nodes (7): iflow-cleanup/SKILL.md, Constraints, Input, Instructions, issue-flow — issue cleanup (`/iflow-cleanup`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces)
 
 ### Community 100 - "test_journal.py"
-Cohesion: 0.04
-Nodes (55): Drives a cellpy ``collect_summaries`` collection + its plot/export., Drives a cellpy ``collect_summaries`` collection + its plot/export., Drives a cellpy ``collect_summaries`` collection + its plot/export., SummaryPlotSpec, field_validator, parametrize, skipif, Drives a cellpy ``collect_summaries`` collection + its plot/export. (+47 more)
+Cohesion: 0.13
+Nodes (4): addImage(), listImages(), onAdd(), removeImage()
 
 ### Community 102 - "Issue #67 — Status"
 Cohesion: 0.5
 Nodes (3): Issue #67 — Status, Remaining work, What's done
 
 ### Community 103 - "test_core.py"
-Cohesion: 0.04
-Nodes (88): CyclesPlotSpec, IcaPlotSpec, Drives a cellpy ``collect_ica`` collection for one cell (Cell explorer)., Drives a cellpy ``collect_cycles`` collection.      With ``cell_id`` set: one, Drives a cellpy ``collect_ica`` collection for one cell (Cell explorer)., Drives a cellpy ``collect_cycles`` collection.      With ``cell_id`` set: one, Drives a cellpy ``collect_cycles`` collection.      With ``cell_id`` set: one, CyclesPlotSpec (+80 more)
+Cohesion: 0.02
+Nodes (157): CyclesPlotSpec, Drives a cellpy ``collect_cycles`` collection.      With ``cell_id`` set: one, Drives a cellpy ``collect_summaries`` collection + its plot/export., Drives a cellpy ``collect_summaries`` collection + its plot/export., Drives a cellpy ``collect_summaries`` collection + its plot/export., Drives a cellpy ``collect_cycles`` collection.      With ``cell_id`` set: one, Drives a cellpy ``collect_cycles`` collection.      With ``cell_id`` set: one, SummaryPlotSpec (+149 more)
 
 ### Community 104 - "cellpy_adapter.py"
 Cohesion: 0.08
-Nodes (42): DataFrame, capacity_curve(), example_raw_path(), export_cell_csv(), export_cell_excel(), _get(), instrument_ids(), instrument_meta_schema() (+34 more)
+Nodes (43): DataFrame, capacity_curve(), cycle_numbers(), example_raw_path(), export_cell_csv(), export_cell_excel(), _get(), instrument_ids() (+35 more)
 
 ### Community 105 - "system.py"
 Cohesion: 0.21
@@ -714,8 +739,8 @@ Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #1: Fix Plotly summary legend when cell names are very long, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 107 - "collect.py"
-Cohesion: 0.03
-Nodes (104): _apply_share_y(), _apply_y_ranges(), _axis_key_to_id(), _batch(), _capacity_mode_from_column(), combined_summary_frame(), cycles_collection(), _empty_figure_json() (+96 more)
+Cohesion: 0.02
+Nodes (130): _apply_colorway(), _apply_share_y(), _apply_y_ranges(), _axis_key_to_id(), _batch(), _capacity_mode_from_column(), combined_summary_frame(), cycles_collection() (+122 more)
 
 ### Community 108 - "Issue #2: Allow independent y-limits on multi-panel summary plots"
 Cohesion: 0.29
@@ -734,7 +759,7 @@ Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #39: Group-avg merge puts singleton CE traces on the wrong summary facet, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 112 - "qi"
-Cohesion: 0.09
+Cohesion: 0.14
 Nodes (3): getBounds(), getMaxBounds(), Qu()
 
 ### Community 113 - "Issue #3: Make the Cells list workable for many cells (modal or expanded editor)"
@@ -806,8 +831,8 @@ Cohesion: 0.33
 Nodes (5): Approach, Files to touch, Goal, Plan: Issue #13 — add workflows, Test strategy
 
 ### Community 135 - "Ei"
-Cohesion: 0.11
-Nodes (6): _cancelRenderFrame(), Ei(), project(), _requestRenderFrame(), setMaxZoom(), setMinZoom()
+Cohesion: 0.08
+Nodes (7): _cancelRenderFrame(), Ei(), project(), _requestRenderFrame(), setMaxZoom(), setMinZoom(), unproject()
 
 ### Community 137 - "Plan: Issue #14 — make saving and closing more obvious"
 Cohesion: 0.33
@@ -926,8 +951,8 @@ Cohesion: 0.5
 Nodes (3): Issue #5 status, Remaining work, What's done
 
 ### Community 172 - "tu"
-Cohesion: 0.09
-Nodes (24): _hover_variable(), _numeric_y_values(), Map Plotly yaxis id (``y`` / ``y2`` / …) to facet strip variable name., Unpack Plotly figure-json ``y`` (plain list or binary ``bdata`` dict)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Column id from a PX ``variable=…`` hovertemplate fragment. (+16 more)
+Cohesion: 0.18
+Nodes (11): Map Plotly yaxis id (``y`` / ``y2`` / …) to facet strip variable name., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2)., Extreme CE must not force capacity panels onto a million-scale (#2). (+3 more)
 
 ### Community 173 - "Plan — Issue #73: Job progress Cancel/Dismiss overlap"
 Cohesion: 0.14
@@ -942,44 +967,40 @@ Cohesion: 0.18
 Nodes (9): Approach, Constraints, Files to touch, Goal, Open questions, Plan — Issue #75: Refresh project list + import portable projects, Prior art, Test strategy (+1 more)
 
 ### Community 203 - "E"
-Cohesion: 0.18
-Nodes (13): Ae(), E(), er(), gr(), Gt(), Ji(), jr(), ke() (+5 more)
+Cohesion: 0.15
+Nodes (14): ct(), E(), er(), gr(), Gt(), Ir(), jr(), kr() (+6 more)
 
 ### Community 206 - "to"
-Cohesion: 0.17
-Nodes (23): ci(), cn(), deleteProperty(), ge(), get(), has(), ie(), ii() (+15 more)
+Cohesion: 0.21
+Nodes (20): cn(), fr(), ge(), get(), has(), ii(), It(), Kt() (+12 more)
 
 ### Community 207 - "pe"
-Cohesion: 0.29
-Nodes (10): Bn(), dr(), Et(), Gi(), mr(), pe(), Tt(), vr() (+2 more)
+Cohesion: 0.15
+Nodes (17): Ae(), Bn(), dr(), Et(), Gi(), Ji(), ke(), mr() (+9 more)
 
 ### Community 208 - ".isEnabled"
 Cohesion: 0.07
-Nodes (24): Cancelled, _DaemonThreadPoolExecutor, get_job_manager(), Job, _job_result_errors(), _job_result_summary(), JobManager, A tiny in-process job manager for long-running work (loading cells).  Single-u (+16 more)
+Nodes (26): Cancelled, _DaemonThreadPoolExecutor, get_job_manager(), Job, _job_result_errors(), _job_result_summary(), JobManager, Progress (+18 more)
 
 ### Community 209 - "test_ingest.py"
 Cohesion: 0.08
 Nodes (37): get_library(), In-memory library of loaded cells — the backend's source of truth.  For a single, Return the process-wide library singleton., clear(), delete_cell(), get_state(), load_example(), _load_examples_job() (+29 more)
 
-### Community 210 - "$n"
-Cohesion: 0.15
-Nodes (3): al(), il(), nl()
-
 ### Community 211 - "get_library"
-Cohesion: 0.38
-Nodes (16): HTTPException, routers/export.py, _check_data_fmt(), _check_figure_fmt(), _check_fmt(), _cycles_records(), export_cells(), export_cycles() (+8 more)
+Cohesion: 0.17
+Nodes (3): Do, Io(), Oo()
 
 ### Community 212 - ".possiblyEvaluate"
-Cohesion: 0.07
-Nodes (8): _getClampedPixelRatio(), getImage(), getPixelRatio(), hasImage(), loadImage(), lt(), sendAsync(), tt()
+Cohesion: 0.09
+Nodes (3): de(), getGlyphs(), showCollisionBoxes()
 
 ### Community 213 - "pi"
-Cohesion: 0.09
-Nodes (29): BaseModel, CellMeta, CellsExportSpec, _clean_axis_range(), _clean_xy_range(), _clean_y_ranges(), ExportSpec, IngestExampleRequest (+21 more)
+Cohesion: 0.07
+Nodes (39): BaseModel, CellMeta, CellsExportSpec, _clean_axis_range(), _clean_xy_range(), _clean_y_ranges(), ExportSpec, IcaPlotSpec (+31 more)
 
 ### Community 214 - "test_gui_playwright.py"
-Cohesion: 0.11
-Nodes (13): ch(), dh(), fh(), gh(), hh(), jh, mh(), mu() (+5 more)
+Cohesion: 0.09
+Nodes (16): bh(), dh(), du(), fh(), gh(), hh(), jh, kh (+8 more)
 
 ### Community 215 - "cellpy-delegation-inventory.md"
 Cohesion: 0.2
@@ -993,13 +1014,17 @@ Nodes (9): cellpy-simple-gui, Conventions, Entry points, How to run / test, Moti
 Cohesion: 0.18
 Nodes (3): Eo(), So(), xc()
 
+### Community 218 - ".outputDefined"
+Cohesion: 0.06
+Nodes (4): Be(), lt(), ue(), ve()
+
 ### Community 219 - "Plan — Issue #38: cellpy label builders for axis titles"
 Cohesion: 0.25
 Nodes (8): Approach, Constraints, Files to touch, Goal, Open questions, Plan — Issue #38: cellpy label builders for axis titles, Prior art, Test strategy
 
 ### Community 220 - "U"
-Cohesion: 0.15
-Nodes (12): ct(), ht(), ki(), kn(), kr(), lt(), mt(), nr() (+4 more)
+Cohesion: 0.2
+Nodes (14): en(), Gn(), ht(), ki(), kn(), l, lt(), mt() (+6 more)
 
 ### Community 221 - "Plan — Issue #72: Cycles Mode ↔ x-axis capacity units"
 Cohesion: 0.25
@@ -1026,8 +1051,8 @@ Cohesion: 0.5
 Nodes (3): Issue #38 status, Remaining work, What's done
 
 ### Community 228 - "HTTPException"
-Cohesion: 0.18
-Nodes (20): _(), en(), fr(), It(), ki(), Kt(), l, mt() (+12 more)
+Cohesion: 0.17
+Nodes (29): _(), a(), C(), cn(), en(), ge(), get(), has() (+21 more)
 
 ### Community 229 - "Issue #72 status"
 Cohesion: 0.5
@@ -1035,67 +1060,67 @@ Nodes (3): Issue #72 status, Remaining work, What's done
 
 ### Community 230 - "Xt"
 Cohesion: 0.03
-Nodes (29): dt(), J(), _t(), Yt(), at(), bt(), ct(), ee() (+21 more)
+Nodes (15): Yt(), fo(), ft(), getFeatureState(), gt(), hc(), ht(), iu() (+7 more)
 
 ### Community 231 - "Je"
-Cohesion: 0.16
-Nodes (21): ci(), cn(), deleteProperty(), ge(), get(), has(), ii(), Ir() (+13 more)
+Cohesion: 0.15
+Nodes (13): ci(), deleteProperty(), Ir(), jr(), lr(), ni(), Pr(), R() (+5 more)
 
 ### Community 233 - "qn"
-Cohesion: 0.08
-Nodes (12): Dc(), Fl(), Go(), Hl(), ho(), Ic(), Lc(), Oc() (+4 more)
+Cohesion: 0.18
+Nodes (7): Dc(), Ic(), Lc(), Oc(), Pc(), Rc(), zc()
 
 ### Community 235 - "Community 235"
-Cohesion: 0.11
-Nodes (29): create_app(), get_settings(), client(), fixture, _build_journal(), Tests for loading native cellpy batch journals., Write a real cellpy batch journal referencing the bundled example files., A journal pointing at non-existent .cellpy files yields no linkable cells. (+21 more)
+Cohesion: 0.1
+Nodes (33): create_app(), BaseSettings, get_settings(), Settings, create_app(), FastAPI application factory., Shared dependencies: templates and the local-token guard., Guard API routes. The index page plants the token as a cookie; the frontend… (+25 more)
 
 ### Community 236 - "Community 236"
-Cohesion: 0.09
-Nodes (19): cells_export(), cycles_figure_export(), _export_one_cell(), figure_bytes(), FigureExportError, ica_figure_export(), _kaleido_missing(), Data + static-figure export.  Data path: cellpy collections → csv / xlsx / par (+11 more)
+Cohesion: 0.1
+Nodes (17): cells_export(), cycles_figure_export(), _export_one_cell(), figure_bytes(), ica_figure_export(), _kaleido_missing(), Data + static-figure export.  Data path: cellpy collections → csv / xlsx / par, Stable, filesystem-safe stems; disambiguate duplicates with ``_2``, … (+9 more)
 
 ### Community 237 - "th"
-Cohesion: 0.09
-Nodes (4): calculateCameraOptionsFromTo(), _cancelRenderFrame(), Ei(), project()
+Cohesion: 0.17
+Nodes (3): _cancelRenderFrame(), Ei(), mi()
+
+### Community 238 - "Community 238"
+Cohesion: 0.16
+Nodes (3): isSourceLoaded(), isStyleLoaded(), loaded()
 
 ### Community 240 - "Community 240"
-Cohesion: 0.16
-Nodes (15): Bn(), dr(), Et(), Gi(), pe(), R(), Sr(), to() (+7 more)
+Cohesion: 0.21
+Nodes (12): Ae(), Bn(), dr(), Et(), Gi(), Ji(), pe(), Tt() (+4 more)
 
 ### Community 242 - "Community 242"
-Cohesion: 0.12
-Nodes (8): isMoving(), isRotating(), isSourceLoaded(), isStyleLoaded(), isZooming(), loaded(), redraw(), _render()
-
-### Community 244 - "Community 244"
-Cohesion: 0.18
-Nodes (15): a(), Ae(), C(), E(), fe(), Gt(), he(), Ji() (+7 more)
+Cohesion: 0.07
+Nodes (9): addLayer(), isMoving(), isRotating(), isSourceLoaded(), isStyleLoaded(), isZooming(), loaded(), redraw() (+1 more)
 
 ### Community 246 - "Community 246"
-Cohesion: 0.05
-Nodes (10): Do, ea(), hu(), Io(), mc(), no(), Oo(), pu() (+2 more)
+Cohesion: 0.16
+Nodes (3): ea(), no(), Ra()
 
 ### Community 247 - "Community 247"
-Cohesion: 0.02
-Nodes (32): $n(), aa(), addControl(), addImage(), addSource(), de(), _diffStyle(), getFeatureState() (+24 more)
+Cohesion: 0.03
+Nodes (11): _diffStyle(), _getClampedPixelRatio(), getImage(), getPixelRatio(), hasImage(), loadImage(), qn(), remove() (+3 more)
 
 ### Community 248 - "Community 248"
 Cohesion: 0.11
 Nodes (23): _apply_share_y(), combined_summary_frame(), _empty_figure_json(), figure_json(), figures_json(), _inject_app_chrome(), is_grouped(), True when the collection carries averaged (mean/std) series. (+15 more)
 
 ### Community 251 - "Community 251"
-Cohesion: 0.16
+Cohesion: 0.19
 Nodes (3): Do, Io(), Oo()
 
 ### Community 252 - "Community 252"
-Cohesion: 0.15
-Nodes (21): Progress, Handle passed into job functions to report progress and check cancel., cellpy-simple-gui: a simple desktop GUI for exploring battery data with cellpy., CellEntry, classify_import_path(), _cleanup_save_artifacts(), delete_project(), list_projects() (+13 more)
+Cohesion: 0.17
+Nodes (19): cellpy-simple-gui: a simple desktop GUI for exploring battery data with cellpy., CellEntry, classify_import_path(), _cleanup_save_artifacts(), delete_project(), list_projects(), _now(), open_project() (+11 more)
 
 ### Community 253 - "Community 253"
 Cohesion: 0.38
 Nodes (11): _check_data_fmt(), _check_figure_fmt(), _cycles_records(), export_cells(), export_cycles(), export_ica(), export_summary(), _figure_http() (+3 more)
 
 ### Community 254 - "Community 254"
-Cohesion: 0.17
-Nodes (12): br(), er(), Gn(), gr(), Hi(), hn(), J(), Ln() (+4 more)
+Cohesion: 0.11
+Nodes (23): br(), E(), er(), fe(), fr(), Gn(), gr(), Gt() (+15 more)
 
 ### Community 255 - "Community 255"
 Cohesion: 0.29
@@ -1106,32 +1131,28 @@ Cohesion: 0.2
 Nodes (10): _apply_y_ranges(), _layout_key_for_y_id(), Plotly layout key for a trace ``yaxis`` id (``y`` → ``yaxis``, …)., Set per-facet ``[lo, hi]`` on the merged summary figure (#60 / #54).      Pref, Plotly layout key for a trace ``yaxis`` id (``y`` → ``yaxis``, …)., Set per-facet ``[lo, hi]`` on the merged summary figure (#60 / #54).      Pref, Plotly layout key for a trace ``yaxis`` id (``y`` → ``yaxis``, …)., Plotly layout key for a trace ``yaxis`` id (``y`` → ``yaxis``, …). (+2 more)
 
 ### Community 257 - "Community 257"
-Cohesion: 0.22
-Nodes (9): br(), Gn(), Sr(), Un(), wr(), x(), y(), yr() (+1 more)
-
-### Community 258 - "Community 258"
-Cohesion: 0.14
-Nodes (3): eh(), Ku(), Qu()
+Cohesion: 0.4
+Nodes (5): br(), wr(), y(), yr(), zn()
 
 ### Community 263 - "Community 263"
-Cohesion: 0.25
-Nodes (8): bi(), _i(), Nn(), on(), Rn(), sn(), Ut(), xi()
+Cohesion: 0.22
+Nodes (9): bi(), _i(), Nn(), on(), Rn(), sn(), Ut(), xi() (+1 more)
 
 ### Community 264 - ".emplaceBack"
-Cohesion: 0.16
-Nodes (4): bl(), jl(), kh, Ku()
+Cohesion: 0.12
+Nodes (6): bl(), jl(), kh, su(), xo(), zo()
 
 ### Community 269 - "Community 269"
 Cohesion: 0.17
 Nodes (12): _capacity_mode_from_column(), _pretty_unit_text(), Normalize cellpy unit markup for plot titles (``cm**2`` → ``cm²``)., Normalize cellpy unit markup for plot titles (``cm**2`` → ``cm²``)., Strip basis suffix; return ``(base_id, mode|None)``., Strip basis suffix; return ``(base_id, mode|None)``., One human axis title for a summary ``variable`` column id (#38)., One human axis title for a summary ``variable`` column id (#38). (+4 more)
 
 ### Community 270 - "Community 270"
-Cohesion: 0.09
-Nodes (3): Hi(), gi(), yi()
+Cohesion: 0.11
+Nodes (3): Hi(), getCanvas(), gi()
 
 ### Community 276 - "Community 276"
-Cohesion: 0.29
-Nodes (4): Gu(), wu, xu(), Yu()
+Cohesion: 0.23
+Nodes (4): getLayer(), getLayoutProperty(), setLayoutProperty(), setPaintProperty()
 
 ### Community 277 - "Community 277"
 Cohesion: 0.29
@@ -1141,29 +1162,61 @@ Nodes (12): _client(), essential, Tests for raw-file ingestion (adapter + API).,
 Cohesion: 0.18
 Nodes (10): _apply_colorway(), _hex_to_rgba(), Keep the full identity discoverable when display ``name`` is truncated.      P, Cycle a discrete colorway across legend series (name / legendgroup)., Turn ``#RRGGBB`` into ``rgba(r,g,b,a)`` for translucent Plotly fills., Cycle a discrete colorway across legend series (name / legendgroup)., Turn ``#RRGGBB`` into ``rgba(r,g,b,a)`` for translucent Plotly fills., Turn ``#RRGGBB`` into ``rgba(r,g,b,a)`` for translucent Plotly fills. (+2 more)
 
+### Community 281 - "Community 281"
+Cohesion: 0.33
+Nodes (9): e2e, browser_page(), _chromium_available(), live_server(), fixture, Playwright GUI smoke tests against --server / browser mode.  Requires the opti, In-process uvicorn with a fixed CSG_TOKEN (same surface as --server)., test_load_demo_cells_and_summary_plot() (+1 more)
+
 ### Community 282 - "Community 282"
 Cohesion: 0.2
 Nodes (10): _preserve_full_name_on_hover(), Keep the full identity discoverable when display ``name`` is truncated.      P, Truncate long legend-facing labels; return longest *displayed* length.      Jo, Keep the full identity discoverable when display ``name`` is truncated.      P, Truncate long legend-facing labels; return longest *displayed* length.      Jo, Keep the full identity discoverable when display ``name`` is truncated.      P, Truncate long legend-facing labels; return longest *displayed* length.      Jo, Truncate long legend-facing labels; return longest *displayed* length.      Jo (+2 more)
 
 ### Community 284 - "Community 284"
 Cohesion: 0.05
-Nodes (4): Ao(), di(), En(), Mn()
+Nodes (5): di(), En(), Mn(), setTerrain(), xu()
 
 ### Community 285 - "Community 285"
 Cohesion: 0.67
 Nodes (3): Legacy charge/discharge/CE column selection (kept for tests)., Legacy charge/discharge/CE column selection (kept for tests)., summary_columns()
 
 ### Community 287 - "Community 287"
-Cohesion: 0.13
-Nodes (18): ar(), Ce(), ei(), fe(), Fn(), he(), jn(), k() (+10 more)
+Cohesion: 0.33
+Nodes (6): he(), ie(), je(), Sr(), x(), Xn()
+
+### Community 288 - "Community 288"
+Cohesion: 0.1
+Nodes (6): addLayer(), isMoving(), isRotating(), querySourceFeatures(), redraw(), _render()
 
 ### Community 290 - "Community 290"
 Cohesion: 0.25
 Nodes (9): _apply_xy_ranges(), Min/max over finite numeric samples on trace ``x`` or ``y``., Min/max over finite numeric samples on trace ``x`` or ``y``., Turn ``[lo|None, hi|None]`` into a concrete ``[lo, hi]`` using data., Turn ``[lo|None, hi|None]`` into a concrete ``[lo, hi]`` using data., Pin axes to ``[lo, hi]``; missing ends use the data extent., Pin axes to ``[lo, hi]``; missing ends use the data extent., _resolve_axis_range() (+1 more)
 
+### Community 291 - "Community 291"
+Cohesion: 0.2
+Nodes (3): getStyle(), getTerrain(), _updateStyle()
+
+### Community 293 - "Community 293"
+Cohesion: 0.2
+Nodes (4): getFeatureState(), getSource(), removeFeatureState(), setFeatureState()
+
 ### Community 294 - "Community 294"
 Cohesion: 0.25
 Nodes (9): export_bytes(), export_frame_bytes(), Serialise a tidy polars frame in-memory. Returns (bytes, media_type)., Serialise a tidy polars frame in-memory. Returns (bytes, media_type)., Serialise a collection's tidy frame in-memory. Returns (bytes, media_type)., Serialise a tidy polars frame in-memory. Returns (bytes, media_type)., Serialise a tidy polars frame in-memory. Returns (bytes, media_type)., Serialise a collection's tidy frame in-memory. Returns (bytes, media_type). (+1 more)
+
+### Community 298 - "Community 298"
+Cohesion: 0.2
+Nodes (10): _ica_y_values(), Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)., Direction must filter half-cycles (#67); cellpy plot kwarg alone does not., Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)., Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)., Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)., Direction must filter half-cycles (#67); cellpy plot kwarg alone does not., Direction must filter half-cycles (#67); cellpy plot kwarg alone does not. (+2 more)
+
+### Community 302 - "Community 302"
+Cohesion: 0.22
+Nodes (9): ht(), ii(), ki(), Mn(), ownKeys(), Pn(), q(), ri() (+1 more)
+
+### Community 304 - "Community 304"
+Cohesion: 0.25
+Nodes (9): bi(), _i(), Mn(), Nn(), on(), ownKeys(), Pn(), Rn() (+1 more)
+
+### Community 305 - "Community 305"
+Cohesion: 0.36
+Nodes (7): _build_journal(), Tests for loading native cellpy batch journals., Write a real cellpy batch journal referencing the bundled example files., A journal pointing at non-existent .cellpy files yields no linkable cells., test_load_corrupt_journal_raises_clear_error(), test_load_journal_cells(), test_load_journal_missing_files_returns_empty()
 
 ### Community 307 - "Community 307"
 Cohesion: 0.13
@@ -1173,20 +1226,24 @@ Nodes (15): Map facet ``variable`` → ``(xaxis_id, yaxis_id)`` from base traces
 Cohesion: 0.15
 Nodes (14): _has_right_facet_strips(), True when PX facet annotations sit on the right edge (collide with legend)., Best-effort cleanup if a ``variable=…`` strip slipped past cellpy.      cellpy, True when PX facet annotations sit on the right edge (collide with legend)., Best-effort cleanup if a ``variable=…`` strip slipped past cellpy.      cellpy, True when PX facet annotations sit on the right edge (collide with legend)., True when PX facet annotations sit on the right edge (collide with legend)., Best-effort cleanup if a ``variable=…`` strip slipped past cellpy.      cellpy (+6 more)
 
+### Community 318 - "Community 318"
+Cohesion: 0.5
+Nodes (4): ci(), deleteProperty(), ni(), Pr()
+
 ## Knowledge Gaps
-- **1057 isolated node(s):** `Application settings and paths.`, `Desktop shell: run the local app inside a native window via pywebview.`, `Destroy open windows so webview.start() can return.`, `Make Ctrl+C close the native window (SIGINT alone often never fires in the GUI l`, `Stop jobs + uvicorn so the process can exit and free the terminal.` (+1052 more)
+- **1080 isolated node(s):** `Application settings and paths.`, `Desktop shell: run the local app inside a native window via pywebview.`, `Destroy open windows so webview.start() can return.`, `Make Ctrl+C close the native window (SIGINT alone often never fires in the GUI l`, `Stop jobs + uvicorn so the process can exit and free the terminal.` (+1075 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **86 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **98 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `test_glob_match_and_cap()` connect `expand_paths` to `.createVertexBuffer`?**
-  _High betweenness centrality (0.145) - this node is a cross-community bridge._
-- **Why does `expand_paths()` connect `expand_paths` to `cells.py`?**
-  _High betweenness centrality (0.122) - this node is a cross-community bridge._
-- **Why does `de()` connect `Community 247` to `$`, `ye`, `eu`, `mt`, `.createVertexBuffer`, `Community 242`, `.possiblyEvaluate`, `Community 246`, `Community 280`, `a`, `.constructor`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
+  _High betweenness centrality (0.164) - this node is a cross-community bridge._
+- **Why does `expand_paths()` connect `expand_paths` to `ah`, `cells.py`?**
+  _High betweenness centrality (0.140) - this node is a cross-community bridge._
+- **Why does `de()` connect `.possiblyEvaluate` to `$`, `Si`, `eu`, `.createVertexBuffer`, `Community 276`, `Community 280`, `Community 283`, `Community 289`, `vn`, `Community 291`, `Community 292`, `Community 293`, `ye`, `.constructor`, `mt`, `a`, `test_journal.py`, `Community 242`, `Community 247`?**
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `$` (e.g. with `l()` and `s()`) actually correct?**
   _`$` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 74 inferred relationships involving `s()` (e.g. with `B()` and `set()`) actually correct?**
