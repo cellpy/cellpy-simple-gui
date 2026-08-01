@@ -54,6 +54,9 @@ class SummaryPlotSpec(BaseModel):
     basis: CapacityMode = "gravimetric"
     group_average: bool = False  # average per group (affects data/export)
     spread: bool = False  # mean ± std band (when grouped)
+    # Legend click mutes whole journal group (cellpy default) vs one cell.
+    # Meaningless when group_average=True (cellpy forces group_cells=False).
+    group_legend_muting: bool = True
     max_cycle: Optional[int] = None
     # Independent y-scales by default so CE outliers don't crush capacity panels.
     # Maps to cellpy ``match_axes`` on the collected summary path.
@@ -95,6 +98,9 @@ class CyclesPlotSpec(BaseModel):
     mode: CapacityMode = "gravimetric"
     method: CycleMethod = "forth-and-forth"
     layout: CyclesLayout = "per_cycle"
+    # Legend click mutes whole journal group vs one cell (Plotly).
+    # Meaningless for layout=per_cell (cellpy forces group_cells=False).
+    group_legend_muting: bool = True
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""

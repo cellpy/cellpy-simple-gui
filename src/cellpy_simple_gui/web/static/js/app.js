@@ -58,6 +58,7 @@ function app() {
     summary: {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
+      group_legend_muting: true,
       share_y: false,
       yRanges: {}, // column id → {min, max} strings; both set → fixed range
     },
@@ -70,6 +71,7 @@ function app() {
     cycles: {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
       mode: "gravimetric", method: "forth-and-forth",
+      group_legend_muting: true,
     },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
     figureFormats: ["png", "svg", "pdf"],
@@ -485,6 +487,7 @@ function app() {
         basis: this.summary.basis,
         group_average: this.summary.group_average,
         spread: this.summary.spread,
+        group_legend_muting: !!this.summary.group_legend_muting,
         max_cycle: this._num(this.summary.max_cycle),
         share_y: !!this.summary.share_y && !y_ranges,
         ...(y_ranges ? { y_ranges } : {}),
@@ -535,7 +538,9 @@ function app() {
       return {
         cycles: this.buildCycleListFrom(this.cycles),
         mode: this.cycles.mode, method: this.cycles.method,
-        layout: this.cycles.layout, title: "",
+        layout: this.cycles.layout,
+        group_legend_muting: !!this.cycles.group_legend_muting,
+        title: "",
         ...this.appearanceFields(),
       };
     },

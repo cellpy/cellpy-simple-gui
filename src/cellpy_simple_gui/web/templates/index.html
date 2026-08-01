@@ -274,6 +274,9 @@
           <label class="chk" x-show="summary.group_average" title="Show mean ± std band">
             <input type="checkbox" x-model="summary.spread" @change="plotSummary()" /> Spread
           </label>
+          <label class="chk" title="Legend click mutes the whole journal group (on) or a single cell (off). Disabled while Group avg is on.">
+            <input type="checkbox" x-model="summary.group_legend_muting" :disabled="summary.group_average" @change="plotSummary()" /> Mute by group
+          </label>
           <label class="chk" title="Use one shared y-scale across all summary panels (off = independent auto-scale). Disabled while per-panel y-ranges are set.">
             <input type="checkbox" x-model="summary.share_y" :disabled="hasYRanges()" @change="plotSummary()" /> Share y-scale
           </label>
@@ -378,6 +381,9 @@
                 <option value="per_cell">Per cell</option>
               </select>
             </div>
+            <label class="chk" title="Legend click mutes the whole journal group (on) or a single cell (off). Disabled for Per cell layout.">
+              <input type="checkbox" x-model="cycles.group_legend_muting" :disabled="cycles.layout === 'per_cell'" @change="plotCycles()" /> Mute by group
+            </label>
             <div class="ctl">
               <label>Cycles from</label>
               <input type="number" class="num" x-model.number="cycles.from" :min="cycles.min" :max="cycles.max" @change="plotCycles()" />
