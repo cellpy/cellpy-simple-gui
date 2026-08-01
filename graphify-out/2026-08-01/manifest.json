@@ -120,8 +120,8 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/plotting.py": {
-    "mtime": 1785592371.0446243,
-    "ast_hash": "85d15dea22a23b4c296c31e6fcf3bb9e",
+    "mtime": 1785592837.0326757,
+    "ast_hash": "88cbcc24cdaf8f96a86951ae955b0edd",
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/projects.py": {
@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "tests/test_core.py": {
-    "mtime": 1785592371.064629,
-    "ast_hash": "d77fca287dcc85313e2315cf651eb20a",
+    "mtime": 1785592842.4647417,
+    "ast_hash": "f22d2fd5ca87264346c17c694a090e38",
     "semantic_hash": ""
   },
   "tests/test_files.py": {
@@ -800,17 +800,17 @@
     "semantic_hash": ""
   },
   ".issueflows/03-solved-issues/issue73_original.md": {
-    "mtime": 1785592451.1147144,
+    "mtime": 1785592696.9473047,
     "ast_hash": "cb1a468a1b355813e62c4ddcf24e5dd5",
     "semantic_hash": ""
   },
   ".issueflows/03-solved-issues/issue73_plan.md": {
-    "mtime": 1785592477.0387704,
+    "mtime": 1785592696.9473047,
     "ast_hash": "8783f62574e7455936b38236fd4d638b",
     "semantic_hash": ""
   },
   ".issueflows/03-solved-issues/issue73_status.md": {
-    "mtime": 1785592565.7835548,
+    "mtime": 1785592696.9473047,
     "ast_hash": "717471f471461f989d25666065be5a71",
     "semantic_hash": ""
   },
@@ -840,8 +840,8 @@
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/cellpy-delegation-inventory.md": {
-    "mtime": 1785592371.0246198,
-    "ast_hash": "de04234a3f7eee5cad6f8e2f4ca343b3",
+    "mtime": 1785592836.8406734,
+    "ast_hash": "a3707a07590a3c1f1eb9b20fcf02c1d4",
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/essential-tests.md": {
@@ -860,7 +860,7 @@
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/job-cancel-dismiss.md": {
-    "mtime": 1785592511.5228188,
+    "mtime": 1785592696.9473047,
     "ast_hash": "daddbe443a67b69ce9fde8dacf613241",
     "semantic_hash": ""
   },
@@ -930,8 +930,8 @@
     "semantic_hash": ""
   },
   "CELLPY_PAINPOINTS.md": {
-    "mtime": 1785592371.0286207,
-    "ast_hash": "08e569e04584f14828d3b8385e157d31",
+    "mtime": 1785592850.496791,
+    "ast_hash": "a995cc0959ba3ecebe63abc6aa6c363c",
     "semantic_hash": ""
   },
   "README.md": {
@@ -945,7 +945,7 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/web/templates/index.html": {
-    "mtime": 1785592511.5188186,
+    "mtime": 1785592696.9833047,
     "ast_hash": "0452233d96aecb3e43db4d60cb37058f",
     "semantic_hash": ""
   },
@@ -1032,6 +1032,21 @@
   "src/cellpy_simple_gui/web/static/img/favicon.svg": {
     "mtime": 1785592371.0486252,
     "ast_hash": "2169d9f69a27a69e257d78c6173cb31b",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue72_original.md": {
+    "mtime": 1785592742.8276434,
+    "ast_hash": "b5b2aed676cc1285de609bf8c7316bc5",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue72_plan.md": {
+    "mtime": 1785592807.0643213,
+    "ast_hash": "81703105b61ecc03bb50710645bcb089",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue72_status.md": {
+    "mtime": 1785592856.1686778,
+    "ast_hash": "496366f271d1fe197525d073fdcf864c",
     "semantic_hash": ""
   }
 }
