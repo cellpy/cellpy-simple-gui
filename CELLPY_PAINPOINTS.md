@@ -30,10 +30,12 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
 > | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (non-spread path) |
 > | 12b | `spread_plot` ignores `share_y` / `match_axes` | [#817](https://github.com/jepegit/cellpy/issues/817) | ◑ open (app `#47` re-link) |
-> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | � | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ◑ open (app uses `fig.write_image`) |
+> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ◑ open (app uses `fig.write_image`) |
 > | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ◑ open (app forces `auto_pick=False`) |
 > | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | ◑ open |
 > | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ◑ open (app `#67` filters frame) |
+> | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open (app `#72` forwards `x_unit`) |
+> | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open (app `#38` passes `y_label_mapper`) |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -341,6 +343,31 @@ cellpy-simple-gui #72 forwards `x_unit` from the app's `CAPACITY_UNITS` map into
 **Wish:** derive default `x_unit` (or full capacity axis label) from the
 collection's recorded mode — e.g. via `units_quantity_label` — so apps need not
 re-pass units they already set on `CurveOptions`.
+
+## 18. 🟢 Summary default y-labels omit units (CE / C-rate unit hooks)
+
+#801 / post4 pretty-prints summary facet / y-axis titles
+(`Charge Capacity`, `Coulombic Efficiency`) via `_pretty_variable_label`, so
+apps are no longer stuck with `variable=charge_capacity_gravimetric`. Units are
+only appended when a Batch-style `units=` dict is passed into the summary
+plotter; the `Collection.plot` path does not supply that bag, so collected
+figures stay unit-less and basis-blind (areal still reads “Charge Capacity”).
+
+Separately, `units_quantity_label` cannot label every summary column:
+
+- **Coulombic efficiency** — no `CellpyUnits` physical property (apps fall back
+  to `quantity_label(..., "%")`).
+- **C-rate** — not a physical property; mapping through `current` yields
+  Amperes, which is wrong (apps use `quantity_label(..., "C")`).
+
+cellpy-simple-gui #38 builds a `y_label_mapper` with
+`units_quantity_label` / `quantity_label` and passes it into `collection.plot`.
+
+**Wish:** default summary mapper (or documented helpers) should produce
+unit-bearing, mode-aware labels from the column id alone — without requiring a
+Batch `units=` payload. Add efficiency / C-rate to the unit spec (or a small
+registry of canonical summary labels) so apps need not maintain per-column
+fallbacks.
 
 ## What already works well (thank-you notes)
 

@@ -95,8 +95,8 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/collect.py": {
-    "mtime": 1785592371.0446243,
-    "ast_hash": "aa3a1fed983734a1495b95f83deb9540",
+    "mtime": 1785593512.7200406,
+    "ast_hash": "f64694a5fcdfa084424f1f19587680d0",
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/export.py": {
@@ -120,8 +120,8 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/plotting.py": {
-    "mtime": 1785592837.0326757,
-    "ast_hash": "88cbcc24cdaf8f96a86951ae955b0edd",
+    "mtime": 1785593512.7160406,
+    "ast_hash": "89b8e16eb87a55f9cdc9d438250a1ec5",
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/projects.py": {
@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "tests/test_core.py": {
-    "mtime": 1785592842.4647417,
-    "ast_hash": "f22d2fd5ca87264346c17c694a090e38",
+    "mtime": 1785593512.7280405,
+    "ast_hash": "139c59d7829135edb0d91e5cf3a52c58",
     "semantic_hash": ""
   },
   "tests/test_files.py": {
@@ -840,8 +840,8 @@
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/cellpy-delegation-inventory.md": {
-    "mtime": 1785592836.8406734,
-    "ast_hash": "a3707a07590a3c1f1eb9b20fcf02c1d4",
+    "mtime": 1785593512.9240391,
+    "ast_hash": "ef80b26c3daa767f28e6c2b08c74b934",
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/essential-tests.md": {
@@ -930,8 +930,8 @@
     "semantic_hash": ""
   },
   "CELLPY_PAINPOINTS.md": {
-    "mtime": 1785592850.496791,
-    "ast_hash": "a995cc0959ba3ecebe63abc6aa6c363c",
+    "mtime": 1785593512.928039,
+    "ast_hash": "9bc93c6db44dc373adcd05b157239def",
     "semantic_hash": ""
   },
   "README.md": {
@@ -1034,19 +1034,34 @@
     "ast_hash": "2169d9f69a27a69e257d78c6173cb31b",
     "semantic_hash": ""
   },
-  ".issueflows/01-current-issues/issue72_original.md": {
-    "mtime": 1785592742.8276434,
+  ".issueflows/01-current-issues/issue38_original.md": {
+    "mtime": 1785593364.6976929,
+    "ast_hash": "10a32a4e028a6f451e281c2f3fe088f1",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue38_plan.md": {
+    "mtime": 1785593457.4164882,
+    "ast_hash": "fbeda1fc46c96a5e67c64c488e97043d",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue38_status.md": {
+    "mtime": 1785593478.3602984,
+    "ast_hash": "977331de3e9aaaff320d39f7529342ce",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue72_original.md": {
+    "mtime": 1785593266.4489598,
     "ast_hash": "b5b2aed676cc1285de609bf8c7316bc5",
     "semantic_hash": ""
   },
-  ".issueflows/01-current-issues/issue72_plan.md": {
-    "mtime": 1785592807.0643213,
+  ".issueflows/03-solved-issues/issue72_plan.md": {
+    "mtime": 1785593266.45296,
     "ast_hash": "81703105b61ecc03bb50710645bcb089",
     "semantic_hash": ""
   },
-  ".issueflows/01-current-issues/issue72_status.md": {
-    "mtime": 1785592856.1686778,
-    "ast_hash": "496366f271d1fe197525d073fdcf864c",
+  ".issueflows/03-solved-issues/issue72_status.md": {
+    "mtime": 1785593266.45296,
+    "ast_hash": "8e484c532dc173f201b77f57b74b5fcf",
     "semantic_hash": ""
   }
 }

@@ -406,14 +406,7 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
         assert _hover_var(tr)
 
 
-def test_summary_figure_pretty_axis_labels(loaded_library):
-    """cellpy #801 pretty-prints y-axis titles (not bare snake_case) (#52 / #38)."""
-    fig = json.loads(
-        plotting.summary_figure(
-            loaded_library.selected(),
-            SummaryPlotSpec(plot_type="capacity_ce"),
-        )
-    )
+def _yaxis_titles(fig: dict) -> list[str]:
     titles = []
     for key, axis in fig["layout"].items():
         if not key.startswith("yaxis"):
@@ -422,10 +415,35 @@ def test_summary_figure_pretty_axis_labels(loaded_library):
         if isinstance(title, dict):
             title = title.get("text")
         if isinstance(title, str) and title:
-            titles.append(title)
+            titles.append(title.replace("<br>", " "))
+    return titles
+
+
+def test_summary_figure_pretty_axis_labels(loaded_library):
+    """Summary y-titles use cellpy label builders with units (#38)."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(plot_type="capacity_ce", basis="gravimetric"),
+        )
+    )
+    titles = _yaxis_titles(fig)
+    joined = " | ".join(titles)
     assert titles
-    assert any(" " in t or "(" in t for t in titles)
-    assert not any(t.startswith("charge_capacity_") for t in titles)
+    assert not any("charge_capacity_" in t for t in titles)
+    assert any("mAh/g" in t for t in titles), joined
+    assert any("%" in t for t in titles), joined
+
+    areal = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(plot_type="capacity_ce", basis="areal"),
+        )
+    )
+    areal_titles = _yaxis_titles(areal)
+    areal_joined = " | ".join(areal_titles)
+    assert any("mAh/cm" in t for t in areal_titles), areal_joined
+    assert not any("mAh/g" in t for t in areal_titles if "capacity" in t.lower()), areal_joined
 
 
 def test_summary_figure_long_cell_names_shorten_legend(loaded_library):

@@ -150,6 +150,68 @@ def _panel_label(column: str) -> str:
     return _PANEL_LABELS.get(base, base.replace("_", " "))
 
 
+def _pretty_unit_text(label: str) -> str:
+    """Normalize cellpy unit markup for plot titles (``cm**2`` → ``cm²``)."""
+    return label.replace("**2", "²").replace("**3", "³")
+
+
+def _capacity_mode_from_column(column: str) -> tuple[str, str | None]:
+    """Strip basis suffix; return ``(base_id, mode|None)``."""
+    for mode, suffix in (("gravimetric", "_gravimetric"), ("areal", "_areal")):
+        if column.endswith(suffix):
+            return column[: -len(suffix)], mode
+    return column, None
+
+
+#: Display names for summary columns fed to cellpy label builders (#38).
+_SUMMARY_LABEL_SPECS: dict[str, tuple[str, str | None]] = {
+    # base_id → (human name, physical_property or None for quantity_label-only)
+    "charge_capacity": ("Charge capacity", "capacity"),
+    "discharge_capacity": ("Discharge capacity", "capacity"),
+    "charge_capacity_loss": ("Charge capacity loss", "capacity"),
+    "discharge_capacity_loss": ("Discharge capacity loss", "capacity"),
+    "coulombic_efficiency": ("Coulombic efficiency", None),
+    "cumulated_coulombic_efficiency": ("Cumulated coulombic efficiency", None),
+    "potential_end_charge": ("End-of-charge voltage", "voltage"),
+    "potential_end_discharge": ("End-of-discharge voltage", "voltage"),
+    "ir_charge": ("IR charge", "resistance"),
+    "ir_discharge": ("IR discharge", "resistance"),
+    "charge_c_rate": ("Charge C-rate", None),
+    "discharge_c_rate": ("Discharge C-rate", None),
+}
+
+
+def _summary_column_axis_label(column: str) -> str:
+    """One human axis title for a summary ``variable`` column id (#38)."""
+    from cellpy.plotting import quantity_label, units_quantity_label
+
+    base, mode = _capacity_mode_from_column(column)
+    spec = _SUMMARY_LABEL_SPECS.get(base)
+    if spec is None:
+        try:
+            from cellpy.plotting.collected import _pretty_variable_label
+
+            return _pretty_unit_text(_pretty_variable_label(column))
+        except Exception:  # noqa: BLE001 - cosmetics stay best-effort
+            return base.replace("_", " ").title()
+
+    name, physical = spec
+    if physical == "capacity":
+        # Absolute capacity columns have no suffix in this app.
+        use_mode = mode or "absolute"
+        return _pretty_unit_text(units_quantity_label(name, "capacity", mode=use_mode))
+    if physical is not None:
+        return _pretty_unit_text(units_quantity_label(name, physical, mode=mode))
+    # CE / C-rate: no CellpyUnits physical_property yet (painpoint §18).
+    unit = "%" if "efficiency" in base else "C"
+    return quantity_label(name, unit)
+
+
+def summary_y_label_mapper(columns: tuple[str, ...] | list[str]) -> dict[str, str]:
+    """``variable →`` unit-bearing axis title via cellpy label builders (#38)."""
+    return {col: _summary_column_axis_label(col) for col in columns}
+
+
 def summary_panels_for(plot_type: str, basis: str) -> list[dict[str, str]]:
     """Panel descriptors (column id + short label) for summary y-range widgets."""
     return [
