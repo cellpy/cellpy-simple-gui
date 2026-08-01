@@ -169,7 +169,7 @@ def test_cycles_figure(loaded_library):
 
 
 def test_cycles_figure_xy_ranges(loaded_library):
-    """Cell-explorer x/y range widgets pin Plotly axes."""
+    """Cell-explorer / Cycles-collector x/y range widgets pin Plotly axes."""
     rec = loaded_library.all()[0]
     fig = json.loads(
         plotting.cycles_figure(
@@ -189,6 +189,24 @@ def test_cycles_figure_xy_ranges(loaded_library):
     assert xaxis.get("autorange") is False
     assert yaxis.get("range") == [0.1, 1.5]
     assert yaxis.get("autorange") is False
+
+
+def test_cycles_collector_xy_ranges_per_cycle(loaded_library):
+    """Collector layout also honours axis ranges for export parity."""
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.cycles_figure(
+            [rec],
+            CyclesPlotSpec(
+                cycles=[1, 2],
+                layout="per_cycle",
+                x_range=[0.0, 50.0],
+                y_range=[0.2, 1.0],
+            ),
+        )
+    )
+    assert fig["layout"]["xaxis"].get("range") == [0.0, 50.0]
+    assert fig["layout"]["yaxis"].get("range") == [0.2, 1.0]
 
 
 def test_ica_figure_xy_ranges(loaded_library):
