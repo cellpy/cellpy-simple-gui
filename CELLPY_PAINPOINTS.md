@@ -327,6 +327,21 @@ when coercing invalid values.
 
 ---
 
+## 17. 🟢 Cycles plotter ignores collect `mode` for `x_unit`
+
+`collect_cycles(..., options=CurveOptions(mode=…))` correctly scales the
+capacity column (gravimetric / areal / absolute), and the mode is recorded on
+`Collection.meta.options`. The cycles plot path still defaults
+`x_unit="mAh/g"` in `cycles_plotter` / `sequence_plotter`, so axis titles stay
+gravimetric after a Mode change.
+
+cellpy-simple-gui #72 forwards `x_unit` from the app's `CAPACITY_UNITS` map into
+`collection.plot(...)`.
+
+**Wish:** derive default `x_unit` (or full capacity axis label) from the
+collection's recorded mode — e.g. via `units_quantity_label` — so apps need not
+re-pass units they already set on `CurveOptions`.
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args

@@ -15,11 +15,13 @@ keep only app chrome that cellpy still does not own.
 | Colorways / figure theme UI | App (#32) | **Keep** | Not upstream |
 | Static figure bytes (kaleido) | Painpoint §13 open | **Keep** | `export.figure_bytes` |
 | `.h5` `auto_pick_cellpy_format` | Painpoint §14 / #41 | **Keep** | `load_raw` sets `False` |
+| Cycles plot `x_unit` vs collect mode | Defaults `mAh/g`; ignores meta mode | **Keep forwarding** | App passes `x_unit` from `CAPACITY_UNITS` (#72) |
 
 ## What the app still owns
 
 - Discrete color schemes + session figure-theme preference
 - Legend name truncation / right margin for long cell names
 - Mixed multi/singleton group-avg partition + facet axis remapping
+- Cycles capacity `x_unit` from Mode until upstream reads collection meta
 - In-memory PNG/SVG/PDF export and desktop Save As
 - Ingest form field layout (until a follow-up consumes `instrument_meta_schema`)

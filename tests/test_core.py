@@ -168,13 +168,35 @@ def test_cycles_figure(loaded_library):
     assert len(fig["data"]) >= 1
 
 
-def test_cycles_figure_areal_mode(loaded_library):
+def _xaxis_title(fig: dict) -> str:
+    title = (fig.get("layout") or {}).get("xaxis", {}).get("title")
+    if isinstance(title, dict):
+        return str(title.get("text") or "")
+    return str(title or "")
+
+
+@pytest.mark.parametrize(
+    "mode,must_contain,must_not_contain",
+    [
+        ("gravimetric", "mAh/g", ()),
+        ("areal", "mAh/cm", ("mAh/g",)),
+        ("absolute", "mAh", ("mAh/g", "mAh/cm")),
+    ],
+)
+def test_cycles_figure_mode_updates_xaxis_units(
+    loaded_library, mode, must_contain, must_not_contain
+):
+    """Cycles Mode must drive x-axis capacity units (#72)."""
     rec = loaded_library.all()[0]
     spec = CyclesPlotSpec(
-        cell_id=rec.id, cycles=[1, 5], mode="areal", method="back-and-forth", layout="per_cell"
+        cell_id=rec.id, cycles=[1, 5], mode=mode, method="back-and-forth", layout="per_cell"
     )
     fig = json.loads(plotting.cycles_figure([rec], spec))
     assert len(fig["data"]) >= 1
+    xlabel = _xaxis_title(fig)
+    assert must_contain in xlabel, xlabel
+    for bad in must_not_contain:
+        assert bad not in xlabel, xlabel
 
 
 def test_cycles_collector_layouts(loaded_library):
