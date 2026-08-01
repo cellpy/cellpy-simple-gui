@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from . import collect
 from .library import CellRecord
-from .models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from .models import CAPACITY_UNITS, CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
 
 
 def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
@@ -56,6 +56,8 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
     collection = collect.cycles_collection(
         records, cycles=cycles, mode=spec.mode, method=spec.method
     )
+    # cellpy cycles_plotter defaults x_unit="mAh/g" and ignores collection mode (#72).
+    x_unit = CAPACITY_UNITS.get(spec.mode, CAPACITY_UNITS["gravimetric"])
     return collect.figure_json(
         collection,
         family_kind="cycles",
@@ -63,6 +65,7 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         group_legend_muting=spec.group_legend_muting,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
+        x_unit=x_unit,
     )
 
 
