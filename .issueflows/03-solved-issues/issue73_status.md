@@ -1,6 +1,6 @@
 # Issue #73 status
 
-- [ ] Done
+- [x] Done
 
 ## What's done
 
@@ -8,7 +8,9 @@
 - CSS: `.job-msg` overflow clamp (mirror `.proj-tag`).
 - HTML: `:title` on `.job-msg`.
 - Design note in `job-cancel-dismiss.md`.
+- `uv run pytest` — 83 passed, 1 skipped.
+- PR: https://github.com/cellpy/cellpy-simple-gui/pull/78
 
 ## Remaining work
 
-- Run `uv run pytest`; commit / push; close.
+- None (merge + `/iflow-cleanup` after merge).
