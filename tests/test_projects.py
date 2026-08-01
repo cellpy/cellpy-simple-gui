@@ -24,7 +24,16 @@ def temp_projects_root(tmp_path, monkeypatch):
 def test_save_open_roundtrip(loaded_library, temp_projects_root):
     lib = loaded_library
     rec = lib.all()[0]
-    lib.update(rec.id, label="Anode A", group=2, selected=False, mass=0.42)
+    lib.update(
+        rec.id,
+        label="Anode A",
+        group=2,
+        selected=False,
+        mass=0.42,
+        area=1.5,
+        nominal_capacity=2000.0,
+        cycle_mode="cathode",
+    )
 
     manifest = projects.save_project(lib, "Round Trip")
     assert manifest.slug == "round_trip"
@@ -42,6 +51,9 @@ def test_save_open_roundtrip(loaded_library, temp_projects_root):
     assert r.group == 2
     assert r.selected is False
     assert abs(r.mass - 0.42) < 1e-3
+    assert abs(r.area - 1.5) < 1e-3
+    assert abs(r.nominal_capacity - 2000.0) < 1e-3
+    assert r.cycle_mode == "cathode"
     assert r.n_cycles == rec.n_cycles
     assert fresh.project_name == "Round Trip"
 

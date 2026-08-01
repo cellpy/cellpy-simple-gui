@@ -258,11 +258,17 @@ def read_meta(cell: Any) -> dict[str, Any]:
         except (TypeError, ValueError):
             return None
 
+    mode = getattr(cell, "cycle_mode", None)
+    mode_s = str(mode).strip() if mode not in (None, "") else None
+    if mode_s not in ("anode", "cathode", "full_cell"):
+        mode_s = None
+
     return {
         "name": str(getattr(cell, "cell_name", "") or ""),
         "mass": _num(getattr(cell, "mass", None)),
         "area": _num(getattr(cell, "active_electrode_area", None)),
         "nominal_capacity": _num(getattr(cell, "nominal_capacity", None)),
+        "cycle_mode": mode_s,
         "n_cycles": int(_safe(cell.get_number_of_cycles, 0) or 0),
     }
 
@@ -479,15 +485,65 @@ def export_cell_csv(cell: Any, datadir: str | Path) -> list[Path]:
     return sorted(p for p in dest.rglob("*") if p.is_file())
 
 
-def set_mass(cell: Any, mass: float) -> None:
-    """Update the active-material mass and refresh the summary."""
+def _remake_summary(cell: Any, what: str) -> None:
+    """Best-effort ``make_summary`` after a physical meta change."""
+    try:
+        cell.make_summary()
+    except Exception:  # noqa: BLE001
+        log.warning("Could not remake summary after %s change", what, exc_info=True)
+
+
+def apply_physical_meta(
+    cell: Any,
+    *,
+    mass: float | None = None,
+    area: float | None = None,
+    nominal_capacity: float | None = None,
+    cycle_mode: str | None = None,
+) -> list[str]:
+    """Assign physical meta knobs and remake the summary once.
+
+    Returns the names of fields that were applied. cellpy has no selective
+    summary rebuild API — every change triggers a full ``make_summary()``.
+    """
+    changed: list[str] = []
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        cell.mass = mass
-        try:
-            cell.make_summary()
-        except Exception:  # noqa: BLE001
-            log.warning("Could not remake summary after mass change", exc_info=True)
+        if mass is not None and mass > 0:
+            cell.mass = mass
+            changed.append("mass")
+        if area is not None and area > 0:
+            cell.active_electrode_area = area
+            changed.append("area")
+        if nominal_capacity is not None and nominal_capacity > 0:
+            cell.nominal_capacity = nominal_capacity
+            changed.append("nominal_capacity")
+        if cycle_mode is not None:
+            cell.cycle_mode = cycle_mode
+            changed.append("cycle_mode")
+        if changed:
+            _remake_summary(cell, "+".join(changed))
+    return changed
+
+
+def set_mass(cell: Any, mass: float) -> None:
+    """Update the active-material mass and refresh the summary."""
+    apply_physical_meta(cell, mass=mass)
+
+
+def set_area(cell: Any, area: float) -> None:
+    """Update active electrode area (cm²) and refresh the summary."""
+    apply_physical_meta(cell, area=area)
+
+
+def set_nominal_capacity(cell: Any, nominal_capacity: float) -> None:
+    """Update nominal capacity and refresh the summary."""
+    apply_physical_meta(cell, nominal_capacity=nominal_capacity)
+
+
+def set_cycle_mode(cell: Any, cycle_mode: str) -> None:
+    """Update cycle mode (anode/cathode/full_cell) and refresh the summary."""
+    apply_physical_meta(cell, cycle_mode=cycle_mode)
 
 
 def cellpy_version() -> str:

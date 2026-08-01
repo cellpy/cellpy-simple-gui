@@ -638,6 +638,9 @@
               <th>Label</th>
               <th class="col-num">Group</th>
               <th class="col-num">Mass (mg)</th>
+              <th class="col-num">Area (cm²)</th>
+              <th class="col-num">Nom. cap</th>
+              <th class="col-mode">Cycle mode</th>
               <th class="col-num">Cycles</th>
               <th class="col-x"></th>
             </tr>
@@ -661,6 +664,23 @@
                 <td class="col-num">
                   <input type="number" step="any" class="mass-input" :value="c.mass ?? ''"
                          @change="updateCell(c.id, {mass: _num($event.target.value)})" />
+                </td>
+                <td class="col-num">
+                  <input type="number" step="any" class="mass-input" :value="c.area ?? ''"
+                         @change="updateCell(c.id, {area: _num($event.target.value)})" />
+                </td>
+                <td class="col-num">
+                  <input type="number" step="any" class="mass-input" :value="c.nominal_capacity ?? ''"
+                         @change="updateCell(c.id, {nominal_capacity: _num($event.target.value)})" />
+                </td>
+                <td class="col-mode">
+                  <select class="mode-input" :value="c.cycle_mode || ''"
+                          @change="updateCell(c.id, {cycle_mode: $event.target.value || null})">
+                    <option value="">—</option>
+                    <option value="anode">anode</option>
+                    <option value="cathode">cathode</option>
+                    <option value="full_cell">full_cell</option>
+                  </select>
                 </td>
                 <td class="col-num cycles" x-text="c.n_cycles"></td>
                 <td class="col-x">

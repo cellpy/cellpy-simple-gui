@@ -420,13 +420,15 @@ input:focus, select:focus { border-color: var(--accent); }
 .cells-table .col-check { width: 36px; }
 .cells-table .col-swatch { width: 28px; }
 .cells-table .col-num { width: 88px; }
+.cells-table .col-mode { width: 110px; }
 .cells-table .col-x { width: 36px; text-align: center; }
 .cells-table .cycles { color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .cells-table .cell-label { width: 100%; min-width: 120px; }
-.cells-table .mass-input {
+.cells-table .mass-input, .cells-table .mode-input {
   width: 72px; padding: 2px 6px; font-size: 12px;
   background: var(--input); border: 1px solid var(--line); border-radius: 4px; color: var(--text);
 }
+.cells-table .mode-input { width: 100px; }
 .cells-table input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); }
 
 /* scrollbars */

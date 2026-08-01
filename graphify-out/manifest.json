@@ -44,8 +44,8 @@
     "hash": "34c256f239e114025ffc7a1235b8e500"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\api\\routers\\cells.py": {
-    "mtime": 1785447126.7530267,
-    "hash": "df3b9d7f8443f4e2648f6e3e84b41e61"
+    "mtime": 1785602608.8317592,
+    "hash": "5710014bc632a1bbc8e8e86adcffd1f7"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\api\\routers\\export.py": {
     "mtime": 1785578269.4325247,
@@ -76,8 +76,8 @@
     "hash": "22a53a3723b4f578fb7b229913890f2d"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\cellpy_adapter.py": {
-    "mtime": 1785578269.4345212,
-    "hash": "b782f4e8f8f30673749b349fad2d2d9e"
+    "mtime": 1785602654.1962812,
+    "hash": "67f09517fb41371a27cd62f0061d6b43"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\collect.py": {
     "mtime": 1785600294.0289214,
@@ -92,12 +92,12 @@
     "hash": "c657c58af5cf98361b0054750dadb8e6"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\library.py": {
-    "mtime": 1785313540.239116,
-    "hash": "2d9ff68df0c47f81d08b6f04b5e7eda5"
+    "mtime": 1785602655.516505,
+    "hash": "e3ed956ea81eeec43a752e52caee0792"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\models.py": {
-    "mtime": 1785595539.5287642,
-    "hash": "83a90cf95706bdf2e16f982433cc5d1f"
+    "mtime": 1785602588.7186866,
+    "hash": "963e13498195bb16f186c1f35d829e82"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\core\\plotting.py": {
     "mtime": 1785600294.0309227,
@@ -116,8 +116,8 @@
     "hash": "8ff95ecd7ce47a261b8ea81f5a2f9198"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\web\\static\\js\\app.js": {
-    "mtime": 1785600883.9670067,
-    "hash": "dcb56cbdf95e6cbce19c5cbb77dea8b4"
+    "mtime": 1785602617.7159534,
+    "hash": "2f9554a72659dd72ab0db56dd45dca8a"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\web\\static\\js\\plotly.min.js": {
     "mtime": 1785279245.8473854,
@@ -128,12 +128,12 @@
     "hash": "bdc509bdae95957a4a892207554180fb"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_api.py": {
-    "mtime": 1785534820.3634872,
-    "hash": "bbacbf28bff7be4996472859e3f2c5a2"
+    "mtime": 1785602628.3754802,
+    "hash": "e6974a171805a8692d21adcb25807785"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_core.py": {
-    "mtime": 1785600892.368997,
-    "hash": "f9ff1cf031b87d694eac66f5573aa7ed"
+    "mtime": 1785602657.627842,
+    "hash": "27c46ff4630d2dcea2e30afc7f492fe8"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_files.py": {
     "mtime": 1785405692.65657,
@@ -152,16 +152,16 @@
     "hash": "90ee7bdbfa84e44586696d47e412a7ca"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\tests\\test_projects.py": {
-    "mtime": 1785594336.5607724,
-    "hash": "45cfb7ebd9b3ebc50ecb3adf3b06665c"
+    "mtime": 1785602631.8391807,
+    "hash": "0a377a336737253f4af19098af080c96"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\AGENTS.md": {
     "mtime": 1785518242.540092,
     "hash": "e40bd0a8efec4b7e878ea93da1081df4"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\CELLPY_PAINPOINTS.md": {
-    "mtime": 1785600293.9783974,
-    "hash": "431d9750051afa0cea90c0e25f9af39e"
+    "mtime": 1785602660.7931578,
+    "hash": "2b9d1740343e120480074f7f304e2c83"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\README.md": {
     "mtime": 1785578269.4295125,
@@ -172,8 +172,8 @@
     "hash": "147b9a2e21fa282b72360b9b478dc262"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\src\\cellpy_simple_gui\\web\\templates\\index.html": {
-    "mtime": 1785600887.662692,
-    "hash": "3b17df61a05e00a146b1527279bb9e82"
+    "mtime": 1785602614.798733,
+    "hash": "5189fb59b7219c7857c262fa2ac55908"
   },
   "C:\\scripting\\cellpyapp-workspace\\cellpy-simple-gui\\assets\\cellpy-icon-bw.png": {
     "mtime": 1785352806.1186004,

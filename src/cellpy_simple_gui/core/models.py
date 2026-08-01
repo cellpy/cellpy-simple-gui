@@ -18,6 +18,7 @@ IcaDirection = Literal["charge", "discharge"]
 FigureTheme = Literal["light", "dark"]
 # Curated plot colorways; "cellpy" keeps upstream/Plotly defaults.
 ColorScheme = Literal["cellpy", "safe", "muted"]
+CycleMode = Literal["anode", "cathode", "full_cell"]
 
 # Human-friendly axis labels per capacity mode.
 CAPACITY_UNITS: dict[CapacityMode, str] = {
@@ -68,6 +69,7 @@ class CellMeta(BaseModel):
     mass: float | None = None  # mg
     area: float | None = None  # cm^2
     nominal_capacity: float | None = None
+    cycle_mode: CycleMode | None = None
     n_cycles: int = 0
     group: int = 1
     label: str = ""
@@ -185,6 +187,9 @@ class JournalRowUpdate(BaseModel):
     label: Optional[str] = None
     selected: Optional[bool] = None
     mass: Optional[float] = None
+    area: Optional[float] = None
+    nominal_capacity: Optional[float] = None
+    cycle_mode: Optional[CycleMode] = None
 
 
 class LoadExampleRequest(BaseModel):
@@ -194,9 +199,6 @@ class LoadExampleRequest(BaseModel):
 class LoadFilesRequest(BaseModel):
     paths: list[str]
     max_files: int = 10
-
-
-CycleMode = Literal["anode", "cathode", "full_cell"]
 
 
 class IngestRequest(BaseModel):

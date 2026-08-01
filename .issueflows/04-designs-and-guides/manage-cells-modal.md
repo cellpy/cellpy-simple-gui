@@ -7,7 +7,12 @@
 - Entry: **Manage** on the Cells panel head when cells are loaded.
 - Close: Esc, backdrop click, or Close.
 - Edits reuse existing APIs (`POST /api/cells/{id}/update`, select-all, delete, clear) via Alpine `updateCell` / `selectAll` / `removeCell` / `clearAll` — no new persistence model.
-- Table fields: selected, label, group, mass (API already supports), cycles (read-only), remove.
+- Table fields: selected, label, group, mass, area, nominal capacity, cycle mode
+  (anode/cathode/full_cell), cycles (read-only), remove.
+- Physical edits (`mass` / `area` / `nominal_capacity` / `cycle_mode`) go through
+  `POST /api/cells/{id}/update` → `Library.update` → adapter
+  `apply_physical_meta` (attribute assign + full `make_summary()`). Persist via
+  project `.cellpy` save (not the org-only manifest). See issue #69.
 - Client-only niceties: filter by label, sort by group/name, select-by-group (sequential updates; replot once at end).
 - **Export ▾** (issue #28): exports **selected** cells via cellpy `save` / `to_csv` / `to_excel`
   (`POST /api/export/cells?fmt=cellpy|csv|xlsx`). One cellpy/xlsx file is returned bare;
