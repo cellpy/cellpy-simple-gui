@@ -66,6 +66,20 @@ def test_system_pick_rejected_without_webview(client):
     assert "desktop" in r.json()["detail"].lower()
 
 
+def test_webview_file_type_filters_are_valid():
+    """pywebview rejects descriptions outside [\\w ] — keep dialog filters parseable."""
+    from webview.util import parse_file_type
+
+    from cellpy_simple_gui.api.routers import system
+
+    for kind, types in system._FILE_TYPES.items():
+        for ft in types:
+            parse_file_type(ft)  # raises ValueError if invalid
+    for ft in system._SAVE_TYPE_BY_EXT.values():
+        parse_file_type(ft)
+    parse_file_type("All files (*.*)")
+
+
 def test_system_save_rejected_without_webview(client):
     r = client.post(
         "/api/system/save?filename=summary.svg",
