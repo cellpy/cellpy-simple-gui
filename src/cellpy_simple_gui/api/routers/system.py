@@ -13,7 +13,8 @@ router = APIRouter()
 _FILE_TYPES = {
     "cellpy": ("Cellpy files (*.cellpy;*.h5)", "All files (*.*)"),
     "raw": ("All files (*.*)",),
-    "journal": ("JSON project.json / journal (*.json)", "All files (*.*)"),
+    # pywebview parse_file_type only allows [\\w ] in the description (no / or .).
+    "journal": ("JSON files (*.json)", "All files (*.*)"),
 }
 
 _SAVE_TYPE_BY_EXT = {

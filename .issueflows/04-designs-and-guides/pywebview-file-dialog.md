@@ -14,6 +14,12 @@
 
 Server mode has no window → capabilities report `file_picker: false`; pick/save return 400.
 
+**File filter strings:** pywebview `parse_file_type` requires
+`Description (*.ext[;*.ext2…])` where the description is only `[A-Za-z0-9_ ]`
+(no `/`, `.`, `-`, etc.). Invalid strings raise before the dialog opens
+(e.g. `JSON project.json / journal (*.json)`). Prefer labels like
+`JSON files (*.json)`.
+
 **Why SAVE for exports:** the front-end `<a download>` + blob trick claims “Downloads”
 but under pywebview the file often never appears there. Desktop exports POST the
 bytes to `/api/system/save` and toast the real path; browser/`--server` keeps the
