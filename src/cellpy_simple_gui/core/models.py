@@ -92,28 +92,24 @@ class SummaryPlotSpec(BaseModel):
     # Independent y-scales by default so CE outliers don't crush capacity panels.
     # Maps to cellpy ``match_axes`` on the collected summary path.
     share_y: bool = False
-    # Per-facet-row limits: summary column id → [lo, hi]. Omitted keys autorange.
+    # Per-facet-row limits: summary column id → [lo, hi]. Either end may be
+    # null (filled from that panel's data extent). Omitted keys autorange.
     # Non-empty values force independent axes (cellpy #804 / app #54).
-    y_ranges: Optional[dict[str, list[float]]] = None
+    y_ranges: Optional[dict[str, list[Optional[float]]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = "Cycle summary"
 
     @field_validator("y_ranges")
     @classmethod
-    def _clean_y_ranges(cls, value: dict[str, list[float]] | None):
+    def _clean_y_ranges(cls, value: dict[str, list[float | None]] | None):
         if not value:
             return None
-        cleaned: dict[str, list[float]] = {}
+        cleaned: dict[str, list[float | None]] = {}
         for key, pair in value.items():
             cleaned_pair = _clean_axis_range(pair)
-            # Summary facets still require both ends.
-            if (
-                cleaned_pair is not None
-                and cleaned_pair[0] is not None
-                and cleaned_pair[1] is not None
-            ):
-                cleaned[str(key)] = [cleaned_pair[0], cleaned_pair[1]]
+            if cleaned_pair is not None:
+                cleaned[str(key)] = cleaned_pair
         return cleaned or None
 
 

@@ -62,7 +62,7 @@ function app() {
       group_average: false, spread: false, max_cycle: "",
       group_legend_muting: true,
       share_y: false,
-      yRanges: {}, // column id → {min, max} strings; both set → fixed range
+      yRanges: {}, // column id → {min, max} strings; either end optional
     },
     plotTypes: [],
     cell: {
@@ -156,16 +156,14 @@ function app() {
     },
     hasYRanges() {
       return Object.values(this.summary.yRanges || {}).some(
-        (r) => r && r.min !== "" && r.max !== "" && this._num(r.min) != null && this._num(r.max) != null
-          && this._num(r.min) < this._num(r.max)
+        (r) => this.buildAxisRange(r) != null
       );
     },
     buildYRanges() {
       const out = {};
       for (const [key, r] of Object.entries(this.summary.yRanges || {})) {
-        const lo = this._num(r.min);
-        const hi = this._num(r.max);
-        if (lo != null && hi != null && lo < hi) out[key] = [lo, hi];
+        const pair = this.buildAxisRange(r);
+        if (pair) out[key] = pair;
       }
       return Object.keys(out).length ? out : null;
     },

@@ -19,7 +19,7 @@ collector as a third tab.
 - **Cell explorer pane:** plot kind (`Voltage curves` / `dQ/dV`), cycles
   from/to, max curves; mode/method when curves; V resolution + direction when
   dQ/dV (one cell; curves layout stays `per_cell`); optional x/y range
-  min–max (blank = autorange). Labels switch with plot kind (capacity/voltage
+  min–max (either end blank = fill from data extent). Labels switch with plot kind (capacity/voltage
   vs voltage/dQ/dV). Spec fields `x_range` / `y_range` on
   `CyclesPlotSpec` / `IcaPlotSpec` so exports match the on-screen figure.
 - Top bar stays for global plot/appearance/export controls.

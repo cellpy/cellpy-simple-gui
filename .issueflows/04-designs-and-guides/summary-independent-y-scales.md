@@ -24,8 +24,9 @@ variable. cellpy’s `_cycles_plotter` historically defaulted to
   `variable=` → axis map, with cellpy’s pretty-title resolver as fallback
   (spread bands). Avoids “did not match a summary facet row” warnings for
   valid column ids.
-- UI widgets: min/max number inputs per current plot-type panel (session-only;
-  both ends required).
+- UI widgets: min/max number inputs per current plot-type panel (session-only).
+  **Either end may be blank** — the missing end is filled from that panel's
+  data extent (same as Cycles / Cell explorer / ICA `x_range` / `y_range`).
 
 ## Alternatives considered
 

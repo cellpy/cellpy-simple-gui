@@ -442,12 +442,26 @@ def _inject_app_chrome(figure_theme: str, plot_kwargs: dict) -> dict:
     return opts
 
 
-def _trace_axis_extent(fig, which: str) -> tuple[float, float] | None:
-    """Min/max over finite numeric samples on trace ``x`` or ``y``."""
+def _trace_axis_extent(
+    fig,
+    which: str,
+    *,
+    axis_id: str | None = None,
+) -> tuple[float, float] | None:
+    """Min/max over finite numeric samples on trace ``x`` or ``y``.
+
+    When ``axis_id`` is set (e.g. ``\"y2\"``), only traces attached to that
+    Plotly axis are included — needed for one-sided summary facet ranges.
+    """
     import math
 
+    axis_attr = "xaxis" if which == "x" else "yaxis"
     vals: list[float] = []
     for tr in fig.data:
+        if axis_id is not None:
+            tr_axis = str(getattr(tr, axis_attr, None) or which)
+            if tr_axis != axis_id:
+                continue
         arr = getattr(tr, which, None)
         if arr is None:
             continue
@@ -467,7 +481,13 @@ def _trace_axis_extent(fig, which: str) -> tuple[float, float] | None:
     return min(vals), max(vals)
 
 
-def _resolve_axis_range(fig, which: str, partial) -> list[float] | None:
+def _resolve_axis_range(
+    fig,
+    which: str,
+    partial,
+    *,
+    axis_id: str | None = None,
+) -> list[float] | None:
     """Turn ``[lo|None, hi|None]`` into a concrete ``[lo, hi]`` using data."""
     if not partial or len(partial) != 2:
         return None
@@ -475,7 +495,7 @@ def _resolve_axis_range(fig, which: str, partial) -> list[float] | None:
     if lo is None and hi is None:
         return None
     if lo is None or hi is None:
-        extent = _trace_axis_extent(fig, which)
+        extent = _trace_axis_extent(fig, which, axis_id=axis_id)
         if extent is None:
             return None
         if lo is None:
@@ -489,6 +509,15 @@ def _resolve_axis_range(fig, which: str, partial) -> list[float] | None:
     if lo_f < hi_f:
         return [lo_f, hi_f]
     return None
+
+
+def _y_id_from_layout_key(layout_key: str) -> str:
+    """``yaxis`` → ``y``, ``yaxis2`` → ``y2``."""
+    if layout_key == "yaxis":
+        return "y"
+    if layout_key.startswith("yaxis"):
+        return "y" + layout_key[len("yaxis") :]
+    return "y"
 
 
 def _apply_xy_ranges(fig, *, x_range=None, y_range=None) -> None:
@@ -583,6 +612,9 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
     Prefer hover ``variable=…`` → axis map (same source as secondary remapping).
     Fall back to cellpy's facet/title resolver so spread bands (no hover
     ``variable=``) still match pretty axis titles.
+
+    Either end of ``[lo, hi]`` may be null; the missing end is filled from that
+    facet's trace extent (same idea as cycles/ICA ``x_range`` / ``y_range``).
     """
     if not y_ranges:
         return
@@ -600,28 +632,31 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
     for variable, y_range in y_ranges.items():
         if y_range is None:
             continue
-        try:
-            lo, hi = float(y_range[0]), float(y_range[1])
-        except (TypeError, ValueError, IndexError):
-            log.warning("ignoring invalid y_ranges[%r]=%r", variable, y_range)
-            continue
         layout_key = None
+        y_id = None
         axes = var_to_axes.get(variable)
         if axes:
-            layout_key = _layout_key_for_y_id(axes[1])
+            y_id = str(axes[1])
+            layout_key = _layout_key_for_y_id(y_id)
         elif _yaxis_key_for_variable is not None:
             try:
                 layout_key = _yaxis_key_for_variable(fig, variable)
             except Exception:  # noqa: BLE001
                 layout_key = None
+            if layout_key:
+                y_id = _y_id_from_layout_key(layout_key)
         if not layout_key or layout_key not in fig.layout:
             log.warning(
                 "y_ranges key %r did not match a summary facet axis; ignoring",
                 variable,
             )
             continue
+        resolved = _resolve_axis_range(fig, "y", y_range, axis_id=y_id)
+        if not resolved:
+            log.warning("ignoring invalid y_ranges[%r]=%r", variable, y_range)
+            continue
         try:
-            fig.layout[layout_key].update(range=[lo, hi], autorange=False)
+            fig.layout[layout_key].update(range=resolved, autorange=False)
         except Exception:  # noqa: BLE001
             log.warning("could not apply y_ranges[%r]", variable, exc_info=True)
 

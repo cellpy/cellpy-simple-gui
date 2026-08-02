@@ -238,6 +238,27 @@ def test_cycles_collector_xy_ranges_per_cycle(loaded_library):
     assert fig["layout"]["yaxis"].get("range") == [0.2, 1.0]
 
 
+def test_cycles_figure_xy_ranges_one_sided(loaded_library):
+    """Cycles x/y accept a single end; the other is filled from data."""
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.cycles_figure(
+            [rec],
+            CyclesPlotSpec(
+                cell_id=rec.id,
+                cycles=[1, 2],
+                layout="per_cell",
+                x_range=[None, 80.0],
+                y_range=[0.0, None],
+            ),
+        )
+    )
+    x_lo, x_hi = fig["layout"]["xaxis"]["range"]
+    y_lo, y_hi = fig["layout"]["yaxis"]["range"]
+    assert x_hi == 80.0 and x_lo < x_hi
+    assert y_lo == 0.0 and y_hi > y_lo
+
+
 def test_ica_figure_xy_ranges(loaded_library):
     rec = loaded_library.all()[0]
     fig = json.loads(
@@ -253,6 +274,25 @@ def test_ica_figure_xy_ranges(loaded_library):
     )
     assert fig["layout"]["xaxis"].get("range") == [0.05, 1.2]
     assert fig["layout"]["yaxis"].get("range") == [-500.0, 500.0]
+
+
+def test_ica_figure_xy_ranges_one_sided(loaded_library):
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.ica_figure(
+            rec,
+            IcaPlotSpec(
+                cell_id=rec.id,
+                cycles=[1, 2],
+                x_range=[None, 1.0],
+                y_range=[-1e6, None],
+            ),
+        )
+    )
+    x_lo, x_hi = fig["layout"]["xaxis"]["range"]
+    y_lo, y_hi = fig["layout"]["yaxis"]["range"]
+    assert x_hi == 1.0 and x_lo < x_hi
+    assert y_lo == -1e6 and y_hi > y_lo
 
 
 def test_ica_figure_partial_x_range_min_only(loaded_library):
@@ -801,6 +841,44 @@ def test_summary_figure_y_ranges_sets_panel_limits(loaded_library):
     layout_axis = fig["layout"][axis]
     assert layout_axis.get("range") == [0.9, 1.05]
     assert layout_axis.get("autorange") is False
+
+
+def test_summary_figure_y_ranges_one_sided_max(loaded_library):
+    """Summary CE max-only fills min from that panel's data extent."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                # CE panels are percent-scale in cellpy plots.
+                y_ranges={"coulombic_efficiency": [None, 110.0]},
+            ),
+        )
+    )
+    axis = _yaxis_for_variable(fig, "coulombic_efficiency")
+    assert axis is not None
+    lo, hi = fig["layout"][axis]["range"]
+    assert hi == 110.0
+    assert lo < hi
+    assert fig["layout"][axis].get("autorange") is False
+
+
+def test_summary_figure_y_ranges_one_sided_min(loaded_library):
+    """Summary charge min-only fills max from that panel's data extent."""
+    fig = json.loads(
+        plotting.summary_figure(
+            loaded_library.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                y_ranges={"charge_capacity_gravimetric": [0.0, None]},
+            ),
+        )
+    )
+    axis = _yaxis_for_variable(fig, "charge_capacity_gravimetric")
+    assert axis is not None
+    lo, hi = fig["layout"][axis]["range"]
+    assert lo == 0.0
+    assert hi > lo
 
 
 def test_summary_figure_y_ranges_wins_over_share_y(loaded_library):
