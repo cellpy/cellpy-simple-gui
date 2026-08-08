@@ -19,7 +19,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 1 | Collection from in-memory cells | [#787](https://github.com/jepegit/cellpy/issues/787) | ✅ `cellpy.collect.from_cells` / `Batch.from_cells` |
 > | 2 | Group-averaged summary can't plot | [#785](https://github.com/jepegit/cellpy/issues/785) | ✅ renders (bug fixed) |
 > | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | ✅ `Collection.is_grouped` + `meta.grouped` |
-> | 3b | All-or-nothing `group_it` + long/wide facet merge | [#816](https://github.com/jepegit/cellpy/issues/816) | ◑ open (app still partitions / remaps) |
+> | 3b | All-or-nothing `group_it` + long/wide facet merge | [#816](https://github.com/jepegit/cellpy/issues/816) | ✅ closed — **merged, not in post7 yet**; app keeps partition/remap until release |
 > | 4 | `CurveOptions` mode/method | [#788](https://github.com/jepegit/cellpy/issues/788) | ✅ added |
 > | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | ✅ quiet by contract in **2.1.1.post3** |
 > | 6 | `Collection.save` xlsx/json | [#789](https://github.com/jepegit/cellpy/issues/789) | ✅ supported |
@@ -29,15 +29,16 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | ✅ **2.1.1.post4** — app wraps as `instrument_meta_schema` (UI follow-up) |
 > | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
 > | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (non-spread path) |
-> | 12b | `spread_plot` ignores `share_y` / `match_axes` | [#817](https://github.com/jepegit/cellpy/issues/817) | ◑ open (app `#47` re-link) |
-> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ◑ open (app uses `fig.write_image`) |
-> | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ◑ open (app forces `auto_pick=False`) |
-> | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | ◑ open |
-> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ◑ open (app `#67` filters frame) |
-> | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open (app `#72` forwards `x_unit`) |
-> | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open (app `#38` passes `y_label_mapper`) |
-> | 19 | Non-atomic v9 `.cellpy` writes | — | ◑ open (app stages project saves; cellpy zip still truncates in place) |
-> | 20 | Summary facet order ignores collect column order on group-avg | — | ◑ open (app `#81` passes Plotly `category_orders`) |
+> | 12b | `spread_plot` ignores `share_y` / `match_axes` | [#817](https://github.com/jepegit/cellpy/issues/817) | ✅ **in post7** — direct path delegated; app `#47` re-link now only needed on the #816 merge path |
+> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ✅ closed — **merged, not in post7 yet**; app keeps `fig.write_image` until release |
+> | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ✅ closed — **merged, not in post7 yet**; app keeps `auto_pick=False` (harmless) |
+> | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | ✅ **in post7** — app gets clean `Cycle N` / label strips for free (no app code) |
+> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ✅ **in post7** — app `#67` frame-filter now redundant for the plot; delegate when adding a "Both" option |
+> | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open, unfiled (app `#72` forwards `x_unit`) |
+> | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open, unfiled (app `#38` passes `y_label_mapper`) |
+> | 19 | Non-atomic v9 `.cellpy` writes | [#845](https://github.com/jepegit/cellpy/issues/845) | ◑ **filed** — app stages project saves; cellpy zip still truncates in place |
+> | 20 | Summary facet order ignores collect column order on group-avg | — | ◑ open, unfiled (app `#81` passes Plotly `category_orders`) |
+> | 21 | No selective summary rebuild after meta edits | [#846](https://github.com/jepegit/cellpy/issues/846) | ◑ **filed** — app always full `make_summary()` |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 

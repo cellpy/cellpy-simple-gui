@@ -1,29 +1,55 @@
 # cellpy delegation inventory (issue #52)
 
-Against **cellpy 2.1.1.post4** (bumped from post2). Goal: prefer cellpy APIs;
+Against **cellpy 2.1.1.post7** (bumped from post4). Goal: prefer cellpy APIs;
 keep only app chrome that cellpy still does not own.
 
-| Area | Upstream | Decision | Notes |
-|------|----------|----------|--------|
-| `list_instruments` WARNING spam | #786 fixed in **post3** | **Delegated** | Dropped root-log silencing in `cellpy_adapter.list_instruments` |
-| Collected figure theme / label / height | #801 in **post4** (`plotly_template`, `layout_updates`, pretty labels, `height_per_panel`) | **Delegated (partial)** | `_inject_app_chrome` passes theme tokens + height; `_restyle` keeps legend truncation, colorway, axis grids |
-| Pretty axis / facet labels | #801 defaults (names only) | **Keep forwarding** | App passes unit-bearing `y_label_mapper` via `summary_y_label_mapper` (#38 / painpoint §18). Remap for #39 keys off hover `variable=` |
-| Per-panel `y_ranges` / `share_y` | #804 in **post2** | **Keep forwarding** | App still re-applies share_y after spread plots (#47 gap) |
-| Summary facet `category_orders` | Painpoint §20 open | **Keep forwarding** | App passes `category_orders={"variable": columns}` (#81); CE-first `capacity_ce` tuple |
-| `read_meta(path)` | #799 in **post4** | **Wrapper now** | `cellpy_adapter.read_file_meta` — UI wiring deferred |
-| `instrument_meta_schema` | #800 in **post4** | **Wrapper now** | `cellpy_adapter.instrument_meta_schema` — ingest form follow-up |
-| Group-avg all-or-nothing + figure merge | Still app (#27 / #39) | **Keep** | Verified post4 still disables avg when any singleton present |
-| Colorways / figure theme UI | App (#32) | **Keep** | Not upstream |
-| Static figure bytes (kaleido) | Painpoint §13 open | **Keep** | `export.figure_bytes` |
-| `.h5` `auto_pick_cellpy_format` | Painpoint §14 / #41 | **Keep** | `load_raw` sets `False` |
-| Cycles plot `x_unit` vs collect mode | Defaults `mAh/g`; ignores meta mode | **Keep forwarding** | App passes `x_unit` from `CAPACITY_UNITS` (#72) |
+## Release-gating note (important for cleanup)
 
-## What the app still owns
+`#816`, `#818`, `#819` were closed on cellpy's **master (2026-08-08)** but are
+**not in the released post7** — the app still runs their workarounds, and
+removing them now breaks (verified: dropping the `#47` share_y re-link breaks the
+`#816` group-avg *merge* path, which post7 still needs). `#817`, `#820`, `#821`
+landed earlier and **are** in post7.
 
-- Discrete color schemes + session figure-theme preference
-- Legend name truncation / right margin for long cell names
-- Mixed multi/singleton group-avg partition + facet axis remapping
-- Cycles capacity `x_unit` from Mode until upstream reads collection meta
-- Summary `y_label_mapper` with units (CE / C-rate fallbacks) until §18 lands
-- In-memory PNG/SVG/PDF export and desktop Save As
-- Ingest form field layout (until a follow-up consumes `instrument_meta_schema`)
+**So most of this cleanup is gated on the next cellpy release (post8).** Re-run
+this pass when post8 ships with #816/#818/#819.
+
+| Area | Upstream | In post7? | Decision |
+|------|----------|-----------|----------|
+| `list_instruments` WARNING spam | #786 (post3) | yes | **Delegated** — no root-log silencing |
+| Collected figure theme / labels / height | #801 (post4) | yes | **Delegated (partial)** — `_inject_app_chrome`; `_restyle` keeps legend truncation, colorway, grids |
+| Unit-bearing y-labels | #801 defaults names-only | yes | **Keep forwarding** `y_label_mapper` (#38 / §18 open) |
+| `read_meta(path)` | #799 (post4) | yes | **Wrapper** `read_file_meta` (UI wiring deferred) |
+| `instrument_meta_schema` | #800 (post4) | yes | **Wrapper** (ingest form follow-up) |
+| `spread_plot` share_y | #817 | **yes** | Direct path delegated; **`_apply_share_y` still needed for the #816 merge path** → remove with #816 |
+| Cycles facet strip labels | #820 | **yes** | **Delegated** — clean strips for free, no app code |
+| ICA `direction` (line + both) | #821 | **yes** | **Ready to delegate** — drop `_filter_ica_by_direction`, pass `direction` to `collection.plot`; pairs with a "Both" UI option + export-direction decision |
+| Group-avg all-or-nothing + merge | #816 | **no (merged)** | **Keep** partition/remap until post8 |
+| Static figure bytes (kaleido) | #818 | **no (merged)** | **Keep** `export.figure_bytes` until post8 |
+| `.h5` `auto_pick_cellpy_format` | #819 | **no (merged)** | **Keep** `auto_pick=False` (harmless defense) |
+| Summary facet `category_orders` | §20 open, unfiled | n/a | **Keep forwarding** (#81) |
+| Cycles plot `x_unit` vs collect mode | §17 open, unfiled | n/a | **Keep forwarding** (#72) |
+| Non-atomic `.cellpy` writes | **#845 filed** | n/a | App stages project saves; single-file save still at cellpy's mercy |
+| Selective summary rebuild | **#846 filed** | n/a | App full `make_summary()` after meta edits |
+
+## Cleanup ready now (post7)
+
+- **#820** — already delegated (nothing to remove).
+- **#821 ICA** — the one removable workaround, but it changes export semantics
+  (single- vs both-direction) and wants a "Both" UI option; do as its own issue.
+
+## Blocked on cellpy post8 (merged, unreleased)
+
+- **#816** group-avg partition + facet remap (`core/collect.py` merge path) and
+  the `#47` `_apply_share_y` that serves it.
+- **#818** in-memory figure export (`export.figure_bytes`).
+- **#819** `load_raw` `auto_pick_cellpy_format=False`.
+
+## Still app-owned (no upstream yet / by design)
+
+- Discrete colorways + session figure-theme preference (#32)
+- Legend truncation / right margin for long cell names
+- Unit-bearing summary `y_label_mapper` (§18), cycles `x_unit` (§17),
+  facet `category_orders` (§20) — all unfiled friction
+- In-memory PNG/SVG/PDF export + desktop Save As
+- Ingest form layout (until a follow-up consumes `instrument_meta_schema`)
