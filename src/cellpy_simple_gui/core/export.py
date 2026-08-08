@@ -1,9 +1,9 @@
 """Data + static-figure export.
 
 Data path: cellpy collections → csv / xlsx / parquet / json.
-Figure path: Plotly figure JSON → png / svg / pdf via kaleido (`fig.write_image`).
+Figure path: Plotly figure JSON → png / svg / pdf via cellpy's in-memory
+``plotting.figures.write_image`` (bytes, no temp files — cellpy #818).
 Library cells: cellpy ``save`` / ``to_csv`` / ``to_excel`` → bytes (often zipped).
-cellpy has no in-memory collect-level image API yet (see CELLPY_PAINPOINTS §13).
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ import zipfile
 from pathlib import Path
 
 import plotly.io as pio
+from cellpy.exceptions import OptionalDependencyError
+from cellpy.plotting import figures as cellpy_figures
 
 from . import cellpy_adapter, collect, plotting
 from .library import CellRecord
@@ -39,16 +41,15 @@ class FigureExportError(RuntimeError):
 
 def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -> tuple[bytes, str]:
     columns = collect.summary_columns_for(spec.plot_type, spec.basis)
-    parts = collect.summary_collections(
+    # cellpy ≥2.1.2 returns one collection that averages multi-member groups
+    # while keeping singletons as per-cell rows (#816) — export it directly.
+    collection = collect.summary_collection(
         records,
         columns=columns,
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
     )
-    if len(parts) == 1:
-        return collect.export_bytes(parts[0][0], fmt)
-    frame = collect.combined_summary_frame(parts, columns)
-    return collect.export_frame_bytes(frame, fmt)
+    return collect.export_bytes(collection, fmt)
 
 
 def cycles_export(records: list[CellRecord], spec: CyclesPlotSpec, fmt: str) -> tuple[bytes, str]:
@@ -87,7 +88,11 @@ def ica_figure_export(
 
 
 def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:
-    """Render Plotly figure JSON to static image bytes (requires kaleido)."""
+    """Render Plotly figure JSON to static image bytes (requires kaleido).
+
+    Delegates the encode to cellpy's in-memory ``figures.write_image`` (#818),
+    which uses ``figure.to_image`` directly — no temp files or subprocess.
+    """
     fmt = fmt.lower()
     if fmt not in collect.FIGURE_EXPORT_FORMATS:
         raise FigureExportError(
@@ -99,20 +104,17 @@ def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:
     except Exception as exc:  # noqa: BLE001
         raise FigureExportError(f"Could not load figure for export ({exc}).") from exc
 
-    buf = io.BytesIO()
     try:
-        fig.write_image(buf, format=fmt, scale=2)
+        data = cellpy_figures.write_image(fig, fmt, scale=2)
+    except OptionalDependencyError as exc:
+        raise FigureExportError(
+            "Static figure export needs kaleido. "
+            "Install with: uv sync --extra export",
+            missing_kaleido=True,
+        ) from exc
     except Exception as exc:  # noqa: BLE001
         msg = str(exc).lower()
-        missing = (
-            _kaleido_missing()
-            or isinstance(exc, ImportError)
-            or "kaleido" in msg
-            or "orca" in msg
-            or "chromium" in msg
-            or "image export" in msg
-        )
-        if missing:
+        if any(k in msg for k in ("kaleido", "orca", "chromium", "image export")):
             raise FigureExportError(
                 "Static figure export needs kaleido. "
                 "Install with: uv sync --extra export",
@@ -120,18 +122,9 @@ def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:
             ) from exc
         raise FigureExportError(f"Figure export failed ({exc}).") from exc
 
-    data = buf.getvalue()
     if not data:
         raise FigureExportError("Figure export produced an empty file.")
-    return data, collect._MEDIA[fmt]
-
-
-def _kaleido_missing() -> bool:
-    try:
-        import kaleido  # noqa: F401
-    except ImportError:
-        return True
-    return False
+    return data, cellpy_figures.image_media_type(fmt)
 
 
 def _safe_stem(record: CellRecord) -> str:

@@ -150,14 +150,14 @@ def test_summary_figure_empty():
 def test_summary_figure_forwards_group_legend_muting(loaded_library, monkeypatch):
     """#62: SummaryPlotSpec.group_legend_muting reaches collection.plot kwargs."""
     captured: dict = {}
-    real = collect.figures_json
+    real = collect.figure_json
 
     def spy(*args, **kwargs):
         captured.clear()
         captured.update(kwargs)
         return real(*args, **kwargs)
 
-    monkeypatch.setattr(collect, "figures_json", spy)
+    monkeypatch.setattr(collect, "figure_json", spy)
     plotting.summary_figure(
         loaded_library.selected(), SummaryPlotSpec(group_legend_muting=False)
     )
@@ -468,10 +468,11 @@ def test_grouped_summary_renders(example_cell):
 
 
 def test_group_average_keeps_singleton_traces(example_cell):
-    """Group avg must still average multi-member groups when a singleton exists.
+    """Group avg averages multi-member groups even when a singleton exists.
 
-    cellpy's ``group_it=True`` otherwise silently disables averaging for the
-    whole selection if any group has < 2 cells (#27).
+    cellpy ≥2.1.2 fixed the all-or-nothing ``group_it`` guard (#816/#27): one
+    collection now carries the averaged multi-member group *and* the singleton,
+    so the app no longer partitions the selection itself.
     """
     from cellpy_simple_gui.core import cellpy_adapter
     from cellpy_simple_gui.core.library import Library
@@ -485,27 +486,31 @@ def test_group_average_keeps_singleton_traces(example_cell):
     lib.update(recs[1].id, group=1, label="g1b")
     lib.update(recs[2].id, group=2, label="solo")
 
-    # Naive path: cellpy drops averaging entirely.
+    # Single collection: cellpy averages group 1 and keeps group 2 (singleton).
     cols = collect.summary_columns_for("capacity_ce", "gravimetric")
-    naive = collect.summary_collection(lib.selected(), columns=cols, group_it=True)
-    assert not collect.is_grouped(naive)
-
-    parts = collect.summary_collections(lib.selected(), columns=cols, group_it=True)
-    assert len(parts) == 2
-    assert parts[0][1] is True and collect.is_grouped(parts[0][0])
-    assert parts[1][1] is False and not collect.is_grouped(parts[1][0])
+    coll = collect.summary_collection(lib.selected(), columns=cols, group_it=True)
+    assert collect.is_grouped(coll)
+    groups = set(coll.data.get_column("group").unique().to_list())
+    assert groups == {1, 2}
 
     spec = SummaryPlotSpec(plot_type="capacity_ce", group_average=True, spread=True)
     fig = json.loads(plotting.summary_figure(lib.selected(), spec))
     names = {tr.get("name") for tr in fig["data"]}
-    assert "solo" in names
-    # Averaged group legend uses the group id; spread adds Upper/Lower Bound traces.
-    assert any(n == "1" or (isinstance(n, str) and n.startswith("Upper Bound")) for n in names)
-    assert len(fig["data"]) > len(json.loads(collect.figure_json(parts[1][0]))["data"])
+    # Averaged group legends use the group id; spread adds Upper/Lower Bound traces.
+    assert any(
+        (isinstance(n, str) and (n in {"1", "2"} or n.startswith("Upper Bound")))
+        for n in names
+    )
+    assert len(fig["data"]) >= 3
 
 
 def test_group_average_singleton_traces_on_correct_facet(example_cell):
-    """Mixed avg+singleton merge must put each series on its variable's row (#39)."""
+    """Avg group + singleton both render on every variable facet (#39/#816).
+
+    cellpy ≥2.1.2 builds one grouped collection, so each variable's facet row
+    carries both the averaged group and the singleton — no app-side merge/remap.
+    The singleton is drawn as its own group (std=0), not a stray per-cell trace.
+    """
     from cellpy_simple_gui.core import cellpy_adapter
     from cellpy_simple_gui.core.library import Library
 
@@ -525,28 +530,21 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
         )
     )
 
-    def _hover_var(tr) -> str | None:
-        ht = tr.get("hovertemplate") or ""
-        return next(
-            (p.split("=", 1)[1] for p in ht.split("<br>") if p.startswith("variable=")),
-            None,
-        )
+    # capacity_ce has three facets (CE + charge + discharge), one y-axis each.
+    axes = {tr.get("yaxis") or "y" for tr in fig["data"]}
+    assert len(axes) >= 3
 
-    # Each column id must live on a single y-axis (avg + singleton share the panel).
-    axes_by_var: dict[str, set[str]] = {}
+    # Every facet row shows both the averaged group (1) and the singleton (2).
+    groups_by_axis: dict[str, set[str]] = {}
     for tr in fig["data"]:
-        var = _hover_var(tr)
-        if not var:
+        lg = tr.get("legendgroup")
+        if lg is None:
             continue
-        axes_by_var.setdefault(var, set()).add(tr.get("yaxis") or "y")
-    assert axes_by_var
-    for var, axes in axes_by_var.items():
-        assert len(axes) == 1, (var, axes)
-
-    solo = [tr for tr in fig["data"] if tr.get("name") == "solo"]
-    assert len(solo) >= 3
-    for tr in solo:
-        assert _hover_var(tr)
+        ax = tr.get("yaxis") or "y"
+        groups_by_axis.setdefault(ax, set()).add(str(lg))
+    assert groups_by_axis
+    for ax, groups in groups_by_axis.items():
+        assert {"1", "2"} <= groups, (ax, groups)
 
 
 def _yaxis_titles(fig: dict) -> list[str]:

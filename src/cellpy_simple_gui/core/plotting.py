@@ -21,15 +21,17 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
             figure_theme=spec.figure_theme,
         )
     columns = collect.summary_columns_for(spec.plot_type, spec.basis)
-    parts = collect.summary_collections(
+    # cellpy ≥2.1.2 averages multi-member groups even when a singleton group is
+    # present and returns them in one collection (#816), so no app-side split.
+    collection = collect.summary_collection(
         records,
         columns=columns,
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
     )
     y_ranges = spec.y_ranges or {}
-    return collect.figures_json(
-        parts,
+    return collect.figure_json(
+        collection,
         spread=spec.spread,
         # cellpy prefers share_y; match_axes kept as alias for older paths.
         share_y=spec.share_y,
