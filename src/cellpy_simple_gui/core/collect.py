@@ -715,7 +715,6 @@ def _restyle(
     _apply_colorway(fig, color_scheme)
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     try:
-        layout = fig.layout.to_plotly_json()
         strip_pad = _FACET_STRIP_RIGHT_PAD if _has_right_facet_strips(fig) else 0
         legend_w = 40 + min(longest, _LEGEND_NAME_LIMIT) * 7 if longest else 28
         right = strip_pad + legend_w
