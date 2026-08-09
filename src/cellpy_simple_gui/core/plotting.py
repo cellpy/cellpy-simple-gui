@@ -35,8 +35,11 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
             figure_theme=spec.figure_theme,
         )
     # A family names its columns whether or not the data has them, so say which
-    # are missing rather than rendering a blank chart (#97).
-    missing = collect.missing_summary_columns(columns, records)
+    # are missing rather than rendering a blank chart (#97). Judge that on the
+    # pre-derivation inputs — collect makes *_cv and mod_01_* itself (#106).
+    missing = collect.missing_summary_columns(
+        collect.summary_required_columns(spec.plot_type, spec.basis, records), records
+    )
     if missing:
         return collect._empty_figure_json(
             "These cells have no " + ", ".join(missing)
@@ -50,6 +53,7 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         columns=columns,
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
+        options=collect.summary_options_for(spec.plot_type, records),
     )
     y_ranges = spec.y_ranges or {}
     return collect.figure_json(
@@ -124,7 +128,6 @@ def cycle_info_figure(record: CellRecord, spec: CycleInfoPlotSpec) -> str:
     return collect.cycle_info_figure_json(
         record.cell,
         cycles=cycles,
-        max_points=spec.max_points,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
     )

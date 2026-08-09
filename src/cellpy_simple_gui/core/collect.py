@@ -111,14 +111,20 @@ SUMMARY_PLOT_TYPES = [
 FAMILY_PREFIX = "family:"
 
 
+#: cellpy's public plot entry a summary family belongs to. Restricting the menu
+#: to this one keeps ``raw`` / ``ica`` / ``dva`` / ``cycle_info`` out of it —
+#: those are separate entry points with their own tabs in the app.
+SUMMARY_ENTRY_POINT = "summary_plot"
+
+
 def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
     """Every summary family cellpy registers, marked available or not (#97).
 
-    Developer mode shows the whole registry, but most families need columns a
-    given cell simply does not have (CV-split, absolute capacity, transform-fed
-    ``mod_01_*``). Listing them unmarked would be a menu of silently empty
-    plots, so each entry carries the columns it wants and the ones missing from
-    the loaded cells.
+    Availability is judged on what a family *asks the summary for*, not on the
+    columns it ends up drawing: ``family.summary_options()`` (cellpy 2.1.2,
+    #868) reports the CV split and the transforms that manufacture the rest at
+    collect time. Checking the drawn names instead made every CV-split and
+    full-cell family look unplottable (#106).
     """
     try:
         from cellpy.plotting import registry
@@ -132,7 +138,7 @@ def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
     # data lacks the columns.
     no_cells = hdr is None
     out: list[dict] = []
-    for name, description in registry.families():
+    for name, description in registry.families(entry_point=SUMMARY_ENTRY_POINT):
         entry: dict = {
             "id": f"{FAMILY_PREFIX}{name}",
             "label": description or name,
@@ -142,11 +148,12 @@ def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
         }
         try:
             columns = list(registry.get(name).columns(hdr)) if hdr is not None else []
+            required = list(_family_required_columns(name, hdr)) if hdr is not None else []
         except Exception as exc:  # noqa: BLE001 - a broken family is data, not a crash
             entry.update(columns=[], missing=[], unavailable_reason=str(exc))
             out.append(entry)
             continue
-        missing = [c for c in columns if available is not None and c not in available]
+        missing = [c for c in required if available is not None and c not in available]
         entry["columns"] = columns
         entry["missing"] = missing
         if no_cells:
@@ -157,6 +164,42 @@ def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
             entry["unavailable_reason"] = "missing " + ", ".join(missing)
         out.append(entry)
     return out
+
+
+def _family_required_columns(family: str, hdr) -> tuple[str, ...]:
+    """Summary columns a family needs *before* collect-time derivation.
+
+    ``family.columns(hdr)`` names what ends up on the chart, which includes
+    columns collect manufactures: ``*_cv`` / ``*_non_cv`` from the CV split and
+    ``mod_01_*`` from a transform. ``summary_options().columns`` is the honest
+    input list, so that is what availability is judged on.
+    """
+    from cellpy.plotting import registry
+
+    fam = registry.get(family)
+    try:
+        return tuple(fam.summary_options(hdr).columns)
+    except Exception:  # noqa: BLE001 - fall back to the drawn names
+        log.warning("family %r has no summary_options; using columns()", family, exc_info=True)
+        return tuple(fam.columns(hdr))
+
+
+def family_summary_options(family: str, records: list[CellRecord] | None = None):
+    """Ready :class:`SummaryOptions` for a registry family, or ``None``.
+
+    Carries the family's own ``partition_by_cv`` and transforms, so collecting
+    with it produces the columns the family actually plots (#868).
+    """
+    from cellpy.plotting import registry
+
+    hdr, _ = _summary_schema(records)
+    if hdr is None:
+        return None
+    try:
+        return registry.get(family).summary_options(hdr)
+    except Exception:  # noqa: BLE001 - plain column collect still works
+        log.warning("could not build summary options for %r", family, exc_info=True)
+        return None
 
 
 def _summary_schema(records: list[CellRecord] | None):
@@ -203,6 +246,40 @@ def family_columns(family: str, records: list[CellRecord] | None = None) -> tupl
     if hdr is None:
         return ()
     return tuple(registry.get(family).columns(hdr))
+
+
+def summary_options_for(plot_type: str, records: list[CellRecord] | None = None):
+    """Collect options for a plot type, or ``None`` for the curated ones.
+
+    Only a cellpy family carries its own options; the curated types are plain
+    column selections.
+    """
+    if not plot_type.startswith(FAMILY_PREFIX):
+        return None
+    return family_summary_options(plot_type[len(FAMILY_PREFIX) :], records)
+
+
+def summary_required_columns(
+    plot_type: str, basis: str, records: list[CellRecord] | None = None
+) -> tuple[str, ...]:
+    """The summary columns the data must already carry for this plot type.
+
+    Same as :func:`summary_columns_for` for the curated types, but for a cellpy
+    family it is the pre-derivation input set — collect makes the ``*_cv`` and
+    ``mod_01_*`` columns itself, so demanding them up front would reject
+    families that plot perfectly well (#106).
+    """
+    if plot_type.startswith(FAMILY_PREFIX):
+        family = plot_type[len(FAMILY_PREFIX) :]
+        hdr, _ = _summary_schema(records)
+        if hdr is None:
+            return ()
+        try:
+            return _family_required_columns(family, hdr)
+        except Exception:  # noqa: BLE001 - fall back rather than break the plot
+            log.warning("unknown cellpy plot family %r", family, exc_info=True)
+            return ()
+    return summary_columns_for(plot_type, basis, records)
 
 
 def summary_columns_for(
@@ -358,11 +435,28 @@ def summary_collection(
     columns: tuple[str, ...],
     group_it: bool = False,
     max_cycle: int | None = None,
+    options=None,
 ):
+    """Collect summaries, optionally under a family's own :class:`SummaryOptions`.
+
+    ``options`` comes from :func:`family_summary_options` and already carries
+    the family's ``columns``, CV split and transforms; the app only layers its
+    own grouping and cycle cap on top (#868). Without it this is the plain
+    column collect the curated plot types use.
+    """
+    if options is not None:
+        return collect_summaries(
+            _batch(records),
+            options=options.replace(
+                only_selected=False,  # records handed in are already the selected set
+                group_it=group_it,
+                max_cycle=max_cycle,
+            ),
+        )
     return collect_summaries(
         _batch(records),
         columns=columns,
-        only_selected=False,  # records handed in are already the selected set
+        only_selected=False,
         group_it=group_it,
         max_cycle=max_cycle,
     )
@@ -622,19 +716,19 @@ def raw_figure_json(
 ) -> str:
     """Raw time-series traces for one cell, via cellpy's ``raw_plot``.
 
-    Raw is the one family cellpy does not bound — it plots the whole frame, ~18
-    MiB of JSON for a single demo cell (cellpy #867). Thinned here for transport;
-    drop :func:`_thin_traces` once ``raw_plot`` grows a ``max_points`` knob.
+    cellpy 2.1.2 bounds the payload itself (``max_points``, #867) — 7.3 MB down
+    to 0.2 MB for a demo cell — so the app no longer strides the traces. It does
+    still say when the plot is downsampled, which ``raw_plot`` does not.
     """
     from cellpy.utils.plotutils import raw_plot
 
     try:
-        fig = raw_plot(cell, plot_type=plot_type, backend="plotly")
-        dropped = _thin_traces(fig, max_points)
+        fig = raw_plot(
+            cell, plot_type=plot_type, backend="plotly", max_points=max_points
+        )
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
-        if dropped:
-            _note_thinning(fig, dropped)
+        _note_downsampling(fig, cell)
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
@@ -646,11 +740,14 @@ def cycle_info_figure_json(
     cell,
     *,
     cycles: tuple[int, ...],
-    max_points: int = 4000,
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
 ) -> str:
-    """Raw traces annotated with step/cycle info, via cellpy's ``cycle_info_plot``."""
+    """Raw traces annotated with step/cycle info, via cellpy's ``cycle_info_plot``.
+
+    Bounded by the cycle selection rather than a point cap: one trace per cycle,
+    ~1.5k points each, so there is nothing to thin.
+    """
     from cellpy.utils.plotutils import cycle_info_plot
 
     try:
@@ -664,10 +761,7 @@ def cycle_info_figure_json(
                 "cellpy returned no cycle-info figure for this selection.",
                 figure_theme=figure_theme,
             )
-        dropped = _thin_traces(fig, max_points)
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
-        if dropped:
-            _note_thinning(fig, dropped)
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001
         return _empty_figure_json(
@@ -675,47 +769,29 @@ def cycle_info_figure_json(
         )
 
 
-def _thin_traces(fig, max_points: int) -> int:
-    """Keep about ``max_points`` per trace; return the largest stride applied.
+def _note_downsampling(fig, cell) -> None:
+    """Say so when cellpy downsampled — a silently thinned plot is misleading.
 
-    Plain striding, deliberately: it is honest and cheap. Anything smarter
-    (min/max per bucket, which would preserve spikes) belongs upstream — see
-    cellpy #867.
+    ``raw_plot`` honours ``max_points`` but draws no attention to it, so compare
+    the longest trace with the raw frame and report the real numbers rather than
+    assuming how cellpy picked the points.
     """
-    if not max_points or max_points <= 0:
-        return 0
-    stride = 0
     try:
-        import numpy as np
-
-        for tr in fig.data:
-            x = getattr(tr, "x", None)
-            if x is None or len(x) <= max_points:
-                continue
-            step = int(np.ceil(len(x) / max_points))
-            if step <= 1:
-                continue
-            stride = max(stride, step)
-            for attr in ("x", "y", "customdata", "text", "hovertext"):
-                value = getattr(tr, attr, None)
-                if value is not None and len(value) > max_points:
-                    setattr(tr, attr, np.asarray(value)[::step])
-    except Exception:  # noqa: BLE001 - a failed thin just means a big figure
-        log.warning("could not thin raw traces", exc_info=True)
-    return stride
-
-
-def _note_thinning(fig, stride: int) -> None:
-    """Say so on the chart — a silently thinned plot is a misleading one."""
-    try:
+        shown = max(
+            (0 if getattr(tr, "x", None) is None else len(tr.x) for tr in fig.data),
+            default=0,
+        )
+        total = len(cell.data.raw)
+        if not shown or shown >= total:
+            return
         fig.add_annotation(
-            text=f"showing every {stride}ᵗʰ point",
+            text=f"showing {shown:,} of {total:,} points",
             xref="paper", yref="paper", x=1, y=1.04,
             xanchor="right", yanchor="bottom",
             showarrow=False, font=dict(size=10, color="#9aa5b1"),
         )
     except Exception:  # noqa: BLE001 - cosmetics stay best-effort
-        log.warning("could not annotate thinning", exc_info=True)
+        log.warning("could not annotate downsampling", exc_info=True)
 
 
 def _variable_axis_map(fig) -> dict[str, tuple[str, str]]:

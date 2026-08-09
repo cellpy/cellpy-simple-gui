@@ -199,12 +199,11 @@ class CycleInfoPlotSpec(BaseModel):
     """Raw traces annotated with step/cycle information — developer mode.
 
     Cycle-scoped, so unlike :class:`RawPlotSpec` the payload is bounded by the
-    selection rather than by thinning.
+    selection: one trace per cycle, and no point cap is needed.
     """
 
     cell_id: str
     cycles: list[int] = Field(default_factory=list)
-    max_points: int = Field(default=DEFAULT_RAW_MAX_POINTS, ge=100, le=100_000)
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
     title: str = ""

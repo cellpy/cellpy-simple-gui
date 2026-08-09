@@ -1341,6 +1341,50 @@ def test_unavailable_family_explains_itself(loaded_library):
         export.summary_export(recs, SummaryPlotSpec(plot_type=bad["id"]), "csv")
 
 
+def test_registry_menu_holds_only_summary_families(loaded_library):
+    """cellpy 2.1.2 tags families by entry point — raw/ica/dva have own tabs."""
+    listed = {t["family"] for t in collect.registry_plot_types(loaded_library.selected())}
+    assert not listed & {"raw", "ica", "dva", "cycle_info", "cycles"}
+    assert "capacities_gravimetric" in listed
+
+
+def test_cv_split_and_fullcell_families_are_plottable(loaded_library):
+    """#106 / cellpy #868: collect-time columns must not read as missing data.
+
+    ``*_cv`` comes from ``partition_by_cv`` and ``mod_01_*`` from a transform,
+    so judging availability on the drawn column names hid these entirely.
+    """
+    recs = loaded_library.selected()
+    types = {t["family"]: t for t in collect.registry_plot_types(recs)}
+    for family in (
+        "capacities_gravimetric_split_constant_voltage",
+        "fullcell_standard_gravimetric",
+    ):
+        entry = types[family]
+        assert not entry.get("unavailable_reason"), entry.get("unavailable_reason")
+        # the family draws columns the raw summary does not have...
+        drawn = collect.summary_columns_for(entry["id"], "gravimetric", recs)
+        assert collect.missing_summary_columns(drawn, recs), "expected derived columns"
+        # ...yet nothing it *asks the summary for* is missing
+        required = collect.summary_required_columns(entry["id"], "gravimetric", recs)
+        assert not collect.missing_summary_columns(required, recs)
+        # and it renders real traces rather than a blank chart
+        fig = json.loads(
+            plotting.summary_figure(recs, SummaryPlotSpec(plot_type=entry["id"]))
+        )
+        assert len(fig["data"]) >= 2
+
+
+def test_family_options_carry_cv_split(loaded_library):
+    """The options handed to collect come from the family itself (cellpy #868)."""
+    recs = loaded_library.selected()
+    fid = collect.FAMILY_PREFIX + "capacities_gravimetric_split_constant_voltage"
+    opts = collect.summary_options_for(fid, recs)
+    assert opts is not None and opts.partition_by_cv is True
+    # a curated plot type has no family options
+    assert collect.summary_options_for("capacity_ce", recs) is None
+
+
 def test_curated_plot_types_unaffected(loaded_library):
     """Regular users still get exactly the curated list."""
     recs = loaded_library.selected()
@@ -1467,13 +1511,13 @@ def test_summary_schema_unions_across_cells(loaded_library):
 
 # ---- raw / cycle_info views ----------------------------------------------- #
 
-def test_raw_figure_is_thinned_for_transport(loaded_library):
-    """cellpy #867: raw_plot ships the whole frame (~18 MiB); we thin it."""
+def test_raw_figure_is_downsampled_for_transport(loaded_library):
+    """cellpy #867 landed in 2.1.2: raw_plot bounds the payload via max_points."""
     from cellpy_simple_gui.core.models import RawPlotSpec
 
     rec = loaded_library.all()[0]
     raw_rows = len(rec.cell.data.raw)
-    assert raw_rows > 10_000, "example cell should be big enough to exercise thinning"
+    assert raw_rows > 10_000, "example cell should be big enough to need downsampling"
 
     spec = RawPlotSpec(cell_id=rec.id, plot_type="full", max_points=2000)
     payload = plotting.raw_figure(rec, spec)
@@ -1485,9 +1529,9 @@ def test_raw_figure_is_thinned_for_transport(loaded_library):
         if isinstance(x, list):
             assert len(x) <= spec.max_points + 1
     assert len(payload) < 4_000_000
-    # ...and the thinning is disclosed rather than silent
+    # ...and the downsampling is disclosed rather than silent
     notes = " ".join(a.get("text", "") for a in fig["layout"].get("annotations") or [])
-    assert "point" in notes
+    assert f"of {raw_rows:,} points" in notes
 
 
 def test_raw_figure_plot_types(loaded_library):
