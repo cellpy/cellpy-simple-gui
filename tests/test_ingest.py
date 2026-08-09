@@ -44,8 +44,12 @@ def test_instruments_endpoint():
     assert ".h5" in arbin_h5.get("suffixes", [])
 
 
-def test_load_raw_passes_instrument_and_disables_autopick(tmp_path, monkeypatch):
-    """Raw ingest must keep the selected instrument (no .h5 → cellpy sniff) (#41)."""
+def test_load_raw_passes_instrument(tmp_path, monkeypatch):
+    """Raw ingest must forward the selected instrument (#41).
+
+    cellpy ≥2.1.2 lets a set ``instrument=`` win over ``.h5`` suffix auto-pick
+    (#819), so the app no longer forces ``auto_pick_cellpy_format=False``.
+    """
     fake = tmp_path / "sample.h5"
     fake.write_bytes(b"not-a-real-hdf5")
     captured: dict = {}
@@ -58,7 +62,7 @@ def test_load_raw_passes_instrument_and_disables_autopick(tmp_path, monkeypatch)
     cellpy_adapter.load_raw(fake, "arbin_sql_h5", mass=1.0)
     assert captured["instrument"] == "arbin_sql_h5"
     assert captured["filename"] == str(fake)
-    assert captured["auto_pick_cellpy_format"] is False
+    assert "auto_pick_cellpy_format" not in captured
     assert captured["mass"] == 1.0
 
 

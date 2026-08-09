@@ -9,7 +9,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 
 > **Update — most of these are fixed in cellpy 2.1.1+** 🎉 Filed upstream as
 > [jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785) and
-> follow-ups; the app runs on **≥2.1.1.post4** (see
+> follow-ups; the app runs on **≥2.1.2a2** (see
 > `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
 > Remaining open items filed as
 > [jepegit/cellpy#816–#821](https://github.com/jepegit/cellpy/issues/816).
@@ -19,7 +19,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 1 | Collection from in-memory cells | [#787](https://github.com/jepegit/cellpy/issues/787) | ✅ `cellpy.collect.from_cells` / `Batch.from_cells` |
 > | 2 | Group-averaged summary can't plot | [#785](https://github.com/jepegit/cellpy/issues/785) | ✅ renders (bug fixed) |
 > | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | ✅ `Collection.is_grouped` + `meta.grouped` |
-> | 3b | All-or-nothing `group_it` + long/wide facet merge | [#816](https://github.com/jepegit/cellpy/issues/816) | ✅ closed — **merged, not in post7 yet**; app keeps partition/remap until release |
+> | 3b | All-or-nothing `group_it` + long/wide facet merge | [#816](https://github.com/jepegit/cellpy/issues/816) | ✅ **in 2.1.2a2** — one collection averages groups + keeps singletons; app partition/merge **removed** |
 > | 4 | `CurveOptions` mode/method | [#788](https://github.com/jepegit/cellpy/issues/788) | ✅ added |
 > | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | ✅ quiet by contract in **2.1.1.post3** |
 > | 6 | `Collection.save` xlsx/json | [#789](https://github.com/jepegit/cellpy/issues/789) | ✅ supported |
@@ -29,11 +29,11 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | ✅ **2.1.1.post4** — app wraps as `instrument_meta_schema` (UI follow-up) |
 > | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
 > | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (non-spread path) |
-> | 12b | `spread_plot` ignores `share_y` / `match_axes` | [#817](https://github.com/jepegit/cellpy/issues/817) | ✅ **in post7** — direct path delegated; app `#47` re-link now only needed on the #816 merge path |
-> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ✅ closed — **merged, not in post7 yet**; app keeps `fig.write_image` until release |
-> | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ✅ closed — **merged, not in post7 yet**; app keeps `auto_pick=False` (harmless) |
+> | 12b | `spread_plot` ignores `share_y` / `match_axes` | [#817](https://github.com/jepegit/cellpy/issues/817) | ✅ **in 2.1.2a2** — grouped + grouped+spread honour share_y natively; app `#47` re-link **removed** |
+> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ✅ **in 2.1.2a2** — app `figure_bytes` delegates to `figures.write_image` + `image_media_type` |
+> | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ✅ **in 2.1.2a2** — set `instrument=` wins; app forced `auto_pick=False` **removed** |
 > | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | ✅ **in post7** — app gets clean `Cycle N` / label strips for free (no app code) |
-> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ✅ **in post7** — app `#67` frame-filter now redundant for the plot; delegate when adding a "Both" option |
+> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ✅ **in post7** — app `#67` frame-filter redundant for the plot; **follow-up** to delegate + add "Both" |
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open, unfiled (app `#72` forwards `x_unit`) |
 > | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open, unfiled (app `#38` passes `y_label_mapper`) |
 > | 19 | Non-atomic v9 `.cellpy` writes | [#845](https://github.com/jepegit/cellpy/issues/845) | ◑ **filed** — app stages project saves; cellpy zip still truncates in place |
@@ -121,6 +121,11 @@ merge helper) so long and wide summary plots share subplot identity by
 
 **Upstream:** wish 2 ✅ [#790](https://github.com/jepegit/cellpy/issues/790);
 wishes 1+3 → [#816](https://github.com/jepegit/cellpy/issues/816).
+
+**Resolved in 2.1.2a2:** `group_it=True` averages multi-member groups while
+keeping singletons as their own group in **one** collection with stable facet
+ids. App `partition_by_group_size` / `summary_collections` / `figures_json` /
+`combined_summary_frame` **removed**.
 
 ## 4. 🟠 `CurveOptions` can't set capacity mode / method
 
@@ -229,6 +234,10 @@ non-spread summary path does.
 **Upstream:** non-spread path ✅ [#804](https://github.com/jepegit/cellpy/issues/804);
 spread follow-up → [#817](https://github.com/jepegit/cellpy/issues/817).
 
+**Resolved in 2.1.2a2:** both grouped and grouped+spread paths honour
+`share_y` / `match_axes` on the collection, so the app `#47` re-apply
+(`_apply_share_y` / `_want_share_y`) was **removed**.
+
 ## 13. 🟠 No app-friendly static figure export on the collect path
 
 `collection.plot()` is the right way for an app to get a Plotly figure, but there
@@ -259,6 +268,11 @@ that saves the *plot* next to the data — but bytes-first matters more for apps
 
 *(cellpy-simple-gui #27 — will call `fig.write_image` directly until this exists.)*
 
+**Resolved in 2.1.2a2:** `cellpy.plotting.figures.write_image(fig, fmt, scale=)
+-> bytes` (in-process `to_image`, no subprocess/temp files) plus
+`image_media_type(fmt)`; `Collection.to_image(...)` too. App `export.figure_bytes`
+now delegates to these.
+
 **Upstream:** [#818](https://github.com/jepegit/cellpy/issues/818).
 
 ## 14. 🟠 `.h5` auto-picks cellpy format over raw instrument loaders
@@ -277,6 +291,10 @@ hints that Arbin SQL HDF5 belongs under Import raw.
 
 **Wish:** when `instrument=` is set, never auto-pick cellpy format from suffix
 (or document that callers must disable it for every raw `.h5` loader).
+
+**Resolved in 2.1.2a2:** `.h5` / `.hdf5` auto-pick only fires when `not
+instrument`, so a set `instrument=` wins. App `load_raw` no longer forces
+`auto_pick_cellpy_format=False` (the `data_df` error hint is kept as UX).
 
 **Upstream:** [#819](https://github.com/jepegit/cellpy/issues/819).
 

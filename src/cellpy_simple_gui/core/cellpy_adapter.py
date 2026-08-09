@@ -155,10 +155,9 @@ def load_raw(
     Only the metadata the caller actually supplied is passed through, so cellpy
     falls back to its own defaults for anything left blank.
 
-    Always disables ``auto_pick_cellpy_format``: cellpy otherwise treats
-    ``.h5`` / ``.hdf5`` as native cellpy files unless ``instrument`` happens to
-    be exactly ``arbin_sql_h5``, which yields a misleading ``data_df`` error for
-    Arbin SQL HDF5 (and any other raw ``.h5`` loader).
+    A set ``instrument=`` now wins over ``.h5`` / ``.hdf5`` suffix auto-pick in
+    cellpy ≥2.1.2 (#819), so raw HDF5 loaders (e.g. Arbin SQL HDF5) route to the
+    right reader without disabling ``auto_pick_cellpy_format``.
     """
     p = Path(path)
     if not p.is_file():
@@ -166,7 +165,6 @@ def load_raw(
     kwargs: dict[str, Any] = {
         "filename": str(p),
         "instrument": instrument,
-        "auto_pick_cellpy_format": False,
     }
     if model:
         kwargs["model"] = model

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import io
 import logging
-from collections import Counter
 
 import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_ica, collect_summaries, from_cells
@@ -255,63 +254,6 @@ def summary_collection(
     )
 
 
-def partition_by_group_size(
-    records: list[CellRecord], *, min_size: int = 2
-) -> tuple[list[CellRecord], list[CellRecord]]:
-    """Split records into multi-member groups vs singletons (among *these* records).
-
-    cellpy's ``group_it=True`` silently skips averaging when *any* group has
-    fewer than ``min_size`` cells, so callers that want mixed behaviour must
-    partition first (see :func:`summary_collections`).
-    """
-    sizes = Counter(r.group for r in records)
-    multi = [r for r in records if sizes[r.group] >= min_size]
-    solo = [r for r in records if sizes[r.group] < min_size]
-    return multi, solo
-
-
-def summary_collections(
-    records: list[CellRecord],
-    *,
-    columns: tuple[str, ...],
-    group_it: bool = False,
-    max_cycle: int | None = None,
-) -> list[tuple[object, bool]]:
-    """Build one or two summary collections for plotting/export.
-
-    When ``group_it`` is True, multi-member groups are averaged and singleton
-    groups stay as ordinary per-cell series (so cellpy's all-or-nothing
-    ``group_it`` guard cannot wipe out averaging for everyone). Each item is
-    ``(collection, is_group_averaged)``.
-    """
-    if not records:
-        return []
-    if not group_it:
-        return [(summary_collection(records, columns=columns, max_cycle=max_cycle), False)]
-
-    multi, solo = partition_by_group_size(records)
-    out: list[tuple[object, bool]] = []
-    if multi:
-        out.append(
-            (
-                summary_collection(
-                    multi, columns=columns, group_it=True, max_cycle=max_cycle
-                ),
-                True,
-            )
-        )
-    if solo:
-        out.append(
-            (
-                summary_collection(
-                    solo, columns=columns, group_it=False, max_cycle=max_cycle
-                ),
-                False,
-            )
-        )
-    return out
-
-
 def cycles_collection(
     records: list[CellRecord],
     *,
@@ -385,39 +327,6 @@ def is_grouped(collection) -> bool:
         return "mean" in collection.data.columns
     except Exception:  # noqa: BLE001
         return False
-
-
-def _want_share_y(plot_kwargs: dict) -> bool:
-    """True when the caller asked for shared facet y-scales (``share_y`` wins).
-
-    Non-empty ``y_ranges`` always wins: fixed per-panel limits need unmatched
-    axes (cellpy #804), and re-linking here would defeat them (#54).
-    """
-    if plot_kwargs.get("y_ranges"):
-        return False
-    if plot_kwargs.get("share_y") is not None:
-        return bool(plot_kwargs["share_y"])
-    if plot_kwargs.get("match_axes") is not None:
-        return bool(plot_kwargs["match_axes"])
-    return False
-
-
-def _apply_share_y(fig, share: bool) -> None:
-    """Link secondary facet y-axes to the primary when ``share`` is True.
-
-    cellpy's non-spread summary path honours ``match_axes`` / ``share_y``; its
-    ``spread_plot`` path (Group avg + Spread) does not. Re-apply here so the
-    app checkbox stays honest for both.
-    """
-    if not share:
-        return
-    try:
-        layout = fig.layout.to_plotly_json()
-        for key in layout:
-            if key.startswith("yaxis") and key != "yaxis":
-                getattr(fig.layout, key).matches = "y"
-    except Exception:  # noqa: BLE001 - cosmetics stay best-effort
-        log.warning("could not apply shared y-axes", exc_info=True)
 
 
 def _inject_app_chrome(figure_theme: str, plot_kwargs: dict) -> dict:
@@ -550,11 +459,18 @@ def figure_json(
     try:
         x_range = plot_kwargs.pop("x_range", None)
         y_range = plot_kwargs.pop("y_range", None)
+        # Per-facet summary limits (#60/#54); applied post-plot so they win over
+        # any ``share_y`` axis matching cellpy set on the collection.
+        y_ranges = plot_kwargs.pop("y_ranges", None)
         opts = _inject_app_chrome(figure_theme, plot_kwargs)
+        # cellpy ≥2.1.2 honours share_y / match_axes on the collection itself,
+        # incl. the group-avg + spread path (#816/#817), so no app re-link here.
         fig = collection.plot(spread=spread, **opts)
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
-        _apply_share_y(fig, _want_share_y(plot_kwargs))
-        _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
+        if y_ranges:
+            _apply_y_ranges(fig, y_ranges)
+        else:
+            _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
@@ -588,17 +504,6 @@ def _trace_variable(tr) -> str | None:
         if part.startswith("variable="):
             return part.split("=", 1)[1].split("<", 1)[0].strip() or None
     return None
-
-
-def _remap_trace_axes(tr, var_to_axes: dict[str, tuple[str, str]]) -> None:
-    """Align a secondary figure's facet ids with the base figure's variables."""
-    var = _trace_variable(tr)
-    if not var:
-        return
-    axes = var_to_axes.get(var)
-    if not axes:
-        return
-    tr.xaxis, tr.yaxis = axes
 
 
 def _layout_key_for_y_id(y_id: str) -> str:
@@ -659,98 +564,6 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
             fig.layout[layout_key].update(range=resolved, autorange=False)
         except Exception:  # noqa: BLE001
             log.warning("could not apply y_ranges[%r]", variable, exc_info=True)
-
-
-def figures_json(
-    parts: list[tuple[object, bool]],
-    *,
-    spread: bool = False,
-    figure_theme: str = "light",
-    color_scheme: str = "cellpy",
-    **plot_kwargs,
-) -> str:
-    """Plot one or more collections and merge traces onto the first figure.
-
-    ``parts`` is ``[(collection, is_group_averaged), ...]`` from
-    :func:`summary_collections`. Spread bands apply only to averaged parts.
-
-    Averaged (long) and per-cell (wide) collections can assign different Plotly
-    subplot ids to the same ``variable``; traces from later parts are remapped
-    onto the base figure's facet axes before merge.
-
-    ``y_ranges`` is applied once on the merged base figure (#60) rather than
-    forwarded into every ``collection.plot`` (secondary / spread parts can warn
-    and no-op when a key does not match their local facet rows).
-    """
-    if not parts:
-        return _empty_figure_json(
-            "Select one or more cells to plot the cycle summary.",
-            figure_theme=figure_theme,
-        )
-
-    try:
-        y_ranges = plot_kwargs.get("y_ranges") or {}
-        opts = _inject_app_chrome(figure_theme, plot_kwargs)
-        opts.pop("y_ranges", None)
-        base = None
-        var_to_axes: dict[str, tuple[str, str]] = {}
-        for collection, averaged in parts:
-            use_spread = bool(spread and averaged and is_grouped(collection))
-            fig = collection.plot(spread=use_spread, **opts)
-            if base is None:
-                base = fig
-                var_to_axes = _variable_axis_map(base)
-            else:
-                for tr in fig.data:
-                    _remap_trace_axes(tr, var_to_axes)
-                    base.add_trace(tr)
-        if base is None:
-            return _empty_figure_json(
-                "Select one or more cells to plot the cycle summary.",
-                figure_theme=figure_theme,
-            )
-        _restyle(base, figure_theme=figure_theme, color_scheme=color_scheme)
-        _apply_share_y(base, _want_share_y(plot_kwargs))
-        _apply_y_ranges(base, y_ranges)
-        return pio.to_json(base)
-    except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
-        return _empty_figure_json(
-            f"Could not render this plot ({exc}).", figure_theme=figure_theme
-        )
-
-
-def combined_summary_frame(parts: list[tuple[object, bool]], columns: tuple[str, ...]):
-    """Unify averaged + per-cell summary frames for a single export table.
-
-    Averaged parts keep ``mean`` / ``std``. Singleton parts are melted to the
-    same long shape with ``mean`` = value and ``std`` null, plus ``cell``.
-    """
-    import polars as pl
-
-    frames = []
-    for collection, averaged in parts:
-        data = collection.data
-        if data is None or data.height == 0:
-            continue
-        if averaged and is_grouped(collection):
-            keep = [c for c in ("group", "group_label", "cycle_num", "variable", "mean", "std") if c in data.columns]
-            frame = data.select(keep)
-            if "cell" not in frame.columns:
-                frame = frame.with_columns(pl.lit(None).cast(pl.Utf8).alias("cell"))
-            frames.append(frame)
-            continue
-        id_vars = [c for c in ("cell", "group", "group_label", "cycle_num") if c in data.columns]
-        value_vars = [c for c in columns if c in data.columns]
-        if not value_vars:
-            continue
-        long = data.unpivot(
-            index=id_vars, on=value_vars, variable_name="variable", value_name="mean"
-        ).with_columns(pl.lit(None).cast(pl.Float64).alias("std"))
-        frames.append(long)
-
-    if not frames:
-        return pl.DataFrame()
-    return pl.concat(frames, how="diagonal_relaxed")
 
 
 def _empty_figure_json(message: str, *, figure_theme: str = "light") -> str:
