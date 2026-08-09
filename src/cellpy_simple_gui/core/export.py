@@ -61,8 +61,20 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
 
 
 def cycles_export(records: list[CellRecord], spec: CyclesPlotSpec, fmt: str) -> tuple[bytes, str]:
+    cycles = tuple(sorted(set(spec.cycles)))
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        # Export what the chart shows (#95): the differential collection, with
+        # the same half-cycle selection the plotter applied.
+        collect_fn = (
+            collect.ica_collection if spec.curve_kind == "dqdv" else collect.dva_collection
+        )
+        collection = collect_fn(
+            records, cycles=cycles, voltage_resolution=spec.voltage_resolution
+        )
+        collection = collect.select_ica_direction(collection, spec.direction)
+        return collect.export_bytes(collection, fmt)
     collection = collect.cycles_collection(
-        records, cycles=tuple(sorted(set(spec.cycles))), mode=spec.mode, method=spec.method
+        records, cycles=cycles, mode=spec.mode, method=spec.method
     )
     return collect.export_bytes(collection, fmt)
 

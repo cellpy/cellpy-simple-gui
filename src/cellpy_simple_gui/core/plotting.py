@@ -74,6 +74,20 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
     )
 
 
+#: Which collector and cellpy family each Cycles-pane curve kind uses (#95).
+_CURVE_FAMILIES: dict[str, str] = {
+    "voltage": "cycles",
+    "dqdv": "ica",
+    "dvdq": "dva",
+}
+
+_CURVE_PROMPTS: dict[str, str] = {
+    "voltage": "Pick one or more cycles to plot the voltage curves.",
+    "dqdv": "Pick one or more cycles to plot dQ/dV.",
+    "dvdq": "Pick one or more cycles to plot dV/dQ.",
+}
+
+
 def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
     if not records:
         return collect._empty_figure_json(
@@ -83,25 +97,36 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
     cycles = tuple(sorted(set(spec.cycles)))
     if not cycles:
         return collect._empty_figure_json(
-            "Pick one or more cycles to plot the voltage curves.",
+            _CURVE_PROMPTS.get(spec.curve_kind, _CURVE_PROMPTS["voltage"]),
             figure_theme=spec.figure_theme,
         )
+    common = dict(
+        family_kind=_CURVE_FAMILIES.get(spec.curve_kind, "cycles"),
+        group_legend_muting=spec.group_legend_muting,
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
+        x_range=spec.x_range,
+        y_range=spec.y_range,
+        **collect.curve_layout_kwargs(spec.layout),
+    )
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        # Differentials come from collect_ica / collect_dva across the same
+        # cells and cycles, so mode/method (a cycles-curve idea) do not apply.
+        collect_fn = (
+            collect.ica_collection if spec.curve_kind == "dqdv" else collect.dva_collection
+        )
+        collection = collect_fn(
+            records, cycles=cycles, voltage_resolution=spec.voltage_resolution
+        )
+        # cellpy ≥2.1.2 picks the half-cycle in the plotter (#821).
+        return collect.figure_json(collection, direction=spec.direction, **common)
+
     collection = collect.cycles_collection(
         records, cycles=cycles, mode=spec.mode, method=spec.method
     )
     # cellpy cycles_plotter defaults x_unit="mAh/g" and ignores collection mode (#72).
     x_unit = CAPACITY_UNITS.get(spec.mode, CAPACITY_UNITS["gravimetric"])
-    return collect.figure_json(
-        collection,
-        family_kind="cycles",
-        layout=spec.layout,
-        group_legend_muting=spec.group_legend_muting,
-        figure_theme=spec.figure_theme,
-        color_scheme=spec.color_scheme,
-        x_unit=x_unit,
-        x_range=spec.x_range,
-        y_range=spec.y_range,
-    )
+    return collect.figure_json(collection, x_unit=x_unit, **common)
 
 
 def raw_figure(record: CellRecord, spec: RawPlotSpec) -> str:

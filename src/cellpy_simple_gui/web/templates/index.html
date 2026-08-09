@@ -413,11 +413,34 @@
           <aside class="plot-sidepane" aria-label="Cycles collector options">
             <h3 class="plot-sidepane-title">Collector</h3>
             <div class="ctl">
+              <label>Plot</label>
+              <select x-model="cycles.curveKind" @change="plotCycles()">
+                <option value="voltage">Voltage curves</option>
+                <option value="dqdv">dQ/dV (incremental capacity)</option>
+                <option value="dvdq">dV/dQ (differential voltage)</option>
+              </select>
+            </div>
+            <div class="ctl">
               <label>Layout</label>
               <select x-model="cycles.layout" @change="plotCycles()">
                 <option value="per_cycle">Per cycle</option>
                 <option value="per_cell">Per cell</option>
+                <option value="film">Film (density)</option>
               </select>
+            </div>
+            <div class="ctl" x-show="cyclesIsDifferential" x-cloak>
+              <label>Direction</label>
+              <select x-model="cycles.direction" @change="plotCycles()">
+                <option value="charge">Charge</option>
+                <option value="discharge">Discharge</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+            <div class="ctl" x-show="cyclesIsDifferential" x-cloak
+                 title="Voltage bin width for the dQ/dV or dV/dQ transform">
+              <label>V resolution</label>
+              <input type="number" class="num" step="0.001" min="0.001" max="0.5"
+                     x-model.number="cycles.voltageResolution" @change="plotCycles()" />
             </div>
             <label class="chk" title="Legend click mutes the whole journal group (on) or a single cell (off). Disabled for Per cell layout.">
               <input type="checkbox" x-model="cycles.group_legend_muting" :disabled="cycles.layout === 'per_cell'" @change="plotCycles()" /> Mute by group
@@ -434,7 +457,7 @@
               <label>max curves</label>
               <input type="number" class="num" x-model.number="cycles.maxCurves" min="1" max="40" @change="plotCycles()" />
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="!cyclesIsDifferential">
               <label>Mode</label>
               <select x-model="cycles.mode" @change="plotCycles()">
                 <option value="gravimetric">Gravimetric</option>
@@ -442,7 +465,7 @@
                 <option value="absolute">Absolute</option>
               </select>
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="!cyclesIsDifferential">
               <label>Method</label>
               <select x-model="cycles.method" @change="plotCycles()">
                 <option value="forth-and-forth">forth-and-forth</option>
@@ -451,7 +474,7 @@
               </select>
             </div>
             <div class="ctl yrange" title="Fixed x-axis range — set min, max, or both (blank end uses data extent)">
-              <label>Capacity x</label>
+              <label x-text="cyclesAxisLabels.x">Capacity x</label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
                        x-model="cycles.xRange.min" @change="plotCycles()" />
@@ -461,7 +484,7 @@
               </div>
             </div>
             <div class="ctl yrange" title="Fixed y-axis range — set min, max, or both (blank end uses data extent)">
-              <label>Voltage y</label>
+              <label x-text="cyclesAxisLabels.y">Voltage y</label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
                        x-model="cycles.yRange.min" @change="plotCycles()" />

@@ -79,6 +79,8 @@ function app() {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
       mode: "gravimetric", method: "forth-and-forth",
       group_legend_muting: true,
+      // dQ/dV & dV/dQ over the same selection (#95)
+      curveKind: "voltage", direction: "charge", voltageResolution: 0.005,
       xRange: { min: "", max: "" },
       yRange: { min: "", max: "" },
     },
@@ -231,6 +233,18 @@ function app() {
       if (this.cell.plotKind === "dqdv") return { x: "Voltage x", y: "dQ/dV y" };
       if (this.cell.plotKind === "dvdq") return { x: "Capacity x", y: "dV/dQ y" };
       if (this.cell.plotKind === "raw") return { x: "Time x", y: "Value y" };
+      return { x: "Capacity x", y: "Voltage y" };
+    },
+
+    get cyclesIsDifferential() {
+      // dQ/dV and dV/dQ in the Cycles pane (#95): they come from collect_ica /
+      // collect_dva, so mode/method do not apply but direction/resolution do,
+      // and the film rendering is available.
+      return this.cycles.curveKind === "dqdv" || this.cycles.curveKind === "dvdq";
+    },
+    get cyclesAxisLabels() {
+      if (this.cycles.curveKind === "dqdv") return { x: "Voltage x", y: "dQ/dV y" };
+      if (this.cycles.curveKind === "dvdq") return { x: "Capacity x", y: "dV/dQ y" };
       return { x: "Capacity x", y: "Voltage y" };
     },
 
@@ -726,6 +740,9 @@ function app() {
         cycles: this.buildCycleListFrom(this.cycles),
         mode: this.cycles.mode, method: this.cycles.method,
         layout: this.cycles.layout,
+        curve_kind: this.cycles.curveKind || "voltage",
+        direction: this.cycles.direction || "charge",
+        voltage_resolution: Number(this.cycles.voltageResolution) || 0.005,
         group_legend_muting: !!this.cycles.group_legend_muting,
         title: "",
         ...this.axisRangeFields(this.cycles),

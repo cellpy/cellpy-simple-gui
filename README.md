@@ -36,6 +36,8 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
   set of cycles (gravimetric / areal / absolute, method), with per-cell metric
   tiles. Switch the same cycles to **dQ/dV** (incremental capacity) or
   **dV/dQ** (differential voltage), charge / discharge / both.
+- **Cycles collector** — the same three curve types across *every selected
+  cell*, laid out per cycle or per cell, or as a **film** (density) plot.
 - **Load data lots of ways**: bundled demo cells, `.cellpy` / `.h5` files,
   **native cellpy batch journals** (`.json`), or your own **project folders** —
   with **glob patterns** (`*si*.h5`, capped at a configurable max) and, in the
