@@ -298,26 +298,11 @@ def _dva_spec(client):
     return {"cell_id": cell_id, "cycles": [1, 2], "direction": "both"}
 
 
-def test_dva_endpoints_hidden_without_dev_mode(client, monkeypatch):
-    """dV/dQ is a developer-mode view — refused, with a hint, when off."""
+def test_dva_endpoints_need_no_dev_mode(client, monkeypatch):
+    """dV/dQ is a regular Cell-explorer view (#94), like the dQ/dV beside it."""
     from cellpy_simple_gui.config import get_settings
 
     monkeypatch.delenv("CSG_DEV_MODE", raising=False)
-    get_settings.cache_clear()
-    try:
-        spec = _dva_spec(client)
-        for url in ("/api/plots/dva", "/api/export/dva?fmt=csv"):
-            r = client.post(url, json=spec)
-            assert r.status_code == 403, url
-            assert "developer mode" in r.json()["detail"].lower()
-    finally:
-        get_settings.cache_clear()
-
-
-def test_dva_endpoints_available_in_dev_mode(client, monkeypatch):
-    from cellpy_simple_gui.config import get_settings
-
-    monkeypatch.setenv("CSG_DEV_MODE", "1")
     get_settings.cache_clear()
     try:
         spec = _dva_spec(client)
@@ -329,6 +314,22 @@ def test_dva_endpoints_available_in_dev_mode(client, monkeypatch):
         assert data.status_code == 200
         assert data.content.decode().splitlines()[0].startswith("cycle,direction")
         assert "dva_" in data.headers.get("content-disposition", "")
+    finally:
+        get_settings.cache_clear()
+
+
+def test_dva_missing_cell_is_404_not_403(client, monkeypatch):
+    """Ungating must not turn an unknown cell into a permissions error."""
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        r = client.post(
+            "/api/plots/dva",
+            json={"cell_id": "nope", "cycles": [1], "direction": "both"},
+        )
+        assert r.status_code == 404
     finally:
         get_settings.cache_clear()
 

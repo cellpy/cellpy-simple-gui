@@ -16,7 +16,6 @@ from ...core.models import (
     IcaPlotSpec,
     SummaryPlotSpec,
 )
-from .plots import require_dev_mode
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -133,8 +132,7 @@ def export_ica(spec: IcaPlotSpec, fmt: str = "csv") -> Response:
 
 @router.post("/export/dva")
 def export_dva(spec: DvaPlotSpec, fmt: str = "csv") -> Response:
-    """dV/dQ data or figure for one cell — developer mode."""
-    require_dev_mode()
+    """dV/dQ data or figure for one cell (#94) — same access as dQ/dV."""
     fmt_l = fmt.lower()
     try:
         rec = get_library().get(spec.cell_id)

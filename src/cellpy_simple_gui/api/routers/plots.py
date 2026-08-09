@@ -127,19 +127,28 @@ def require_dev_mode() -> None:
         )
 
 
-def _dev_cell(cell_id: str):
-    """Resolve a cell for a developer-mode view."""
-    require_dev_mode()
+def _cell(cell_id: str):
+    """Resolve a cell for a per-cell view."""
     try:
         return get_library().get(cell_id)
     except KeyError:
         raise HTTPException(404, "No such cell")
 
 
+def _dev_cell(cell_id: str):
+    """Resolve a cell for a developer-mode view."""
+    require_dev_mode()
+    return _cell(cell_id)
+
+
 @router.post("/plots/dva")
 def dva_plot(spec: DvaPlotSpec) -> Response:
-    """Differential voltage (dV/dQ vs capacity) for one cell — developer mode."""
-    return _figure_response(plotting.dva_figure(_dev_cell(spec.cell_id), spec))
+    """Differential voltage (dV/dQ vs capacity) for one cell (#94).
+
+    A regular view, not a developer one: it rides the same ``collect_dva`` path
+    as ICA, so it is exactly as trustworthy as the dQ/dV it sits next to.
+    """
+    return _figure_response(plotting.dva_figure(_cell(spec.cell_id), spec))
 
 
 @router.post("/plots/raw")
