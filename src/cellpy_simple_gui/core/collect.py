@@ -610,6 +610,114 @@ def figure_json(
         )
 
 
+def raw_figure_json(
+    cell,
+    *,
+    plot_type: str = "voltage-current",
+    max_points: int = 4000,
+    figure_theme: str = "light",
+    color_scheme: str = "cellpy",
+    x_range=None,
+    y_range=None,
+) -> str:
+    """Raw time-series traces for one cell, via cellpy's ``raw_plot``.
+
+    Raw is the one family cellpy does not bound — it plots the whole frame, ~18
+    MiB of JSON for a single demo cell (cellpy #867). Thinned here for transport;
+    drop :func:`_thin_traces` once ``raw_plot`` grows a ``max_points`` knob.
+    """
+    from cellpy.utils.plotutils import raw_plot
+
+    try:
+        fig = raw_plot(cell, plot_type=plot_type, backend="plotly")
+        dropped = _thin_traces(fig, max_points)
+        _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
+        if dropped:
+            _note_thinning(fig, dropped)
+        return pio.to_json(fig)
+    except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
+        return _empty_figure_json(
+            f"Could not render raw data ({exc}).", figure_theme=figure_theme
+        )
+
+
+def cycle_info_figure_json(
+    cell,
+    *,
+    cycles: tuple[int, ...],
+    max_points: int = 4000,
+    figure_theme: str = "light",
+    color_scheme: str = "cellpy",
+) -> str:
+    """Raw traces annotated with step/cycle info, via cellpy's ``cycle_info_plot``."""
+    from cellpy.utils.plotutils import cycle_info_plot
+
+    try:
+        # get_axes=True is what returns the *figure* on the plotly backend;
+        # without it cycle_info_plot returns None.
+        fig = cycle_info_plot(
+            cell, cycle=list(cycles), backend="plotly", get_axes=True
+        )
+        if fig is None:
+            return _empty_figure_json(
+                "cellpy returned no cycle-info figure for this selection.",
+                figure_theme=figure_theme,
+            )
+        dropped = _thin_traces(fig, max_points)
+        _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        if dropped:
+            _note_thinning(fig, dropped)
+        return pio.to_json(fig)
+    except Exception as exc:  # noqa: BLE001
+        return _empty_figure_json(
+            f"Could not render cycle info ({exc}).", figure_theme=figure_theme
+        )
+
+
+def _thin_traces(fig, max_points: int) -> int:
+    """Keep about ``max_points`` per trace; return the largest stride applied.
+
+    Plain striding, deliberately: it is honest and cheap. Anything smarter
+    (min/max per bucket, which would preserve spikes) belongs upstream — see
+    cellpy #867.
+    """
+    if not max_points or max_points <= 0:
+        return 0
+    stride = 0
+    try:
+        import numpy as np
+
+        for tr in fig.data:
+            x = getattr(tr, "x", None)
+            if x is None or len(x) <= max_points:
+                continue
+            step = int(np.ceil(len(x) / max_points))
+            if step <= 1:
+                continue
+            stride = max(stride, step)
+            for attr in ("x", "y", "customdata", "text", "hovertext"):
+                value = getattr(tr, attr, None)
+                if value is not None and len(value) > max_points:
+                    setattr(tr, attr, np.asarray(value)[::step])
+    except Exception:  # noqa: BLE001 - a failed thin just means a big figure
+        log.warning("could not thin raw traces", exc_info=True)
+    return stride
+
+
+def _note_thinning(fig, stride: int) -> None:
+    """Say so on the chart — a silently thinned plot is a misleading one."""
+    try:
+        fig.add_annotation(
+            text=f"showing every {stride}ᵗʰ point",
+            xref="paper", yref="paper", x=1, y=1.04,
+            xanchor="right", yanchor="bottom",
+            showarrow=False, font=dict(size=10, color="#9aa5b1"),
+        )
+    except Exception:  # noqa: BLE001 - cosmetics stay best-effort
+        log.warning("could not annotate thinning", exc_info=True)
+
+
 def _variable_axis_map(fig) -> dict[str, tuple[str, str]]:
     """Map facet ``variable`` → ``(xaxis_id, yaxis_id)`` from base traces.
 

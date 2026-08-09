@@ -9,9 +9,11 @@ from ...config import get_settings
 from ...core import cellpy_adapter, collect, plotting
 from ...core.library import get_library
 from ...core.models import (
+    CycleInfoPlotSpec,
     CyclesPlotSpec,
     DvaPlotSpec,
     IcaPlotSpec,
+    RawPlotSpec,
     SummaryPlotSpec,
 )
 
@@ -125,13 +127,28 @@ def require_dev_mode() -> None:
         )
 
 
+def _dev_cell(cell_id: str):
+    """Resolve a cell for a developer-mode view."""
+    require_dev_mode()
+    try:
+        return get_library().get(cell_id)
+    except KeyError:
+        raise HTTPException(404, "No such cell")
+
+
 @router.post("/plots/dva")
 def dva_plot(spec: DvaPlotSpec) -> Response:
     """Differential voltage (dV/dQ vs capacity) for one cell — developer mode."""
-    require_dev_mode()
-    lib = get_library()
-    try:
-        rec = lib.get(spec.cell_id)
-    except KeyError:
-        raise HTTPException(404, "No such cell")
-    return _figure_response(plotting.dva_figure(rec, spec))
+    return _figure_response(plotting.dva_figure(_dev_cell(spec.cell_id), spec))
+
+
+@router.post("/plots/raw")
+def raw_plot(spec: RawPlotSpec) -> Response:
+    """Raw time-series traces for one cell — developer mode."""
+    return _figure_response(plotting.raw_figure(_dev_cell(spec.cell_id), spec))
+
+
+@router.post("/plots/cycle-info")
+def cycle_info_plot(spec: CycleInfoPlotSpec) -> Response:
+    """Raw traces with step/cycle annotations — developer mode."""
+    return _figure_response(plotting.cycle_info_figure(_dev_cell(spec.cell_id), spec))

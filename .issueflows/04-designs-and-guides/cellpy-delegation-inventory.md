@@ -115,6 +115,22 @@ against the installed package:
   shared path: multi-cell capable, polars export, app chrome via `figure_json`, and
   the pandas→polars conversion is gone.
 
+## Raw data views (developer mode)
+
+| Area | Decision |
+|------|----------|
+| Raw traces | **Delegated** — `plotutils.raw_plot(cell, plot_type=…)` |
+| Step/cycle annotations | **Delegated** — `plotutils.cycle_info_plot(cell, cycle=…)`; needs `get_axes=True` to return a *figure* on the plotly backend, otherwise it returns `None` |
+| Raw payload size | **App-owned (workaround)** — `_thin_traces` keeps ~`max_points` per trace and annotates the chart. Remove when [#867](https://github.com/jepegit/cellpy/issues/867) lands |
+| Raw data export | **Not added** — the figure is thinned, so exporting from it would mislead; `Export cells → csv` is the real raw source |
+
+`raw_plot` is the only family cellpy does not bound: `prepare_raw` copies the
+whole frame with no cycle filter and no thinning, giving **7–18 MiB** of figure
+JSON for one 155k-row demo cell. Thinning to 4000 points/trace brings `full`
+from 18.5 MiB to 482 KiB (~2.6%) with the curve shape intact. Plain striding is
+deliberate — anything smarter (min/max per bucket, which preserves spikes)
+belongs upstream, which is what #867 asks for.
+
 ## Still app-owned (no upstream yet / by design)
 
 - Discrete colorways + session figure-theme preference (#32)

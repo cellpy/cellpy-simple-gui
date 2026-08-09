@@ -539,17 +539,19 @@
                 <option value="curves">Voltage curves</option>
                 <option value="dqdv">dQ/dV</option>
                 <option value="dvdq" x-show="devMode">dV/dQ (differential voltage)</option>
+                <option value="raw" x-show="devMode">Raw traces</option>
+                <option value="cycleinfo" x-show="devMode">Raw + step/cycle info</option>
               </select>
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="cell.plotKind !== 'raw'">
               <label>Cycles from</label>
               <input type="number" class="num" x-model.number="cell.from" :min="cell.min" :max="cell.max" @change="plotCell()" />
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="cell.plotKind !== 'raw'">
               <label>to</label>
               <input type="number" class="num" x-model.number="cell.to" :min="cell.min" :max="cell.max" @change="plotCell()" />
             </div>
-            <div class="ctl">
+            <div class="ctl" x-show="cell.plotKind !== 'raw'">
               <label>max curves</label>
               <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
             </div>
@@ -569,6 +571,22 @@
                 <option value="forth">forth</option>
               </select>
             </div>
+            <div class="ctl" x-show="cell.plotKind === 'raw'">
+              <label>Raw view</label>
+              <select x-model="cell.rawPlotType" @change="plotCell()">
+                <option value="voltage-current">Voltage + current</option>
+                <option value="raw">Raw columns</option>
+                <option value="capacity">Capacity</option>
+                <option value="capacity-current">Capacity + current</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
+            <div class="ctl" x-show="cellIsRawKind"
+                 title="cellpy plots the whole raw frame; the app thins it for the browser">
+              <label>Max points</label>
+              <input type="number" class="num" x-model.number="cell.maxPoints"
+                     min="100" max="100000" step="500" @change="plotCell()" />
+            </div>
             <div class="ctl" x-show="cellUsesIcaOptions">
               <label>V resolution</label>
               <input type="number" class="num" x-model.number="cell.voltageResolution" min="0.0001" step="0.001" @change="plotCell()" />
@@ -581,7 +599,7 @@
                 <option value="both">Both</option>
               </select>
             </div>
-            <div class="ctl yrange" title="Fixed x-axis range — set min, max, or both (blank end uses data extent)">
+            <div class="ctl yrange" x-show="cell.plotKind !== 'cycleinfo'" title="Fixed x-axis range — set min, max, or both (blank end uses data extent)">
               <label x-text="cellAxisLabels.x"></label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
@@ -591,7 +609,7 @@
                        x-model="cell.xRange.max" @change="plotCell()" />
               </div>
             </div>
-            <div class="ctl yrange" title="Fixed y-axis range — set min, max, or both (blank end uses data extent)">
+            <div class="ctl yrange" x-show="cell.plotKind !== 'cycleinfo'" title="Fixed y-axis range — set min, max, or both (blank end uses data extent)">
               <label x-text="cellAxisLabels.y"></label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
