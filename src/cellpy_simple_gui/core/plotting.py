@@ -106,11 +106,14 @@ def dva_figure(record: CellRecord, spec: DvaPlotSpec) -> str:
             "Pick one or more cycles to plot dV/dQ.",
             figure_theme=spec.figure_theme,
         )
-    return collect.dva_figure_json(
-        record.cell,
-        cycles=cycles,
+    collection = collect.dva_collection(
+        [record], cycles=cycles, voltage_resolution=spec.voltage_resolution
+    )
+    return collect.figure_json(
+        collection,
+        family_kind="dva",
+        layout="per_cell",
         direction=spec.direction,
-        voltage_resolution=spec.voltage_resolution,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         x_range=spec.x_range,

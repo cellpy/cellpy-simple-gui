@@ -192,7 +192,7 @@ wheels = [
 
 [[package]]
 name = "cellpy"
-version = "2.1.2a3"
+version = "2.1.2a4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cellpycore" },
@@ -227,9 +227,9 @@ dependencies = [
     { name = "universal-pathlib" },
     { name = "xmltodict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/cf/616670adc7b1c9580b4bf2391bd45559a78b31309644d9b5e6c3bb689022/cellpy-2.1.2a3.tar.gz", hash = "sha256:ee115138fffa2dbbcf7cdad29982f8dd3a7dbd48880b0acd7a2852593d16acfa", size = 4624475, upload-time = "2026-08-09T11:10:14.018Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/15/48/2907f6881be911468719fddc5e693f49131ec5020d9162036a1427a3272d/cellpy-2.1.2a4.tar.gz", hash = "sha256:684ed00700e4ddb6d1cd1f80f4d993b5d6982c15f31009c8082cbcbccc28ee03", size = 4631911, upload-time = "2026-08-09T17:16:26.071Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/f1/18a96bb142c645595084c97316404da510552086ef2d539413e532cb1c5f/cellpy-2.1.2a3-py3-none-any.whl", hash = "sha256:f381b924f7cf24ead0bbc27be8e1fb68492602304214d0585510850532899e98", size = 587733, upload-time = "2026-08-09T11:10:11.895Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/83/5bd5a70791258cb47fcbf83e4dbbbefa08a20348adc47fa94a575a368071/cellpy-2.1.2a4-py3-none-any.whl", hash = "sha256:5ef94e62d1435197ba426b3f47adeb9a3e4d2d5a3c923814922e7fef2bfdafdd", size = 589387, upload-time = "2026-08-09T17:16:23.458Z" },
 ]
 
 [[package]]
@@ -272,7 +272,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cellpy", specifier = ">=2.1.2a3" },
+    { name = "cellpy", specifier = ">=2.1.2a4" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },

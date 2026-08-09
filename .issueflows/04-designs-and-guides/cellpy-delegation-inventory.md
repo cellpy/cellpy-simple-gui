@@ -1,6 +1,6 @@
 # cellpy delegation inventory (issue #52)
 
-Against **cellpy 2.1.2a3** (post7 → 2.1.2a2 → 2.1.2a3). Goal: prefer cellpy APIs;
+Against **cellpy 2.1.2a4** (post7 → 2.1.2a2 → a3 → a4). Goal: prefer cellpy APIs;
 keep only app chrome that cellpy still does not own.
 
 ## Release-gating note (resolved for #816/#818/#819)
@@ -93,6 +93,27 @@ that closed ≠ released):
 machine's layout into a portable project, and omitting `instruments`/`db` means
 the written file *structurally* cannot contain a credential — independent of
 cellpy's own dump scrubbing.
+
+## Incremental analysis (ICA / DVA)
+
+| Area | Decision |
+|------|----------|
+| ICA collection + `direction` | **Delegated** — `collect_ica` + `ica_plotter` (#821) |
+| DVA collection | **Delegated** — `collect_dva` (#863, new in 2.1.2a4). Before that DVA was single-cell only and the app drove `dva_plot` directly |
+| DVA `both` half-cycle marking | **Delegated** — cellpy labels `"<cycle>, charge/discharge"` and dashes them (#862, 2.1.2a4). App-side marking **removed** |
+| Export direction | **App-owned** — `select_ica_direction` slices exported rows to match the chart; shared by ICA and DVA |
+
+Both were filed while building the DVA view and shipped in **2.1.2a4**, verified
+against the installed package:
+
+- **[#862](https://github.com/jepegit/cellpy/issues/862)** — `dva_plot(direction="both")`
+  drew both half-cycles identically (same colour, same name, no dash), so a static
+  export read as one doubled-back curve. Now solid/dot.
+- **[#863](https://github.com/jepegit/cellpy/issues/863)** — there was no `collect_dva`,
+  making DVA the only family that could not span cells. `collect_dva(batch, options)`
+  now returns a `Collection` like its siblings, so the app's DVA view moved onto the
+  shared path: multi-cell capable, polars export, app chrome via `figure_json`, and
+  the pandas→polars conversion is gone.
 
 ## Still app-owned (no upstream yet / by design)
 

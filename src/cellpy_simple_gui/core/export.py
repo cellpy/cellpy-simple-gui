@@ -94,13 +94,14 @@ def ica_figure_export(
 
 
 def dva_export(record: CellRecord, spec: DvaPlotSpec, fmt: str) -> tuple[bytes, str]:
-    frame = collect.dva_frame(
-        record.cell,
+    collection = collect.dva_collection(
+        [record],
         cycles=tuple(sorted(set(spec.cycles))),
-        direction=spec.direction,
         voltage_resolution=spec.voltage_resolution,
     )
-    return collect.export_frame_bytes(frame, fmt)
+    # Same as ICA: charge/discharge slice the rows, "both" keeps them all.
+    collection = collect.select_ica_direction(collection, spec.direction)
+    return collect.export_bytes(collection, fmt)
 
 
 def dva_figure_export(
