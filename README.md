@@ -33,7 +33,9 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
   optional group averaging with a mean ± std spread band, and independent or
   shared y-scales.
 - **Cell explorer** — cellpy's `collect_cycles` voltage–capacity curves for any
-  set of cycles (gravimetric / areal / absolute, method), with per-cell metric tiles.
+  set of cycles (gravimetric / areal / absolute, method), with per-cell metric
+  tiles. Switch the same cycles to **dQ/dV** (incremental capacity) or
+  **dV/dQ** (differential voltage), charge / discharge / both.
 - **Load data lots of ways**: bundled demo cells, `.cellpy` / `.h5` files,
   **native cellpy batch journals** (`.json`), or your own **project folders** —
   with **glob patterns** (`*si*.h5`, capped at a configurable max) and, in the
@@ -94,11 +96,10 @@ builds — CV splits, the full-cell standards — are offered rather than hidden
 also raises the glob/batch file cap (10 → 500) for stress-testing. A **DEV**
 badge marks the session.
 
-Three extra Cell-explorer views appear alongside voltage curves and dQ/dV:
+Two extra Cell-explorer views appear alongside the regular ones:
 
 | View | What it shows |
 |---|---|
-| **dV/dQ** | Differential voltage vs capacity — the sibling of dQ/dV |
 | **Raw traces** | The raw time series (voltage/current/capacity, or all of it) |
 | **Raw + step/cycle info** | Raw traces annotated with step and cycle boundaries |
 
