@@ -43,7 +43,9 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
     columns = collect.summary_columns_for(spec.plot_type, spec.basis, records)
     if not columns:
         raise ValueError("This cellpy plot family declares no summary columns.")
-    missing = collect.missing_summary_columns(columns, records)
+    missing = collect.missing_summary_columns(
+        collect.summary_required_columns(spec.plot_type, spec.basis, records), records
+    )
     if missing:
         raise ValueError("These cells have no " + ", ".join(missing) + ".")
     # cellpy ≥2.1.2 returns one collection that averages multi-member groups
@@ -53,6 +55,7 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
         columns=columns,
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
+        options=collect.summary_options_for(spec.plot_type, records),
     )
     return collect.export_bytes(collection, fmt)
 

@@ -1,7 +1,10 @@
 # cellpy delegation inventory (issue #52)
 
-Against **cellpy 2.1.2a4** (post7 → 2.1.2a2 → a3 → a4). Goal: prefer cellpy APIs;
-keep only app chrome that cellpy still does not own.
+Against **cellpy 2.1.2** (post7 → 2.1.2a2 → a3 → a4 → 2.1.2). Goal: prefer cellpy
+APIs; keep only app chrome that cellpy still does not own.
+
+As of 2.1.2 **no issue filed from this project is still open**, and no app code
+remains that exists solely to work around one.
 
 ## Release-gating note (resolved for #816/#818/#819)
 
@@ -121,15 +124,31 @@ against the installed package:
 |------|----------|
 | Raw traces | **Delegated** — `plotutils.raw_plot(cell, plot_type=…)` |
 | Step/cycle annotations | **Delegated** — `plotutils.cycle_info_plot(cell, cycle=…)`; needs `get_axes=True` to return a *figure* on the plotly backend, otherwise it returns `None` |
-| Raw payload size | **App-owned (workaround)** — `_thin_traces` keeps ~`max_points` per trace and annotates the chart. Remove when [#867](https://github.com/jepegit/cellpy/issues/867) lands |
-| Raw data export | **Not added** — the figure is thinned, so exporting from it would mislead; `Export cells → csv` is the real raw source |
+| Raw payload size | **Delegated** — `raw_plot(cell, max_points=…, cycles=…)` (#867, 2.1.2). `_thin_traces` and its striding are **removed** |
+| Raw downsampling notice | **App-owned** — `raw_plot` downsamples silently, so the app reads the drawn point count off the figure and annotates *"showing N of M points"* |
+| Cycle-info payload size | **Not needed** — bounded by the cycle selection (one ~1.5k-point trace per cycle), so `CycleInfoPlotSpec.max_points` was dropped rather than reimplemented |
+| Raw data export | **Not added** — the figure is downsampled, so exporting from it would mislead; `Export cells → csv` is the real raw source |
 
-`raw_plot` is the only family cellpy does not bound: `prepare_raw` copies the
-whole frame with no cycle filter and no thinning, giving **7–18 MiB** of figure
-JSON for one 155k-row demo cell. Thinning to 4000 points/trace brings `full`
-from 18.5 MiB to 482 KiB (~2.6%) with the curve shape intact. Plain striding is
-deliberate — anything smarter (min/max per bucket, which preserves spikes)
-belongs upstream, which is what #867 asks for.
+`raw_plot` used to be the only family cellpy did not bound: `prepare_raw` copied
+the whole frame, giving **7.35 MiB** of figure JSON for one 155k-row demo cell.
+2.1.2 added `max_points` (and `cycles`), taking that to **0.18 MiB**. The app
+computes its annotation from the actual trace length rather than assuming a
+stride, so the label stays correct whatever downsampling cellpy uses.
+
+## Summary plot families
+
+| Area | Decision |
+|------|----------|
+| Which families belong in the summary menu | **Delegated** — `registry.families(entry_point="summary_plot")` (2.1.2). Previously the app listed all 25, including `raw`/`ica`/`dva`/`cycle_info`/`cycles`, which have their own tabs |
+| Collect options per family | **Delegated** — `family.summary_options(hdr)` (#868, 2.1.2) carries `partition_by_cv` and the transforms. The app layers only `group_it` / `max_cycle` on top |
+| Availability check | **Delegated inputs** — compares `summary_options().columns` (what the family asks the summary for) against the loaded data, *not* `family.columns()` (what it draws, including collect-built `*_cv` and `mod_01_*`) |
+
+This is the fix for [cellpy-simple-gui#106](https://github.com/cellpy/cellpy-simple-gui/issues/106):
+judging availability on the drawn names made every CV-split and full-cell family
+report "your data is missing columns" when the app had simply never asked for
+them. Measured on the demo cells: **8 of 25 selectable → 15 of 20**, all
+rendering real traces. The app no longer holds any table of which family needs
+which option.
 
 ## Still app-owned (no upstream yet / by design)
 

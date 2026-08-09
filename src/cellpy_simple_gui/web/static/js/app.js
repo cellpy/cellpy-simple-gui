@@ -806,7 +806,6 @@ function app() {
       return {
         cell_id: this.cell.cell_id,
         cycles: this.buildCycleListFrom(this.cell),
-        max_points: this._num(this.cell.maxPoints) || 4000,
         ...this.appearanceFields(),
       };
     },

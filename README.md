@@ -85,11 +85,14 @@ run --dev                 # or set CSG_DEV_MODE=1
 ```
 
 The regular UI shows a curated set of plot types, because cellpy registers far
-more than are useful on any one dataset. Developer mode adds **every family
-cellpy registers**, grouped by whether the loaded cells can actually plot them —
-the rest are listed but disabled, showing which summary columns are missing
-rather than rendering a blank chart. It also raises the glob/batch file cap
-(10 → 500) for stress-testing. A **DEV** badge marks the session.
+more than are useful on any one dataset. Developer mode adds **every summary
+family cellpy registers**, grouped by whether the loaded cells can actually plot
+them — the rest are listed but disabled, showing which summary columns are
+missing rather than rendering a blank chart. Availability comes from cellpy
+itself (`family.summary_options()`), so families whose columns the *collector*
+builds — CV splits, the full-cell standards — are offered rather than hidden. It
+also raises the glob/batch file cap (10 → 500) for stress-testing. A **DEV**
+badge marks the session.
 
 Three extra Cell-explorer views appear alongside voltage curves and dQ/dV:
 
@@ -99,11 +102,11 @@ Three extra Cell-explorer views appear alongside voltage curves and dQ/dV:
 | **Raw traces** | The raw time series (voltage/current/capacity, or all of it) |
 | **Raw + step/cycle info** | Raw traces annotated with step and cycle boundaries |
 
-cellpy plots the *entire* raw frame — around 18 MiB of figure JSON for a single
-demo cell ([cellpy#867](https://github.com/jepegit/cellpy/issues/867)) — so the
-raw views thin the traces before sending them to the browser and say so on the
-chart (*"showing every 39ᵗʰ point"*). **Max points** controls the cap. For raw
-*data* rather than a picture, use **Export cells → csv**.
+Raw data is big — 155k rows for a single demo cell — so **Max points** caps what
+is drawn (cellpy does the downsampling itself since 2.1.2,
+[#867](https://github.com/jepegit/cellpy/issues/867)) and the chart says when it
+applied: *"showing 1,882 of 155,754 points"*. For raw *data* rather than a
+picture, use **Export cells → csv**.
 
 Clicking the **DEV** badge opens **Diagnostics**:
 
