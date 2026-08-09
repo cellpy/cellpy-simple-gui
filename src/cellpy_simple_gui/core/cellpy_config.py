@@ -16,10 +16,20 @@ are masked, because a legacy ``SQL_PWD`` can still ride along in the live config
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
 log = logging.getLogger(__name__)
+
+#: A project may carry its own cellpy settings next to ``project.json``.
+PROJECT_CONFIG_FILENAME = "cellpy.toml"
+
+# Activating a project config swaps cellpy's *process-global* session, so it is
+# serialised here and must only be driven from the request thread — never from a
+# job worker (cellpy #850: the config session is not thread-safe).
+_config_lock = threading.RLock()
+_active_project_config: Path | None = None
 
 #: Sections rendered expanded first — the ones support questions are about.
 PRIMARY_SECTIONS = ("paths", "units")
@@ -39,6 +49,83 @@ _SECRET_ENV_VARS = (
     "CELLPY_HOST",
     "CELLPY_USER",
 )
+
+
+# --------------------------------------------------------------------------- #
+# Per-project cellpy settings
+# --------------------------------------------------------------------------- #
+
+
+def project_config_path(project_dir: str | Path) -> Path:
+    """Where a project's own cellpy settings live."""
+    return Path(project_dir) / PROJECT_CONFIG_FILENAME
+
+
+def active_project_config() -> Path | None:
+    """The project ``cellpy.toml`` this app activated, if any."""
+    with _config_lock:
+        return _active_project_config
+
+
+def activate_project_config(project_dir: str | Path) -> Path | None:
+    """Make ``<project>/cellpy.toml`` cellpy's project layer.
+
+    A project can pin the settings its data was analysed with — ``reader``
+    (cycle mode, interpolation), ``units``, ``defaults`` — so reopening it later
+    reproduces the same numbers instead of silently re-interpreting the data
+    under whatever the user's global config happens to say now.
+
+    Returns the activated path, or ``None`` when the project has no config (in
+    which case any previously active one is dropped, so projects never leak
+    settings into each other).
+
+    Call from the request thread *before* loading cells, so the load happens
+    under the project's settings — and never from a job worker (cellpy #850).
+    """
+    global _active_project_config
+
+    path = project_config_path(project_dir)
+    with _config_lock:
+        if not path.is_file():
+            if _active_project_config is not None:
+                log.info("Project has no %s — reverting to user config", PROJECT_CONFIG_FILENAME)
+            _deactivate_locked()
+            return None
+        try:
+            from cellpy import config
+            from cellpy.config.loader import LoadOptions
+
+            config.set_load_options(LoadOptions(project_config_file=path))
+            config.reload()
+        except Exception:  # noqa: BLE001 - a bad project config must not block opening
+            log.warning("Could not activate project config %s", path, exc_info=True)
+            _deactivate_locked()
+            return None
+        _active_project_config = path
+        log.info("Activated project cellpy config: %s", path)
+        return path
+
+
+def deactivate_project_config() -> None:
+    """Drop any project layer — back to user config + environment."""
+    with _config_lock:
+        _deactivate_locked()
+
+
+def _deactivate_locked() -> None:
+    global _active_project_config
+
+    if _active_project_config is None:
+        return
+    try:
+        from cellpy import config
+
+        config.set_load_options(None)
+        config.reload()
+    except Exception:  # noqa: BLE001
+        log.warning("Could not restore the user cellpy config", exc_info=True)
+    finally:
+        _active_project_config = None
 
 
 def _is_secretish(key: str) -> bool:
@@ -113,12 +200,18 @@ def _discovery() -> dict[str, Any]:
     info["user_config_path"] = str(user_file)
     info["user_config_exists"] = user_file.is_file()
 
-    project_file = None
-    try:
-        project_file = find_project_config_file()
-    except Exception:  # noqa: BLE001
-        log.warning("project cellpy.toml lookup failed", exc_info=True)
+    # An open project's config wins; otherwise cellpy walks up from the cwd.
+    active = active_project_config()
+    project_file = active
+    if project_file is None:
+        try:
+            project_file = find_project_config_file()
+        except Exception:  # noqa: BLE001
+            log.warning("project cellpy.toml lookup failed", exc_info=True)
     info["project_config_path"] = str(project_file) if project_file else None
+    info["project_config_source"] = (
+        "project" if active else ("discovered" if project_file else None)
+    )
 
     legacy_file = None
     if not info["user_config_exists"]:
@@ -157,7 +250,13 @@ def _warnings(discovery: dict[str, Any], layer_counts: dict[str, int]) -> list[s
             "No user cellpy.toml found — cellpy is running on built-in defaults, "
             f"so data is read from and written under {Path.home()}."
         )
-    if discovery["project_config_path"]:
+    if discovery.get("project_config_source") == "project":
+        out.append(
+            "This project carries its own cellpy settings "
+            f"({discovery['project_config_path']}); they override your user config "
+            "while the project is open."
+        )
+    elif discovery["project_config_path"]:
         out.append(
             "A project cellpy.toml was found next to the working directory "
             f"({discovery['project_config_path']}); its settings override your user config."

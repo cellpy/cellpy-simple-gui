@@ -70,7 +70,8 @@ cellpy 2.1.2 replaced `parameters.prms` with a layered pydantic-settings stack:
 | Reading resolved settings | **Delegated** — `core/cellpy_config.diagnostics()` wraps `get_config()` + `sources()` |
 | Showing where a value came from | **Delegated** — provenance layer badges in the config panel |
 | Writing cellpy's **user** config | **Never** — that file is shared with the user's notebooks/CLI; only `cellpy setup` writes it |
-| Writing a **project** `cellpy.toml` | **Not yet** — the natural next step for per-project paths (`LoadOptions(project_config_file=…)`) |
+| Reading a **project** `cellpy.toml` | **Delegated** — `activate_project_config()` pins it via `LoadOptions(project_config_file=…)` on project open |
+| Writing a **project** `cellpy.toml` | **Not yet** — users author it by hand; a "pin current settings" action must scrub `instruments.*.SQL_*` first (#849) |
 | Credentials | **Never surfaced** — `secrets` section skipped; credential-ish instrument keys masked (#849) |
 | Per-job overrides | **Avoid `config.override()` in worker threads** — it is process-global and races (#850). Resolve on the main thread, pass concrete values into jobs |
 
