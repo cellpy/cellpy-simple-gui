@@ -96,6 +96,7 @@ function app() {
     cellpyConfigError: "",
     cellpyConfig: null,
     projectCellpyConfig: "", // set when the open project carries its own cellpy.toml
+    cellpyConfigPinning: false,
 
     // ---- lifecycle ----
     async init() {
@@ -485,6 +486,24 @@ function app() {
         this.cellpyConfigError = `Could not read the cellpy configuration: ${e.message || e}`;
       } finally {
         this.cellpyConfigLoading = false;
+      }
+    },
+    async pinProjectConfig() {
+      if (!this.project || this.cellpyConfigPinning) return;
+      if (
+        this.projectCellpyConfig &&
+        !window.confirm(`Overwrite the cellpy settings already pinned to “${this.project}”?`)
+      ) return;
+      this.cellpyConfigPinning = true;
+      try {
+        const r = await (await api("/api/projects/pin-config", { method: "POST" })).json();
+        this.projectCellpyConfig = r.current?.cellpy_config || "";
+        this.notify("ok", `Pinned ${r.sections.join(", ")} to “${this.project}”.`);
+        await this.openCellpyConfig(); // re-read so the layer badges update
+      } catch (e) {
+        this.notify("error", e.message || "Could not pin the settings.");
+      } finally {
+        this.cellpyConfigPinning = false;
       }
     },
     async updateCell(id, patch, { plot = true } = {}) {

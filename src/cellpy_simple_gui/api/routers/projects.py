@@ -87,6 +87,27 @@ def open_project(target: str = Body(..., embed=True)) -> dict:
     }
 
 
+@router.post("/projects/pin-config")
+def pin_config() -> dict:
+    """Write the current cellpy settings into the open project and activate them."""
+    lib = get_library()
+    if not lib.project_path:
+        raise HTTPException(
+            400, "Save or open a project first — settings are pinned to a project folder."
+        )
+    try:
+        path = cellpy_config.pin_project_config(lib.project_path)
+    except Exception as exc:  # noqa: BLE001 - surface the reason to the user
+        log.error("Pinning cellpy settings failed: %s", exc, exc_info=True)
+        raise HTTPException(500, f"Could not pin settings: {exc}") from exc
+    log.info("Pinned cellpy settings to project “%s”", lib.project_name)
+    return {
+        "path": str(path),
+        "sections": list(cellpy_config.PINNED_SECTIONS),
+        "current": _current_state(lib),
+    }
+
+
 @router.post("/projects/classify-import")
 def classify_import(path: str = Body(..., embed=True)) -> dict:
     """Return whether a path is a portable project or a batch journal (#75)."""
