@@ -42,8 +42,8 @@ of the 2.1.2a2 cleanup.
 | ICA `direction` (line + both) | #821 | yes | **Delegated** — `ica_plotter` selects the half-cycle (charge/discharge/both); app `_filter_ica_by_direction` removed. Export mirrors the chart via `select_ica_direction`; UI has a "Both" option |
 | Summary facet `category_orders` | §20 open, unfiled | n/a | **Keep forwarding** (#81) |
 | Cycles plot `x_unit` vs collect mode | §17 open, unfiled | n/a | **Keep forwarding** (#72) |
-| Non-atomic `.cellpy` writes | **#845 filed** | n/a | App stages project saves; single-file save still at cellpy's mercy |
-| Selective summary rebuild | **#846 filed** | n/a | App full `make_summary()` after meta edits |
+| Non-atomic `.cellpy` writes | #845 ✅ 2.1.2a4 | yes | **Delegated** — cellpy writes atomically (`cellpy_file/atomic.py`). App keeps project-folder staging: that covers a wider unit (many cells + manifest) |
+| Selective summary rebuild | #846 ✅ 2.1.2a4 | yes | **Delegated** — `apply_physical_meta` calls `CellpyCell.refresh_after(fields=…)` instead of a full `make_summary()` |
 
 ## Removed in the 2.1.2a2 cleanup
 

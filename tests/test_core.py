@@ -1529,3 +1529,43 @@ def test_thin_traces_leaves_small_figures_alone(loaded_library):
     fig = json.loads(plotting.ica_figure(rec, IcaPlotSpec(cell_id=rec.id, cycles=[1])))
     notes = " ".join(a.get("text", "") for a in fig["layout"].get("annotations") or [])
     assert "every" not in notes
+
+
+def test_meta_edit_uses_selective_refresh(example_cell, monkeypatch):
+    """cellpy #846: prefer refresh_after over a full make_summary rebuild."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    calls = {"refresh": 0, "full": 0}
+    cell = example_cell
+    assert hasattr(cell, "refresh_after"), "cellpy >=2.1.2a4 should provide it"
+
+    real_refresh = cell.refresh_after
+    monkeypatch.setattr(
+        type(cell), "refresh_after",
+        lambda self, fields=None, **kw: (calls.__setitem__("refresh", calls["refresh"] + 1),
+                                         real_refresh(fields=fields, **kw))[1],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        type(cell), "make_summary",
+        lambda self, *a, **k: calls.__setitem__("full", calls["full"] + 1),
+        raising=False,
+    )
+    changed = cellpy_adapter.apply_physical_meta(cell, mass=2.0)
+    assert changed == ["mass"]
+    assert calls["refresh"] == 1 and calls["full"] == 0
+
+
+def test_meta_edit_falls_back_without_refresh_after(example_cell, monkeypatch):
+    """Older cellpy has no refresh_after — must still rebuild the summary."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    calls = {"full": 0}
+    monkeypatch.delattr(type(example_cell), "refresh_after", raising=False)
+    monkeypatch.setattr(
+        type(example_cell), "make_summary",
+        lambda self, *a, **k: calls.__setitem__("full", calls["full"] + 1),
+        raising=False,
+    )
+    cellpy_adapter.apply_physical_meta(example_cell, mass=2.5)
+    assert calls["full"] == 1

@@ -489,12 +489,23 @@ def export_cell_csv(cell: Any, datadir: str | Path) -> list[Path]:
     return sorted(p for p in dest.rglob("*") if p.is_file())
 
 
-def _remake_summary(cell: Any, what: str) -> None:
-    """Best-effort ``make_summary`` after a physical meta change."""
+def _remake_summary(cell: Any, changed: list[str]) -> None:
+    """Refresh the summary after a physical meta change.
+
+    cellpy ≥2.1.2a4 exposes ``refresh_after`` (#846), which recomputes only the
+    meta-dependent (scaled / equivalent-cycle) columns instead of rebuilding the
+    whole cycle-end table. It falls back to ``make_summary`` itself when there is
+    no summary yet, so this is a straight upgrade over the old full rebuild.
+    """
+    what = "+".join(changed)
+    refresh = getattr(cell, "refresh_after", None)
     try:
-        cell.make_summary()
+        if callable(refresh):
+            refresh(fields=changed)
+        else:  # cellpy < 2.1.2a4
+            cell.make_summary()
     except Exception:  # noqa: BLE001
-        log.warning("Could not remake summary after %s change", what, exc_info=True)
+        log.warning("Could not refresh summary after %s change", what, exc_info=True)
 
 
 def apply_physical_meta(
@@ -506,10 +517,10 @@ def apply_physical_meta(
     nom_cap_specifics: str | None = None,
     cycle_mode: str | None = None,
 ) -> list[str]:
-    """Assign physical meta knobs and remake the summary once.
+    """Assign physical meta knobs and refresh the summary once.
 
-    Returns the names of fields that were applied. cellpy has no selective
-    summary rebuild API — every change triggers a full ``make_summary()``.
+    Returns the names of fields that were applied. The refresh is selective as
+    of cellpy 2.1.2a4 (#846) — see :func:`_remake_summary`.
     """
     changed: list[str] = []
     with warnings.catch_warnings():
@@ -530,7 +541,7 @@ def apply_physical_meta(
             cell.cycle_mode = cycle_mode
             changed.append("cycle_mode")
         if changed:
-            _remake_summary(cell, "+".join(changed))
+            _remake_summary(cell, changed)
     return changed
 
 
