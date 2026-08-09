@@ -9,7 +9,14 @@ from fastapi.responses import Response
 
 from ...core import collect, export as export_core
 from ...core.library import get_library
-from ...core.models import CellsExportSpec, CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from ...core.models import (
+    CellsExportSpec,
+    CyclesPlotSpec,
+    DvaPlotSpec,
+    IcaPlotSpec,
+    SummaryPlotSpec,
+)
+from .plots import require_dev_mode
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -121,6 +128,28 @@ def export_ica(spec: IcaPlotSpec, fmt: str = "csv") -> Response:
         return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
     fmt_l = _check_data_fmt(fmt_l)
     data, media = export_core.ica_export(rec, spec, fmt_l)
+    return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
+
+
+@router.post("/export/dva")
+def export_dva(spec: DvaPlotSpec, fmt: str = "csv") -> Response:
+    """dV/dQ data or figure for one cell — developer mode."""
+    require_dev_mode()
+    fmt_l = fmt.lower()
+    try:
+        rec = get_library().get(spec.cell_id)
+    except KeyError:
+        raise HTTPException(404, "No such cell")
+    name = f"dva_{(rec.label or rec.name)}".replace(" ", "_")
+    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+        fmt_l = _check_figure_fmt(fmt_l)
+        try:
+            data, media = export_core.dva_figure_export(rec, spec, fmt_l)
+        except export_core.FigureExportError as exc:
+            raise _figure_http(exc) from exc
+        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+    fmt_l = _check_data_fmt(fmt_l)
+    data, media = export_core.dva_export(rec, spec, fmt_l)
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
 
 

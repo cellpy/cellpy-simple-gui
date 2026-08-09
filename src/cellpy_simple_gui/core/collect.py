@@ -127,6 +127,10 @@ def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
         return []
 
     hdr, available = _summary_schema(records)
+    # Without a loaded cell there is no summary header to resolve column names
+    # against, so availability is unknown — say that rather than implying the
+    # data lacks the columns.
+    no_cells = hdr is None
     out: list[dict] = []
     for name, description in registry.families():
         entry: dict = {
@@ -145,7 +149,9 @@ def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
         missing = [c for c in columns if available is not None and c not in available]
         entry["columns"] = columns
         entry["missing"] = missing
-        if not columns:
+        if no_cells:
+            entry["unavailable_reason"] = "load cells to see whether this family applies"
+        elif not columns:
             entry["unavailable_reason"] = "this family declares no summary columns"
         elif missing:
             entry["unavailable_reason"] = "missing " + ", ".join(missing)
@@ -154,19 +160,25 @@ def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
 
 
 def _summary_schema(records: list[CellRecord] | None):
-    """``(header, available_columns)`` from the loaded cells, or ``(None, None)``."""
+    """``(header, available_columns)`` across the loaded cells, or ``(None, None)``.
+
+    Columns are unioned rather than taken from the first cell: a collected plot
+    spans the whole selection, so one odd cell should not make a family look
+    unplottable for the rest.
+    """
+    hdr = None
+    available: set[str] | None = None
     for rec in records or []:
         try:
-            return rec.cell.schema.summary, set(rec.cell.data.summary.columns)
+            hdr = hdr if hdr is not None else rec.cell.schema.summary
         except Exception:  # noqa: BLE001 - try the next cell
             continue
-    # No cells loaded yet: resolve names from the schema, availability unknown.
-    for rec in records or []:
         try:
-            return rec.cell.schema.summary, None
-        except Exception:  # noqa: BLE001
+            cols = set(rec.cell.data.summary.columns)
+        except Exception:  # noqa: BLE001 - schema known, summary not readable
             continue
-    return None, None
+        available = cols if available is None else (available | cols)
+    return hdr, available
 
 
 def missing_summary_columns(
@@ -577,6 +589,92 @@ def figure_json(
         return _empty_figure_json(
             f"Could not render this plot ({exc}).", figure_theme=figure_theme
         )
+
+
+def dva_figure_json(
+    cell,
+    *,
+    cycles: tuple[int, ...],
+    direction: str = "charge",
+    voltage_resolution: float | None = None,
+    figure_theme: str = "light",
+    color_scheme: str = "cellpy",
+    x_range=None,
+    y_range=None,
+) -> str:
+    """dV/dQ vs capacity for one cell, via cellpy's ``dva_plot``.
+
+    DVA is single-cell in cellpy (``dva_plot(cell, ...)``, fed by ``ica.dvdq``)
+    rather than collection-based like the summary/cycles paths, so this sits
+    beside :func:`figure_json` instead of going through it.
+    """
+    from cellpy.utils.plotutils import dva_plot
+
+    try:
+        kwargs: dict = {"cycles": list(cycles), "direction": direction, "backend": "plotly"}
+        if voltage_resolution:
+            kwargs["voltage_resolution"] = voltage_resolution
+        fig = dva_plot(cell, **kwargs)
+        _mark_dva_directions(fig, direction)
+        _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
+        return pio.to_json(fig)
+    except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
+        return _empty_figure_json(
+            f"Could not render dV/dQ ({exc}).", figure_theme=figure_theme
+        )
+
+
+def dva_frame(
+    cell,
+    *,
+    cycles: tuple[int, ...],
+    direction: str = "charge",
+    voltage_resolution: float | None = None,
+):
+    """The tidy dV/dQ frame behind :func:`dva_figure_json`, as polars.
+
+    ``dva_plot(return_data=True)`` hands back pandas; converting here lets the
+    DVA export reuse the same serialisers as every other export path.
+    """
+    import polars as pl
+    from cellpy.utils.plotutils import dva_plot
+
+    kwargs: dict = {
+        "cycles": list(cycles),
+        "direction": direction,
+        "backend": "plotly",
+        "return_data": True,
+    }
+    if voltage_resolution:
+        kwargs["voltage_resolution"] = voltage_resolution
+    _, frame = dva_plot(cell, **kwargs)
+    return pl.from_pandas(frame)
+
+
+def _mark_dva_directions(fig, direction: str) -> None:
+    """Dash the discharge half so overlaid half-cycles are separable.
+
+    ``ica_plotter`` does this itself (cellpy #821) but ``dva_plot`` draws both
+    directions identically — same colour, same name, no dash — so on a static
+    export the two curves are indistinguishable. Reported as cellpy #862; drop
+    this once that ships.
+    """
+    if (direction or "").lower() != "both":
+        return
+    try:
+        for tr in fig.data:
+            custom = getattr(tr, "customdata", None)
+            if custom is None or len(custom) == 0:
+                continue
+            row = custom[0]
+            label = str(row[1]).lower() if len(row) > 1 else ""
+            if label == "discharge":
+                tr.line.dash = "dot"
+            if tr.name and label:
+                tr.name = f"{tr.name}, {label}"
+    except Exception:  # noqa: BLE001 - cosmetics stay best-effort
+        log.warning("could not mark dV/dQ directions", exc_info=True)
 
 
 def _variable_axis_map(fig) -> dict[str, tuple[str, str]]:

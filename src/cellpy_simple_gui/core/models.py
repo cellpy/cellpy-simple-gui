@@ -161,6 +161,14 @@ class IcaPlotSpec(BaseModel):
         return _clean_axis_range(value)
 
 
+class DvaPlotSpec(IcaPlotSpec):
+    """Differential voltage (dV/dQ vs capacity) for one cell — developer mode.
+
+    Same controls as ICA: cellpy derives both from ``IcaOptions``, and the two
+    views sit side by side in the Cell explorer.
+    """
+
+
 class ExportSpec(BaseModel):
     """A plot spec plus the desired file format."""
 
@@ -168,6 +176,7 @@ class ExportSpec(BaseModel):
     summary: Optional[SummaryPlotSpec] = None
     cycles: Optional[CyclesPlotSpec] = None
     ica: Optional[IcaPlotSpec] = None
+    dva: Optional[DvaPlotSpec] = None
 
 
 class CellsExportSpec(BaseModel):

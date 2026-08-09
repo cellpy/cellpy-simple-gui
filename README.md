@@ -88,8 +88,9 @@ The regular UI shows a curated set of plot types, because cellpy registers far
 more than are useful on any one dataset. Developer mode adds **every family
 cellpy registers**, grouped by whether the loaded cells can actually plot them —
 the rest are listed but disabled, showing which summary columns are missing
-rather than rendering a blank chart. It also raises the glob/batch file cap
-(10 → 500) for stress-testing. A **DEV** badge marks the session.
+rather than rendering a blank chart. It also adds a **dV/dQ (differential
+voltage)** view next to dQ/dV in the Cell explorer, and raises the glob/batch
+file cap (10 → 500) for stress-testing. A **DEV** badge marks the session.
 
 Off by default and not reachable from the UI: regular users get the curated set.
 

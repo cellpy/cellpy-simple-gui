@@ -11,7 +11,13 @@ from __future__ import annotations
 
 from . import collect
 from .library import CellRecord
-from .models import CAPACITY_UNITS, CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from .models import (
+    CAPACITY_UNITS,
+    CyclesPlotSpec,
+    DvaPlotSpec,
+    IcaPlotSpec,
+    SummaryPlotSpec,
+)
 
 
 def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
@@ -87,6 +93,26 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         x_unit=x_unit,
+        x_range=spec.x_range,
+        y_range=spec.y_range,
+    )
+
+
+def dva_figure(record: CellRecord, spec: DvaPlotSpec) -> str:
+    """Differential voltage (dV/dQ vs capacity) for one cell — developer mode."""
+    cycles = tuple(sorted(set(spec.cycles)))
+    if not cycles:
+        return collect._empty_figure_json(
+            "Pick one or more cycles to plot dV/dQ.",
+            figure_theme=spec.figure_theme,
+        )
+    return collect.dva_figure_json(
+        record.cell,
+        cycles=cycles,
+        direction=spec.direction,
+        voltage_resolution=spec.voltage_resolution,
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
         x_range=spec.x_range,
         y_range=spec.y_range,
     )

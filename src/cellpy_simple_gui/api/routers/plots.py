@@ -8,7 +8,12 @@ from fastapi.responses import Response
 from ...config import get_settings
 from ...core import cellpy_adapter, collect, plotting
 from ...core.library import get_library
-from ...core.models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from ...core.models import (
+    CyclesPlotSpec,
+    DvaPlotSpec,
+    IcaPlotSpec,
+    SummaryPlotSpec,
+)
 
 router = APIRouter()
 
@@ -110,3 +115,23 @@ def ica_plot(spec: IcaPlotSpec) -> Response:
         raise HTTPException(404, "No such cell")
     figure_json = plotting.ica_figure(rec, spec)
     return _figure_response(figure_json)
+
+
+def require_dev_mode() -> None:
+    """Guard endpoints that only exist in developer mode (#97)."""
+    if not get_settings().dev_mode:
+        raise HTTPException(
+            403, "This view is only available in developer mode (start with --dev)."
+        )
+
+
+@router.post("/plots/dva")
+def dva_plot(spec: DvaPlotSpec) -> Response:
+    """Differential voltage (dV/dQ vs capacity) for one cell — developer mode."""
+    require_dev_mode()
+    lib = get_library()
+    try:
+        rec = lib.get(spec.cell_id)
+    except KeyError:
+        raise HTTPException(404, "No such cell")
+    return _figure_response(plotting.dva_figure(rec, spec))
