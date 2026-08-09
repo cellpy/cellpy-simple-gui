@@ -66,6 +66,25 @@ def test_system_pick_rejected_without_webview(client):
     assert "desktop" in r.json()["detail"].lower()
 
 
+@pytest.mark.essential
+def test_cellpy_config_diagnostics_endpoint(client):
+    """The config panel gets sections + provenance, and never a secrets section."""
+    data = client.get("/api/system/cellpy-config").json()
+    assert data["cellpy_version"]
+    assert data["discovery"]["user_config_path"]
+    names = [s["name"] for s in data["sections"]]
+    assert "paths" in names and "units" in names
+    assert "secrets" not in names  # credentials must never reach the UI
+    # paths/units lead so the panel opens on the settings people ask about
+    assert names[0] in ("paths", "units")
+    paths = next(s for s in data["sections"] if s["name"] == "paths")
+    entry = next(e for e in paths["entries"] if e["key"] == "paths.cellpydatadir")
+    assert entry["layer"] in ("default", "user_file", "project_file", "env", "runtime")
+    assert entry["is_path"] and "exists" in entry
+    assert [v["name"] for v in data["secret_env"]]
+    assert all("set" in v and "value" not in v for v in data["secret_env"])
+
+
 def test_webview_file_type_filters_are_valid():
     """pywebview rejects descriptions outside [\\w ] — keep dialog filters parseable."""
     from webview.util import parse_file_type

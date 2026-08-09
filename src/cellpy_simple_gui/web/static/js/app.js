@@ -91,6 +91,10 @@ function app() {
     cellsManagerFilter: "",
     cellsManagerSort: "default",
     cellsManagerGroup: 1,
+    cellpyConfigOpen: false,
+    cellpyConfigLoading: false,
+    cellpyConfigError: "",
+    cellpyConfig: null,
 
     // ---- lifecycle ----
     async init() {
@@ -466,6 +470,20 @@ function app() {
     },
     closeCellsManager() {
       this.cellsManagerOpen = false;
+    },
+    async openCellpyConfig() {
+      this.cellpyConfigOpen = true;
+      // Re-read every time: the user may edit cellpy.toml while the app is open.
+      this.cellpyConfigLoading = true;
+      this.cellpyConfigError = "";
+      try {
+        this.cellpyConfig = await (await api("/api/system/cellpy-config")).json();
+      } catch (e) {
+        this.cellpyConfig = null;
+        this.cellpyConfigError = `Could not read the cellpy configuration: ${e.message || e}`;
+      } finally {
+        this.cellpyConfigLoading = false;
+      }
     },
     async updateCell(id, patch, { plot = true } = {}) {
       const body = { id, ...patch };

@@ -21,7 +21,8 @@
       </div>
     </div>
     <div class="topbar-right">
-      <span class="badge" title="cellpy version">cellpy {{ cellpy_version }}</span>
+      <button class="badge badge-btn" type="button" @click="openCellpyConfig()"
+              title="cellpy version — click to see where its settings come from">cellpy {{ cellpy_version }}</button>
       <button class="icon-btn" @click="toggleTheme()" :title="theme==='dark' ? 'Light mode' : 'Dark mode'">
         <span x-text="theme==='dark' ? '☀' : '☾'"></span>
       </button>
@@ -708,6 +709,102 @@
       </div>
       <div class="modal-foot">
         <button class="btn" type="button" @click="closeCellsManager()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ cellpy configuration modal ============ -->
+  <div class="modal-backdrop" x-show="cellpyConfigOpen" x-cloak
+       @click.self="cellpyConfigOpen = false"
+       @keydown.escape.window="if (cellpyConfigOpen) cellpyConfigOpen = false">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cellpy-config-title">
+      <div class="modal-head">
+        <h2 id="cellpy-config-title" class="modal-title">cellpy configuration</h2>
+        <button class="icon-btn" type="button" @click="cellpyConfigOpen = false" title="Close">×</button>
+      </div>
+
+      <div class="modal-body cfg-body">
+        <p class="empty" x-show="cellpyConfigLoading">Reading cellpy configuration…</p>
+        <p class="error-text" x-show="cellpyConfigError" x-text="cellpyConfigError"></p>
+
+        <template x-if="cellpyConfig && !cellpyConfigLoading">
+          <div>
+            <template x-for="w in cellpyConfig.warnings" :key="w">
+              <p class="cfg-warn" x-text="w"></p>
+            </template>
+
+            <p class="cfg-intro">
+              Settings resolve in layers — later wins:
+              <span class="layer layer-default">default</span> →
+              <span class="layer layer-user_file">user file</span> →
+              <span class="layer layer-project_file">project file</span> →
+              <span class="layer layer-env">env</span> →
+              <span class="layer layer-runtime">runtime</span>
+            </p>
+
+            <dl class="cfg-discovery">
+              <dt>User config</dt>
+              <dd>
+                <code x-text="cellpyConfig.discovery.user_config_path"></code>
+                <span class="cfg-flag"
+                      x-text="cellpyConfig.discovery.user_config_exists ? 'found' : 'not created yet'"
+                      :class="cellpyConfig.discovery.user_config_exists ? 'ok' : 'missing'"></span>
+              </dd>
+              <dt>Project config</dt>
+              <dd>
+                <code x-text="cellpyConfig.discovery.project_config_path || 'none found'"></code>
+              </dd>
+              <template x-if="cellpyConfig.discovery.legacy_config_path">
+                <div class="cfg-legacy">
+                  <dt>Legacy config</dt>
+                  <dd><code x-text="cellpyConfig.discovery.legacy_config_path"></code></dd>
+                </div>
+              </template>
+            </dl>
+
+            <template x-for="section in cellpyConfig.sections" :key="section.name">
+              <details class="cfg-section" :open="section.primary">
+                <summary>
+                  <span x-text="section.name"></span>
+                  <span class="cfg-count" x-text="section.entries.length"></span>
+                </summary>
+                <table class="cfg-table">
+                  <tbody>
+                    <template x-for="e in section.entries" :key="e.key">
+                      <tr>
+                        <th scope="row" x-text="e.label"></th>
+                        <td>
+                          <code :class="e.secret ? 'cfg-secret' : ''" x-text="e.value || '—'"></code>
+                          <span class="cfg-flag missing" x-show="e.is_path && e.exists === false"
+                                title="This path does not exist yet">missing</span>
+                        </td>
+                        <td><span class="layer" :class="'layer-' + e.layer" x-text="e.layer"></span></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </details>
+            </template>
+
+            <div class="cfg-section cfg-env">
+              <h3>Credential environment variables</h3>
+              <p class="cfg-note">Values are never read or shown here — presence only.</p>
+              <ul class="cfg-envlist">
+                <template x-for="v in cellpyConfig.secret_env" :key="v.name">
+                  <li>
+                    <code x-text="v.name"></code>
+                    <span class="cfg-flag" :class="v.set ? 'ok' : ''"
+                          x-text="v.set ? 'set' : 'not set'"></span>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" type="button" @click="cellpyConfigOpen = false">Close</button>
       </div>
     </div>
   </div>
