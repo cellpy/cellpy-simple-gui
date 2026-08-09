@@ -105,6 +105,16 @@ raw views thin the traces before sending them to the browser and say so on the
 chart (*"showing every 39ᵗʰ point"*). **Max points** controls the cap. For raw
 *data* rather than a picture, use **Export cells → csv**.
 
+Clicking the **DEV** badge opens **Diagnostics**:
+
+- **Logs** — a live tail of the last 2000 records, filterable by level. cellpy's
+  own records arrive here too (they go through stdlib logging), so a failed load
+  can be diagnosed without opening `cellpy_debug.log`.
+- **Jobs** — every job this session with how long it waited for a worker and how
+  long it ran.
+
+**copy** puts either view on the clipboard as plain text, ready for a bug report.
+
 Off by default and not reachable from the UI: regular users get the curated set.
 
 > First run downloads a few small example cells from the cellpy example-data

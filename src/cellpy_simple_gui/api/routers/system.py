@@ -9,6 +9,9 @@ from fastapi import APIRouter, Body, HTTPException, Query, Request
 
 from ...config import get_settings
 from ...core import cellpy_config
+from ...logging_setup import recent_logs, ring_enabled
+from ..jobs import get_job_manager
+from .plots import require_dev_mode
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -67,6 +70,30 @@ def capabilities() -> dict:
         "dev_mode": settings.dev_mode,
         "max_files": settings.max_files,
     }
+
+
+@router.get("/system/logs")
+def logs(limit: int = Query(300, ge=1, le=2000), level: str | None = None) -> dict:
+    """Recent log records — developer mode (#97).
+
+    Saves a round trip to ``cellpy_debug.log`` when a load fails: cellpy's own
+    records arrive here too, through the stdlib bridge.
+    """
+    require_dev_mode()
+    return {
+        "records": recent_logs(limit=limit, level=level),
+        "capturing": ring_enabled(),
+    }
+
+
+@router.get("/system/jobs")
+def job_timings(limit: int = Query(25, ge=1, le=200)) -> dict:
+    """Recent jobs with queue and run times — developer mode (#97)."""
+    require_dev_mode()
+    jobs = sorted(
+        get_job_manager().all(), key=lambda j: j.created_at, reverse=True
+    )[:limit]
+    return {"jobs": [j.timing() for j in jobs]}
 
 
 @router.get("/system/cellpy-config")
