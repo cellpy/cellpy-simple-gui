@@ -7,25 +7,24 @@ roughly by impact.
 
 Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 
-> **Update — all but one of these are now fixed upstream** 🎉
+> **Update — every one of these is now fixed upstream** 🎉
 >
 > The notes below were written against **cellpy 2.1.0.post1**; the app now runs
-> on **≥2.1.2a4**. Everything filed from this project has been closed except
-> [#867](https://github.com/jepegit/cellpy/issues/867), and each fix was
-> verified against the installed package before the corresponding app
-> workaround was removed — closed upstream is not the same as released, and
-> that caught us twice (see the release-gating note in
-> `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
+> on **≥2.1.2** (released). With #867 and #868 closed in 2.1.2, **nothing filed
+> from this project is still open.** Each fix was verified against the installed
+> package before the corresponding app workaround was removed — closed upstream
+> is not the same as released, and that caught us twice (see the release-gating
+> note in `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
 >
-> **25 issues filed from this project · 23 closed · 2 open.** Plus
+> **25 issues filed from this project · 25 closed · 0 open.** Plus
 > [#851](https://github.com/jepegit/cellpy/issues/851), which cellpy raised
 > itself and whose fix the app adopted.
 >
 > Workarounds deleted as the fixes landed: the group-average partition and
 > facet-remap path, the `share_y` axis re-link, the `fig.write_image` export
 > plumbing, the forced `auto_pick_cellpy_format=False`, the ICA direction
-> frame-filter, the DVA single-cell path with its pandas→polars conversion, and
-> the DVA half-cycle marking.
+> frame-filter, the DVA single-cell path with its pandas→polars conversion, the
+> DVA half-cycle marking, and the raw-trace striding.
 >
 > ### Round 1 — the first build (2.1.1.x)
 >
@@ -75,12 +74,23 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 25 | `dva_plot(direction="both")` drew both half-cycles identically | [#862](https://github.com/jepegit/cellpy/issues/862) | 2.1.2a4 — solid/dot |
 > | 26 | No `collect_dva` — DVA was the only single-cell family | [#863](https://github.com/jepegit/cellpy/issues/863) | 2.1.2a4 — DVA moved onto the shared collection path |
 >
-> ### Still open
+> ### Round 5 — the plot registry becomes self-describing (2.1.2)
 >
-> | # | Item | Upstream | App workaround |
-> |---|---|---|---|
-> | 27 | `raw_plot` has no point/cycle limit — 7–18 MiB of figure JSON per cell | [#867](https://github.com/jepegit/cellpy/issues/867) | `_thin_traces` keeps ~4000 points/trace and annotates the chart |
-> | 28 | `fullcell_standard_*` can't be collected: `family.transforms()` shape ≠ `SummaryOptions.transforms` | [#868](https://github.com/jepegit/cellpy/issues/868) | none possible — 7 of 25 families unreachable |
+> | # | Item | Upstream | Landed | App code removed |
+> |---|---|---|---|---|
+> | 27 | `raw_plot` had no point/cycle limit — 7.35 MiB of figure JSON for one demo cell | [#867](https://github.com/jepegit/cellpy/issues/867) | 2.1.2 — `max_points` / `cycles`; 7.35 MiB → 0.18 MiB | `_thin_traces` + its striding |
+> | 28 | `fullcell_standard_*` couldn't be collected: `family.transforms()` shape ≠ `SummaryOptions.transforms` | [#868](https://github.com/jepegit/cellpy/issues/868) | 2.1.2 — transforms are a tuple of callables, **plus** the `family.summary_options(hdr)` this asked for | the app's out-of-band knowledge of which families need `partition_by_cv` |
+>
+> #28 came back better than filed. The wish was for a registry that describes
+> its own collect options instead of making every app rediscover them;
+> `PlotFamily` now answers with `summary_options(hdr)`, `supports_cv_split` and
+> `supports_formation`, and `families(entry_point=…)` says which public plot
+> entry a family belongs to. That turned a five-line app fix into a deletion:
+> availability is now judged on what a family *asks the summary for* rather than
+> on the columns it draws, which is exactly the distinction the app had been
+> getting wrong ([cellpy-simple-gui#106](https://github.com/cellpy/cellpy-simple-gui/issues/106)).
+> Measured on the demo cells: **8 of 25 families selectable → 15 of 20**, every
+> one rendering real traces.
 >
 > ### Open but unfiled (app forwards a knob instead)
 >
@@ -589,7 +599,7 @@ pandas (not polars) export path.
 2.1.2a4. The app's DVA view moved onto the shared collection path and the
 special case disappeared.
 
-### 27. 🟠 `raw_plot` has no way to limit points *(still open)*
+### 27. 🟠 `raw_plot` has no way to limit points *(fixed in 2.1.2)*
 
 `prepare_raw` copies the whole raw frame — no cycle filter, no thinning — so a
 single 155k-row demo cell produces **7 MiB** (`voltage-current`) to **18 MiB**
@@ -606,11 +616,20 @@ complete.
 striding drops) or the `cycles=` bound the other families already have, applied
 before the frame is copied.
 
-**Upstream:** [#867](https://github.com/jepegit/cellpy/issues/867) — open.
+**Upstream:** [#867](https://github.com/jepegit/cellpy/issues/867) — fixed in
+2.1.2. `raw_plot` gained **both** `max_points` and `cycles`. Measured on the
+demo cell: 7.35 MiB → 0.18 MiB at `max_points=4000`. `_thin_traces` and its
+striding are gone.
+
+One thing the app kept: `raw_plot` downsamples silently, so the app still reads
+the drawn point count off the figure and labels the chart *"showing 1,882 of
+155,754 points"*. Reading it back rather than assuming a stride means the note
+stays true whatever algorithm cellpy picks. A `fig` annotation upstream would
+retire that too.
 
 ---
 
-### 28. 🔴 Seven registered families cannot be collected at all *(still open)*
+### 28. 🔴 Seven registered families cannot be collected at all *(fixed in 2.1.2)*
 
 Building a plot menu from `registry.families()` gives 25 entries. On the demo
 cell only **8** have all their columns with default collect options. Digging in:
@@ -645,7 +664,34 @@ returning a ready `SummaryOptions` (CV flag set where needed, transforms in the
 shape the collector accepts), so `collect_summaries(batch,
 options=family.summary_options(hdr))` just works.
 
-**Upstream:** [#868](https://github.com/jepegit/cellpy/issues/868) — open.
+**Upstream:** [#868](https://github.com/jepegit/cellpy/issues/868) — fixed in
+2.1.2, and the wish was granted literally. `PlotFamily` now carries:
+
+| API | What it gives an app |
+|---|---|
+| `family.summary_options(hdr)` | a ready `SummaryOptions` — CV flag, transforms, column list |
+| `family.supports_cv_split` / `.supports_formation` | declarative capability flags |
+| `families(entry_point="summary_plot")` | which families belong in *this* menu |
+
+`SummaryOptions.transforms` is now a tuple of callables, matching how collect
+applies them, so the `mod_01_*` columns get built and all seven
+`fullcell_standard_*` families collect.
+
+**What the app deleted.** The whole idea of the app knowing which families need
+which options. Availability now compares `summary_options().columns` — what a
+family *asks the summary for* — against the loaded data, instead of
+`family.columns()`, which names the derived columns collect has not built yet.
+That distinction was the entire bug: **8 of 25 families selectable → 15 of 20**,
+each verified to render real traces rather than merely be selectable.
+
+The `entry_point` filter fixed a second thing quietly: `raw`, `ica`, `dva`,
+`cycle_info` and `cycles` were being listed in the *summary* menu, where they
+could never work — they have their own tabs.
+
+Five `*_absolute` families are still unavailable on the demo cells, and that
+report is now truthful: `charge_capacity_absolute` is written by
+`make_summary()` on current cellpy, and those saved files predate it. "Your data
+lacks these columns" is the right message, which it was not before.
 
 ---
 
@@ -674,10 +720,16 @@ Added after the later rounds:
   the right shape: the app builds a Collection and lets cellpy plot it, so
   grouping, spread, per-cell cycle isolation and multi-format export all stay
   consistent with cellpy instead of drifting.
-- **Fix turnaround.** Every issue in rounds 2–4 was closed quickly, which is what
+- **Fix turnaround.** Every issue in rounds 2–5 was closed quickly, which is what
   made it possible to keep *deleting* workarounds rather than accumulating them.
   `core/collect.py` is substantially shorter than at 2.1.1, and nearly all of the
   difference is logic upstream now owns.
+- **The self-describing registry** (2.1.2, #868) is the best example of a fix
+  landing *better* than the request. Asking for one accessor produced
+  `summary_options()`, capability flags and `entry_point` tagging — and the app
+  answered a question it had previously been guessing at. A registry that only
+  names things makes every consumer reimplement the same lookup table; one that
+  describes how to satisfy itself makes that table unnecessary.
 
 *Started while building [cellpy-simple-gui](./README.md) on cellpy 2.1.0.post1;
-kept up to date through 2.1.2a4. 25 issues filed from this project, 23 closed.*
+kept up to date through 2.1.2. 25 issues filed from this project, all 25 closed.*
