@@ -791,6 +791,61 @@ def test_spread_fillcolor_has_alpha(example_cell, scheme):
     assert any(c in palette for c in line_colors)
 
 
+def test_spread_traces_keep_useful_hover(example_cell):
+    """#40: cellpy's spread_plot sets no hovertemplate at all — restore it.
+
+    Turning Spread on used to drop group / variable / cycle / value entirely.
+    """
+    from cellpy_simple_gui.core import cellpy_adapter
+    from cellpy_simple_gui.core.library import Library
+
+    lib = Library()
+    lib.add_cell(example_cell, source="ex")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex")
+    for r in lib.all():
+        lib.update(r.id, group=1)  # one group with two members -> averaged
+
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(plot_type="capacity_ce", group_average=True, spread=True),
+        )
+    )
+    hovered = [t for t in fig["data"] if t.get("hovertemplate")]
+    assert hovered, "spread means must carry hover"
+    for tr in hovered:
+        tmpl = tr["hovertemplate"]
+        assert "group=" in tmpl and "variable=" in tmpl
+        assert "cycle=%{x}" in tmpl and "%{y" in tmpl
+        # the band half-width rides along so hover can report the spread
+        assert tr.get("customdata"), tmpl
+        assert "customdata" in tmpl
+        # It must survive as a JSON array. plotly.io encodes numpy arrays as a
+        # base64 {dtype, bdata} blob that plotly.js leaves undecoded for
+        # customdata, and the tooltip then reads "± NaN".
+        assert isinstance(tr["customdata"], list)
+        assert all(isinstance(v, (int, float)) for v in tr["customdata"][:5])
+
+    # Band edges are not measurements — hovering them would be misleading.
+    bounds = [
+        t for t in fig["data"] if str(t.get("name", "")).lower().startswith("upper bound")
+    ]
+    assert bounds and all(t.get("hoverinfo") == "skip" for t in bounds)
+
+
+def test_non_spread_hover_is_left_to_cellpy(loaded_library):
+    """No regression: cellpy already gives these paths good hover (#40)."""
+    recs = loaded_library.selected()
+    for spec in (
+        SummaryPlotSpec(plot_type="capacity_ce", group_average=False),
+        SummaryPlotSpec(plot_type="capacity_ce", group_average=True, spread=False),
+    ):
+        fig = json.loads(plotting.summary_figure(recs, spec))
+        tmpl = fig["data"][0].get("hovertemplate") or ""
+        assert "variable=" in tmpl and "%{x}" in tmpl and "%{y}" in tmpl
+        assert "customdata" not in tmpl, "app must not rewrite cellpy's own hover"
+
+
 def _yaxis_matches(fig: dict) -> dict[str, str | None]:
     return {
         key: (fig["layout"].get(key) or {}).get("matches")

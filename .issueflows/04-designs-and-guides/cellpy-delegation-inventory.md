@@ -146,6 +146,19 @@ stride, so the label stays correct whatever downsampling cellpy uses.
 | `film` as a *layout* | **App-owned (translation)** — `curve_layout_kwargs()` maps the app's `layout="film"` to `kind="film", layout="per_cell"`. cellpy accepts an unknown `layout` silently and draws lines ([#874](https://github.com/jepegit/cellpy/issues/874)); remove this when it validates or aliases |
 | Differential export | **App-owned (routing)** — `cycles_export` picks the collector matching `curve_kind` so the CSV matches the chart, then reuses `select_ica_direction` |
 
+## Hover
+
+| Area | Decision |
+|------|----------|
+| Per-cell and `group_it` hover | **Delegated** — plotly.express attaches it from the frame; the app must not rewrite it |
+| Spread hover | **App-owned (workaround)** — `_add_spread_hover()` rebuilds group / variable / cycle / mean ± std, because `spread_plot` builds bare `go.Scatter` traces with no hovertemplate ([#875](https://github.com/jepegit/cellpy/issues/875)). Depends on cellpy's trace naming and emission order; delete when upstream sets hover |
+| Band-edge hover | **App-owned** — `hoverinfo="skip"` on Upper/Lower Bound; they are mean ± std, not measurements |
+
+`customdata` is handed over as a **plain list**: `plotly.io` serialises numpy
+arrays as a base64 `{dtype, bdata}` blob that plotly.js does not decode for
+`customdata`, so the tooltip renders `± NaN`. Caught in the browser, not by the
+tests — a test asserting only "customdata is truthy" passes either way.
+
 ## Summary plot families
 
 | Area | Decision |
