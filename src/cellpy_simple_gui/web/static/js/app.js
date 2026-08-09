@@ -665,7 +665,9 @@ function app() {
         cell_id: this.cell.cell_id,
         cycles: this.buildCycleListFrom(this.cell),
         voltage_resolution: Number.isFinite(res) && res > 0 ? res : 0.005,
-        direction: this.cell.direction === "discharge" ? "discharge" : "charge",
+        direction: ["charge", "discharge", "both"].includes(this.cell.direction)
+          ? this.cell.direction
+          : "charge",
         title: "",
         ...this.axisRangeFields(this.cell),
         ...this.appearanceFields(),

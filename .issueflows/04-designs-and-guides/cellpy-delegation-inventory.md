@@ -39,7 +39,7 @@ of the 2.1.2a2 cleanup.
 | Group-avg all-or-nothing + merge | #816 | **yes (2.1.2a2)** | **Removed** — one collection averages groups + keeps singletons; partition/merge deleted |
 | Static figure bytes (kaleido) | #818 | **yes (2.1.2a2)** | **Delegated** — `figure_bytes` → `figures.write_image` + `image_media_type` |
 | `.h5` `auto_pick_cellpy_format` | #819 | **yes (2.1.2a2)** | **Removed** — set `instrument=` wins over suffix; no forced `auto_pick=False` |
-| ICA `direction` (line + both) | #821 | yes | **Follow-up** — drop `_filter_ica_by_direction`, pass `direction` to `collection.plot`; pairs with a "Both" UI option + export-direction decision |
+| ICA `direction` (line + both) | #821 | yes | **Delegated** — `ica_plotter` selects the half-cycle (charge/discharge/both); app `_filter_ica_by_direction` removed. Export mirrors the chart via `select_ica_direction`; UI has a "Both" option |
 | Summary facet `category_orders` | §20 open, unfiled | n/a | **Keep forwarding** (#81) |
 | Cycles plot `x_unit` vs collect mode | §17 open, unfiled | n/a | **Keep forwarding** (#72) |
 | Non-atomic `.cellpy` writes | **#845 filed** | n/a | App stages project saves; single-file save still at cellpy's mercy |
@@ -54,12 +54,10 @@ of the 2.1.2a2 cleanup.
   applies per-facet `y_ranges` directly and lets cellpy own axis matching.
 - **#818** — `export.figure_bytes` delegates to `cellpy.plotting.figures`.
 - **#819** — `load_raw` drops the forced `auto_pick_cellpy_format=False`.
-
-## Remaining follow-ups
-
-- **#821 ICA** — the one removable workaround left; it changes export semantics
-  (single- vs both-direction) and wants a "Both" UI option, so do it as its own
-  issue rather than in the pin-bump cleanup.
+- **#821 ICA** — deleted `_filter_ica_by_direction`; `ica_collection` returns
+  both half-cycles and `ica_figure` passes `direction` to cellpy's `ica_plotter`
+  (charge / discharge / **both** overlay). Export uses `select_ica_direction` so
+  the exported rows match the chart. UI gained a "Both" option.
 
 ## Still app-owned (no upstream yet / by design)
 
