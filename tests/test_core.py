@@ -1364,11 +1364,12 @@ def test_dva_figure_directions(loaded_library):
             plotting.dva_figure(rec, DvaPlotSpec(**kwargs, direction=direction))
         )
         assert len(fig["data"]) >= 1
-        assert all((t.get("line") or {}).get("dash") is None for t in fig["data"])
+        # a single direction draws one consistent style (nothing to distinguish)
+        assert len({(t.get("line") or {}).get("dash") for t in fig["data"]}) == 1
 
 
 def test_dva_both_distinguishes_half_cycles(loaded_library):
-    """cellpy #862: dva_plot draws both directions identically — we mark them."""
+    """cellpy #862/#863: the collected DVA path labels and dashes both halves."""
     from cellpy_simple_gui.core.models import DvaPlotSpec
 
     rec = loaded_library.all()[0]
@@ -1380,10 +1381,21 @@ def test_dva_both_distinguishes_half_cycles(loaded_library):
     names = [t.get("name") or "" for t in fig["data"]]
     dashes = [(t.get("line") or {}).get("dash") for t in fig["data"]]
     assert any("charge" in n for n in names) and any("discharge" in n for n in names)
-    # exactly the discharge halves are dashed, so a static export stays readable
-    assert any(d == "dot" for d in dashes) and any(d is None for d in dashes)
-    for name, dash in zip(names, dashes, strict=True):
-        assert (dash == "dot") == name.endswith("discharge")
+    # the two half-cycles must not be drawn identically (static exports)
+    assert len(set(dashes)) > 1
+
+
+def test_dva_collection_spans_cells(loaded_library):
+    """collect_dva (cellpy #863) makes DVA multi-cell, like ICA."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="ex:rate")
+    recs = lib.selected()
+    assert len(recs) >= 2
+    coll = collect.dva_collection(recs, cycles=(1, 2))
+    assert {"cycle", "direction", "capacity", "dvdq", "cell"} <= set(coll.data.columns)
+    assert len(coll.data.get_column("cell").unique().to_list()) == len(recs)
 
 
 def test_dva_figure_needs_cycles(loaded_library):
@@ -1395,19 +1407,25 @@ def test_dva_figure_needs_cycles(loaded_library):
     assert "dV/dQ" in fig["layout"]["annotations"][0]["text"]
 
 
-def test_dva_export_frame(loaded_library):
+def test_dva_export_matches_chart(loaded_library):
+    """Export mirrors the plotted direction and rides the shared polars path."""
     from cellpy_simple_gui.core.models import DvaPlotSpec
 
     rec = loaded_library.all()[0]
     spec = DvaPlotSpec(cell_id=rec.id, cycles=[1, 2], direction="both")
-    frame = collect.dva_frame(
-        rec.cell, cycles=(1, 2), direction="both", voltage_resolution=spec.voltage_resolution
-    )
-    assert {"cycle", "direction", "capacity", "dvdq"} <= set(frame.columns)
-    assert set(frame["direction"].unique().to_list()) == {"charge", "discharge"}
+    coll = collect.dva_collection([rec], cycles=(1, 2))
+    assert {"cycle", "direction", "capacity", "dvdq"} <= set(coll.data.columns)
+    assert set(coll.data["direction"].unique().to_list()) == {"charge", "discharge"}
+
     data, media = export.dva_export(rec, spec, "csv")
     assert media == "text/csv"
-    assert data.decode().splitlines()[0].startswith("cycle,direction")
+    header = data.decode().splitlines()[0]
+    assert "dvdq" in header and "direction" in header
+
+    charge, _ = export.dva_export(
+        rec, DvaPlotSpec(cell_id=rec.id, cycles=[1, 2], direction="charge"), "csv"
+    )
+    assert "discharge" not in charge.decode()
 
 
 def test_registry_plot_types_without_cells_says_so(loaded_library):
