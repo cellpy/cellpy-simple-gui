@@ -523,3 +523,18 @@ input:focus, select:focus { border-color: var(--accent); }
   border-color: color-mix(in srgb, var(--warn, #e0a24a) 55%, var(--line));
   background: color-mix(in srgb, var(--warn, #e0a24a) 12%, transparent);
 }
+
+/* diagnostics (developer mode) */
+.diag-table { font-size: 11.5px; }
+.diag-table thead th { color: var(--text-dim); font-weight: 400; text-align: left; padding: 5px 10px; }
+.diag-table td { padding: 4px 10px; vertical-align: top; }
+.diag-time { color: var(--text-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.diag-name { color: var(--text-dim); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.diag-msg { word-break: break-word; }
+.diag-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mini.active { color: var(--text); border-color: var(--accent); }
+.lvl-WARNING { color: var(--warn, #e0a24a); border-color: color-mix(in srgb, var(--warn, #e0a24a) 45%, var(--line)); }
+.lvl-ERROR, .lvl-CRITICAL { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.job-done { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
+.job-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.job-running { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }

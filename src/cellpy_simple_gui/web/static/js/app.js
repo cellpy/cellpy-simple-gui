@@ -100,6 +100,14 @@ function app() {
     cellpyConfig: null,
     projectCellpyConfig: "", // set when the open project carries its own cellpy.toml
     cellpyConfigPinning: false,
+    diagOpen: false,
+    diagTab: "logs",
+    diagLevel: "",
+    diagAuto: false,
+    diagLogs: [],
+    diagJobs: [],
+    diagError: "",
+    _diagTimer: null,
 
     // ---- lifecycle ----
     async init() {
@@ -529,6 +537,50 @@ function app() {
         this.cellpyConfigError = `Could not read the cellpy configuration: ${e.message || e}`;
       } finally {
         this.cellpyConfigLoading = false;
+      }
+    },
+    async openDiagnostics() {
+      this.diagOpen = true;
+      await this.refreshDiagnostics();
+    },
+    closeDiagnostics() {
+      this.diagOpen = false;
+      this.diagAuto = false;
+      this.toggleDiagAuto();
+    },
+    toggleDiagAuto() {
+      if (this._diagTimer) { clearInterval(this._diagTimer); this._diagTimer = null; }
+      if (this.diagAuto && this.diagOpen) {
+        this._diagTimer = setInterval(() => this.refreshDiagnostics(), 2000);
+      }
+    },
+    async refreshDiagnostics() {
+      this.diagError = "";
+      try {
+        if (this.diagTab === "logs") {
+          const lvl = this.diagLevel ? `&level=${this.diagLevel}` : "";
+          const r = await (await api(`/api/system/logs?limit=300${lvl}`)).json();
+          this.diagLogs = r.records;
+        } else {
+          this.diagJobs = (await (await api("/api/system/jobs")).json()).jobs;
+        }
+      } catch (e) {
+        this.diagError = e.message || "Could not read diagnostics.";
+      }
+    },
+    async copyDiagnostics() {
+      // Plain text, so it can go straight into a bug report.
+      const lines = this.diagTab === "logs"
+        ? this.diagLogs.map((r) => `${r.time} ${r.level} ${r.name} - ${r.message}`)
+        : this.diagJobs.map((j) =>
+            `${j.kind} ${j.status} queued=${j.queued_seconds}s ran=${j.elapsed_seconds}s ${j.error || j.message}`
+          );
+      const text = lines.join("\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        this.notify("ok", "Copied to the clipboard.");
+      } catch (_) {
+        this.notify("error", "Could not copy — select the text manually.");
       }
     },
     async pinProjectConfig() {

@@ -375,3 +375,113 @@ def test_raw_and_cycle_info_in_dev_mode(client, monkeypatch):
         assert info.json()["data"]
     finally:
         get_settings.cache_clear()
+
+
+def test_diagnostics_are_dev_only(client, monkeypatch):
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        for url in ("/api/system/logs", "/api/system/jobs"):
+            r = client.get(url)
+            assert r.status_code == 403, url
+            assert "developer mode" in r.json()["detail"].lower()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_log_viewer_captures_stdlib_records(monkeypatch):
+    """cellpy logs through stdlib, so the bridge must feed the ring buffer."""
+    import logging
+
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.setenv("CSG_DEV_MODE", "1")
+    get_settings.cache_clear()
+    try:
+        c = TestClient(create_app())          # create_app arms the ring in dev mode
+        c.headers.update({"X-CSG-Token": get_settings().token})
+        logging.getLogger("cellpy.readers.fake").warning("a stdlib record")
+
+        data = c.get("/api/system/logs?limit=200").json()
+        assert data["capturing"] is True
+        mine = [r for r in data["records"] if "a stdlib record" in r["message"]]
+        assert mine, "stdlib records must reach the viewer"
+        # the originating logger is what makes the viewer useful
+        assert mine[0]["name"] == "cellpy.readers.fake"
+        assert mine[0]["level"] == "WARNING"
+
+        only_errors = c.get("/api/system/logs?level=ERROR").json()["records"]
+        assert all(r["level"] in ("ERROR", "CRITICAL") for r in only_errors)
+    finally:
+        get_settings.cache_clear()
+
+
+def test_job_timings_reported(monkeypatch):
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.setenv("CSG_DEV_MODE", "1")
+    get_settings.cache_clear()
+    try:
+        c = TestClient(create_app())
+        c.headers.update({"X-CSG-Token": get_settings().token})
+        snap = _wait_for_job(
+            c, c.post("/api/load/example", json={"kinds": ["cellpy"]}).json()["job_id"]
+        )
+        if snap["status"] != "done":
+            pytest.skip("example data unavailable")
+        jobs = c.get("/api/system/jobs").json()["jobs"]
+        assert jobs
+        job = jobs[0]
+        assert job["kind"] == "load-example" and job["status"] == "done"
+        assert job["queued_seconds"] is not None and job["queued_seconds"] >= 0
+        assert job["elapsed_seconds"] is not None and job["elapsed_seconds"] > 0
+        assert job["finished_at"] >= job["started_at"] >= job["created_at"]
+    finally:
+        get_settings.cache_clear()
+
+
+def test_app_js_parses():
+    """A syntax error in app.js breaks the whole UI while Python tests stay green.
+
+    That happened once (an escaped newline landed as a real line break inside a
+    string literal), so parse the file for real when node is available.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not available to parse app.js")
+    from cellpy_simple_gui.api.deps import WEB_DIR
+
+    js = WEB_DIR / "static" / "js" / "app.js"
+    result = subprocess.run(
+        [node, "--check", str(js)], capture_output=True, text=True, timeout=60
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_index_alpine_state_is_defined():
+    """Every x-model in the template must exist in the component, or Alpine throws.
+
+    Catches template/JS drift — a new panel wired up in HTML but never added to
+    the component renders a wall of "… is not defined" console errors.
+    """
+    import re
+
+    from cellpy_simple_gui.api.deps import WEB_DIR
+
+    html = (WEB_DIR / "templates" / "index.html").read_text(encoding="utf-8")
+    js = (WEB_DIR / "static" / "js" / "app.js").read_text(encoding="utf-8")
+
+    roots = set()
+    for expr in re.findall(r'x-model(?:\.\w+)*="([^"]+)"', html):
+        root = expr.strip().split(".")[0].split("[")[0]
+        if root and root.isidentifier():
+            roots.add(root)
+    assert roots, "expected to find x-model bindings"
+
+    missing = [r for r in sorted(roots) if not re.search(rf"\b{re.escape(r)}\s*:", js)]
+    assert not missing, f"template binds state the component never defines: {missing}"

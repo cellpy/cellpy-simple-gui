@@ -54,9 +54,26 @@ class Job:
     result: Any = None
     error: str | None = None
     created_at: float = field(default_factory=time.time)
+    started_at: float | None = None
+    finished_at: float | None = None
     cancel_event: threading.Event = field(default_factory=threading.Event)
     _subscribers: list["queue.Queue[dict]"] = field(default_factory=list)
     _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    @property
+    def queued_seconds(self) -> float | None:
+        """How long the job waited for a worker."""
+        if self.started_at is None:
+            return None
+        return round(self.started_at - self.created_at, 3)
+
+    @property
+    def elapsed_seconds(self) -> float | None:
+        """Run time — final once finished, live while running."""
+        if self.started_at is None:
+            return None
+        end = self.finished_at if self.finished_at is not None else time.time()
+        return round(end - self.started_at, 3)
 
     def snapshot(self) -> dict:
         return {
@@ -66,6 +83,17 @@ class Job:
             "progress": round(self.progress, 4),
             "message": self.message,
             "error": self.error,
+        }
+
+    def timing(self) -> dict:
+        """Snapshot plus timings — developer mode (#97)."""
+        return {
+            **self.snapshot(),
+            "created_at": self.created_at,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "queued_seconds": self.queued_seconds,
+            "elapsed_seconds": self.elapsed_seconds,
         }
 
     def subscribe(self) -> "queue.Queue[dict]":
@@ -161,6 +189,7 @@ class JobManager:
             self._pool.shutdown(wait=False)
 
     def _run(self, job: Job, fn: Callable[..., Any], args: tuple, kwargs: dict) -> None:
+        job.started_at = time.time()
         job.status = "running"
         job.message = "Starting…"
         job._emit()
@@ -193,10 +222,20 @@ class JobManager:
             log.exception("Job %s failed (%s): %s", job.id, job.kind, exc)
             traceback.print_exc()
         finally:
+            job.finished_at = time.time()
+            log.info(
+                "Job %s %s in %.2fs (%s, queued %.2fs)",
+                job.id, job.status, job.elapsed_seconds or 0.0,
+                job.kind, job.queued_seconds or 0.0,
+            )
             job._emit()
 
     def get(self, job_id: str) -> Job | None:
         return self._jobs.get(job_id)
+
+    def all(self) -> list[Job]:
+        """Every job this session still remembers (developer diagnostics)."""
+        return list(self._jobs.values())
 
     def cancel(self, job_id: str) -> bool:
         job = self._jobs.get(job_id)

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="csg-token" content="{{ token }}" />
   <title>{{ app_name }}</title>
-  <link rel="stylesheet" href="/static/css/app.css" />
+  <link rel="stylesheet" href="/static/css/app.css?v={{ asset_v }}" />
   <link rel="icon" href="/static/img/favicon.svg" />
   <script defer src="/static/js/plotly.min.js"></script>
-  <script defer src="/static/js/app.js"></script>
+  <script defer src="/static/js/app.js?v={{ asset_v }}"></script>
   <script defer src="/static/js/alpine.min.js"></script>
 </head>
 <body>
@@ -21,8 +21,9 @@
       </div>
     </div>
     <div class="topbar-right">
-      <span class="badge badge-dev" x-show="devMode" x-cloak
-            title="Developer mode: every cellpy plot family and raised batch limits">DEV</span>
+      <button class="badge badge-dev badge-btn" type="button" x-show="devMode" x-cloak
+              @click="openDiagnostics()"
+              title="Developer mode — click for logs and job timings">DEV</button>
       <button class="badge badge-btn" type="button" @click="openCellpyConfig()"
               title="cellpy version — click to see where its settings come from">cellpy {{ cellpy_version }}</button>
       <button class="icon-btn" @click="toggleTheme()" :title="theme==='dark' ? 'Light mode' : 'Dark mode'">
@@ -860,6 +861,88 @@
           <span class="cfg-note">Paths and credentials are never written.</span>
         </div>
         <button class="btn" type="button" @click="cellpyConfigOpen = false">Close</button>
+      </div>
+    </div>
+  </div>
+  <!-- ============ Diagnostics (developer mode) ============ -->
+  <div class="modal-backdrop" x-show="diagOpen" x-cloak
+       @click.self="closeDiagnostics()"
+       @keydown.escape.window="if (diagOpen) closeDiagnostics()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="diag-title">
+      <div class="modal-head">
+        <h2 id="diag-title" class="modal-title">Diagnostics</h2>
+        <button class="icon-btn" type="button" @click="closeDiagnostics()" title="Close">×</button>
+      </div>
+
+      <div class="modal-toolbar">
+        <div class="panel-actions">
+          <button class="mini" type="button" :class="{active: diagTab === 'logs'}"
+                  @click="diagTab = 'logs'; refreshDiagnostics()">Logs</button>
+          <button class="mini" type="button" :class="{active: diagTab === 'jobs'}"
+                  @click="diagTab = 'jobs'; refreshDiagnostics()">Jobs</button>
+        </div>
+        <label class="mgr-ctl" x-show="diagTab === 'logs'">
+          Level
+          <select x-model="diagLevel" @change="refreshDiagnostics()">
+            <option value="">all</option>
+            <option value="INFO">info+</option>
+            <option value="WARNING">warning+</option>
+            <option value="ERROR">error only</option>
+          </select>
+        </label>
+        <label class="mgr-ctl">
+          <input type="checkbox" x-model="diagAuto" @change="toggleDiagAuto()" /> auto-refresh
+        </label>
+        <button class="mini" type="button" @click="refreshDiagnostics()">refresh</button>
+        <button class="mini" type="button" @click="copyDiagnostics()">copy</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="error-text" x-show="diagError" x-text="diagError"></p>
+
+        <template x-if="diagTab === 'logs'">
+          <div>
+            <p class="empty" x-show="!diagLogs.length">No log records captured yet.</p>
+            <table class="cfg-table diag-table" x-show="diagLogs.length">
+              <tbody>
+                <template x-for="(r, i) in diagLogs" :key="i">
+                  <tr>
+                    <td class="diag-time" x-text="r.time.slice(11, 23)"></td>
+                    <td><span class="layer" :class="'lvl-' + r.level" x-text="r.level"></span></td>
+                    <td class="diag-name" x-text="r.name"></td>
+                    <td class="diag-msg" x-text="r.message"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <template x-if="diagTab === 'jobs'">
+          <div>
+            <p class="empty" x-show="!diagJobs.length">No jobs have run yet.</p>
+            <table class="cfg-table diag-table" x-show="diagJobs.length">
+              <thead>
+                <tr><th>kind</th><th>status</th><th>queued</th><th>ran</th><th>message</th></tr>
+              </thead>
+              <tbody>
+                <template x-for="j in diagJobs" :key="j.id">
+                  <tr>
+                    <td x-text="j.kind"></td>
+                    <td><span class="layer" :class="'job-' + j.status" x-text="j.status"></span></td>
+                    <td class="diag-num" x-text="j.queued_seconds != null ? j.queued_seconds.toFixed(2) + ' s' : '—'"></td>
+                    <td class="diag-num" x-text="j.elapsed_seconds != null ? j.elapsed_seconds.toFixed(2) + ' s' : '—'"></td>
+                    <td class="diag-msg" x-text="j.error || j.message"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" type="button" @click="closeDiagnostics()">Close</button>
       </div>
     </div>
   </div>
