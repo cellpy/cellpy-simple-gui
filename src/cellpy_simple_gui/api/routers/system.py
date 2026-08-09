@@ -1,4 +1,4 @@
-"""System endpoints: capability probe + native file pickers (desktop only)."""
+"""System endpoints: capability probe, native file pickers, config diagnostics."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
+
+from ...core import cellpy_config
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -59,6 +61,16 @@ def _normalize_dialog_path(result) -> str | None:
 @router.get("/system/capabilities")
 def capabilities() -> dict:
     return {"file_picker": _webview_window() is not None}
+
+
+@router.get("/system/cellpy-config")
+def cellpy_config_diagnostics() -> dict:
+    """Where cellpy resolves each setting from (read-only; secrets never included)."""
+    try:
+        return cellpy_config.diagnostics()
+    except Exception as exc:  # noqa: BLE001 - a broken probe must not break the app
+        log.error("cellpy config diagnostics failed: %s", exc, exc_info=True)
+        raise HTTPException(500, f"Could not read cellpy configuration: {exc}") from exc
 
 
 @router.post("/system/pick")

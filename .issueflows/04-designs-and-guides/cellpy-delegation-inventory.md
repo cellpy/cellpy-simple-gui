@@ -59,6 +59,30 @@ of the 2.1.2a2 cleanup.
   (charge / discharge / **both** overlay). Export uses `select_ica_direction` so
   the exported rows match the chart. UI gained a "Both" option.
 
+## Configuration (`cellpy.config`, new in 2.1.2)
+
+cellpy 2.1.2 replaced `parameters.prms` with a layered pydantic-settings stack:
+**defaults → user `cellpy.toml` → project `cellpy.toml` → env (`CELLPY_<SECTION>__<FIELD>`)
+→ runtime**, with per-key provenance via `config.sources()`.
+
+| Area | Decision |
+|------|----------|
+| Reading resolved settings | **Delegated** — `core/cellpy_config.diagnostics()` wraps `get_config()` + `sources()` |
+| Showing where a value came from | **Delegated** — provenance layer badges in the config panel |
+| Writing cellpy's **user** config | **Never** — that file is shared with the user's notebooks/CLI; only `cellpy setup` writes it |
+| Writing a **project** `cellpy.toml` | **Not yet** — the natural next step for per-project paths (`LoadOptions(project_config_file=…)`) |
+| Credentials | **Never surfaced** — `secrets` section skipped; credential-ish instrument keys masked (#849) |
+| Per-job overrides | **Avoid `config.override()` in worker threads** — it is process-global and races (#850). Resolve on the main thread, pass concrete values into jobs |
+
+Two upstream issues came out of this pass:
+
+- **[#849](https://github.com/jepegit/cellpy/issues/849)** — `model_dump_for_file()` writes legacy
+  `instruments.Arbin.SQL_PWD` in plaintext (`extra="allow"` passthrough), and reloading such a
+  file is accepted silently while a real `[secrets]` block is rejected. **Any future
+  settings-write feature must scrub `instruments.*.SQL_*` until this ships.**
+- **[#850](https://github.com/jepegit/cellpy/issues/850)** — `config.override()` is not
+  thread-safe; concurrent workers observe each other's values.
+
 ## Still app-owned (no upstream yet / by design)
 
 - Discrete colorways + session figure-theme preference (#32)

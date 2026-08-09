@@ -1175,3 +1175,72 @@ def test_cells_export_csv_is_zip():
         names = zf.namelist()
     assert names
     assert any(n.endswith(".csv") for n in names)
+
+
+# ---- cellpy config diagnostics -------------------------------------------- #
+
+def test_config_diagnostics_shape():
+    """Panel data: sections with provenance, paths/units first, no secrets."""
+    from cellpy_simple_gui.core import cellpy_config
+
+    d = cellpy_config.diagnostics()
+    assert d["cellpy_version"]
+    names = [s["name"] for s in d["sections"]]
+    assert "paths" in names and "units" in names
+    assert "secrets" not in names
+    # primary sections sort to the front so the panel opens on what matters
+    assert names[:2] == ["paths", "units"]
+    assert sum(d["layer_counts"].values()) == sum(len(s["entries"]) for s in d["sections"])
+    for entry in next(s for s in d["sections"] if s["name"] == "paths")["entries"]:
+        assert entry["layer"] in ("default", "user_file", "project_file", "env", "runtime")
+
+
+def test_config_diagnostics_masks_credentialish_values(monkeypatch):
+    """A legacy Arbin SQL password must never render (cellpy #849)."""
+    from cellpy_simple_gui.core import cellpy_config
+
+    monkeypatch.setattr(
+        cellpy_config,
+        "_config_dump",
+        lambda: {"instruments": {"Arbin": {"SQL_PWD": "hunter2", "SQL_server": "db01"}}},
+    )
+    d = cellpy_config.diagnostics()
+    entries = next(s for s in d["sections"] if s["name"] == "instruments")["entries"]
+    pwd = next(e for e in entries if e["key"].endswith("SQL_PWD"))
+    server = next(e for e in entries if e["key"].endswith("SQL_server"))
+    assert pwd["secret"] is True and "hunter2" not in pwd["value"]
+    assert server["secret"] is False and server["value"] == "db01"  # not a credential
+    assert "hunter2" not in json.dumps(d)
+
+
+def test_config_diagnostics_warns_on_legacy_fallback(monkeypatch):
+    """No cellpy.toml + a legacy YAML => tell the user to migrate."""
+    from cellpy_simple_gui.core import cellpy_config
+
+    monkeypatch.setattr(
+        cellpy_config,
+        "_discovery",
+        lambda: {
+            "user_config_path": "/nope/cellpy.toml",
+            "user_config_exists": False,
+            "project_config_path": None,
+            "legacy_config_path": "/home/u/.cellpy_prms_default.conf",
+            "legacy_fallback": True,
+        },
+    )
+    warnings = cellpy_config.diagnostics()["warnings"]
+    assert any("legacy" in w.lower() and "cellpy.toml" in w for w in warnings)
+
+
+def test_config_diagnostics_survives_broken_provenance(monkeypatch):
+    """A failing sources() must degrade to 'default', not break the panel."""
+    from cellpy_simple_gui.core import cellpy_config
+
+    monkeypatch.setattr(
+        cellpy_config, "_sources", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    with pytest.raises(RuntimeError):
+        cellpy_config._sources()
+    monkeypatch.setattr(cellpy_config, "_sources", lambda: {})
+    d = cellpy_config.diagnostics()
+    assert all(e["layer"] == "default" for s in d["sections"] for e in s["entries"])
