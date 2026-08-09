@@ -7,38 +7,88 @@ roughly by impact.
 
 Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 
-> **Update — most of these are fixed in cellpy 2.1.1+** 🎉 Filed upstream as
-> [jepegit/cellpy#785–#791](https://github.com/jepegit/cellpy/issues/785) and
-> follow-ups; the app runs on **≥2.1.2a2** (see
-> `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
-> Remaining open items filed as
-> [jepegit/cellpy#816–#821](https://github.com/jepegit/cellpy/issues/816).
+> **Update — all but one of these are now fixed upstream** 🎉
 >
-> | # | Item | Upstream | Status |
+> The notes below were written against **cellpy 2.1.0.post1**; the app now runs
+> on **≥2.1.2a4**. Everything filed from this project has been closed except
+> [#867](https://github.com/jepegit/cellpy/issues/867), and each fix was
+> verified against the installed package before the corresponding app
+> workaround was removed — closed upstream is not the same as released, and
+> that caught us twice (see the release-gating note in
+> `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
+>
+> **25 issues filed from this project · 23 closed · 2 open.** Plus
+> [#851](https://github.com/jepegit/cellpy/issues/851), which cellpy raised
+> itself and whose fix the app adopted.
+>
+> Workarounds deleted as the fixes landed: the group-average partition and
+> facet-remap path, the `share_y` axis re-link, the `fig.write_image` export
+> plumbing, the forced `auto_pick_cellpy_format=False`, the ICA direction
+> frame-filter, the DVA single-cell path with its pandas→polars conversion, and
+> the DVA half-cycle marking.
+>
+> ### Round 1 — the first build (2.1.1.x)
+>
+> | # | Item | Upstream | Landed |
 > |---|---|---|---|
-> | 1 | Collection from in-memory cells | [#787](https://github.com/jepegit/cellpy/issues/787) | ✅ `cellpy.collect.from_cells` / `Batch.from_cells` |
-> | 2 | Group-averaged summary can't plot | [#785](https://github.com/jepegit/cellpy/issues/785) | ✅ renders (bug fixed) |
-> | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | ✅ `Collection.is_grouped` + `meta.grouped` |
-> | 3b | All-or-nothing `group_it` + long/wide facet merge | [#816](https://github.com/jepegit/cellpy/issues/816) | ✅ **in 2.1.2a2** — one collection averages groups + keeps singletons; app partition/merge **removed** |
-> | 4 | `CurveOptions` mode/method | [#788](https://github.com/jepegit/cellpy/issues/788) | ✅ added |
-> | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | ✅ quiet by contract in **2.1.1.post3** |
-> | 6 | `Collection.save` xlsx/json | [#789](https://github.com/jepegit/cellpy/issues/789) | ✅ supported |
-> | 7 | polars vs pandas boundary docs | [#791](https://github.com/jepegit/cellpy/issues/791)d / [#798](https://github.com/jepegit/cellpy/pull/798) | ✅ docs tip landed |
-> | 8 | Quiet deprecation / logger startup docs | [#791](https://github.com/jepegit/cellpy/issues/791)d / [#798](https://github.com/jepegit/cellpy/pull/798) | ✅ docs tip landed |
-> | 9 | Lightweight `read_meta` | [#799](https://github.com/jepegit/cellpy/issues/799) | ✅ **2.1.1.post4** — app wraps as `cellpy_adapter.read_file_meta` |
-> | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | ✅ **2.1.1.post4** — app wraps as `instrument_meta_schema` (UI follow-up) |
-> | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | ✅ **2.1.1.post4** hooks; app still owns legend/colorway |
-> | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | ✅ **2.1.1.post2** (non-spread path) |
-> | 12b | `spread_plot` ignores `share_y` / `match_axes` | [#817](https://github.com/jepegit/cellpy/issues/817) | ✅ **in 2.1.2a2** — grouped + grouped+spread honour share_y natively; app `#47` re-link **removed** |
-> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ✅ **in 2.1.2a2** — app `figure_bytes` delegates to `figures.write_image` + `image_media_type` |
-> | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ✅ **in 2.1.2a2** — set `instrument=` wins; app forced `auto_pick=False` **removed** |
-> | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | ✅ **in post7** — app gets clean `Cycle N` / label strips for free (no app code) |
-> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ✅ **delegated** — `ica_plotter` selects charge/discharge/both; app `#67` frame-filter **removed**, UI has "Both", export mirrors chart |
-> | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open, unfiled (app `#72` forwards `x_unit`) |
-> | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open, unfiled (app `#38` passes `y_label_mapper`) |
-> | 19 | Non-atomic v9 `.cellpy` writes | [#845](https://github.com/jepegit/cellpy/issues/845) | ◑ **filed** — app stages project saves; cellpy zip still truncates in place |
-> | 20 | Summary facet order ignores collect column order on group-avg | — | ◑ open, unfiled (app `#81` passes Plotly `category_orders`) |
-> | 21 | No selective summary rebuild after meta edits | [#846](https://github.com/jepegit/cellpy/issues/846) | ◑ **filed** — app always full `make_summary()` |
+> | 1 | Collection from in-memory cells | [#787](https://github.com/jepegit/cellpy/issues/787) | `collect.from_cells` — replaced a hand-rolled batch shim |
+> | 2 | Group-averaged summary can't plot | [#785](https://github.com/jepegit/cellpy/issues/785) | fixed |
+> | 3 | No "was it averaged?" signal | [#790](https://github.com/jepegit/cellpy/issues/790) | `Collection.is_grouped` / `meta.grouped` |
+> | 4 | `CurveOptions` mode/method | [#788](https://github.com/jepegit/cellpy/issues/788) | added |
+> | 5 | Quiet, app-facing instrument list | [#786](https://github.com/jepegit/cellpy/issues/786) | quiet by contract (2.1.1.post3) |
+> | 6 | `Collection.save` xlsx/json | [#789](https://github.com/jepegit/cellpy/issues/789) | supported |
+> | 7–8 | polars/pandas boundary + quiet startup docs | [#791](https://github.com/jepegit/cellpy/issues/791) / [#798](https://github.com/jepegit/cellpy/pull/798) | docs |
+> | 9 | Lightweight `read_meta(path)` | [#799](https://github.com/jepegit/cellpy/issues/799) | 2.1.1.post4 |
+> | 10 | Per-instrument metadata schema | [#800](https://github.com/jepegit/cellpy/issues/800) | 2.1.1.post4 |
+> | 11 | App-friendly collected figures | [#801](https://github.com/jepegit/cellpy/issues/801) | 2.1.1.post4 hooks |
+> | 12 | Per-panel y-limits / `share_y` | [#804](https://github.com/jepegit/cellpy/issues/804) | 2.1.1.post2 |
+>
+> ### Round 2 — plotting and loading (2.1.2a2 / a3)
+>
+> | # | Item | Upstream | Landed | App code removed |
+> |---|---|---|---|---|
+> | 3b | All-or-nothing `group_it` + long/wide facet merge | [#816](https://github.com/jepegit/cellpy/issues/816) | 2.1.2a2 | partition + merge + facet remap |
+> | 12b | `spread_plot` ignores `share_y` | [#817](https://github.com/jepegit/cellpy/issues/817) | 2.1.2a2 | the `#47` axis re-link |
+> | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | 2.1.2a2 | `fig.write_image` plumbing |
+> | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | 2.1.2a2 | forced `auto_pick=False` |
+> | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | post7 | (nothing — free) |
+> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | post7 | `_filter_ica_by_direction` |
+>
+> ### Round 3 — configuration (2.1.2a3)
+>
+> Found while wiring the config panel. cellpy 2.1.2 replaced `parameters.prms`
+> with a layered pydantic-settings stack, which is a large improvement for apps —
+> these were the rough edges in it.
+>
+> | # | Item | Upstream | Landed |
+> |---|---|---|---|
+> | 22 | `model_dump_for_file()` wrote legacy Arbin SQL credentials in plaintext | [#849](https://github.com/jepegit/cellpy/issues/849) | 2.1.2a3 |
+> | 23 | `config.override()` process-global, cross-talks between threads | [#850](https://github.com/jepegit/cellpy/issues/850) | 2.1.2a3 (contextvars) |
+> | 24 | Reporting disagreed with the loader about which config file wins | [#851](https://github.com/jepegit/cellpy/issues/851) | 2.1.2a3 — `active_config_file()`, now used by the app's config panel |
+>
+> ### Round 4 — data integrity, DVA, raw (2.1.2a4)
+>
+> | # | Item | Upstream | Landed |
+> |---|---|---|---|
+> | 19 | Non-atomic v9 `.cellpy` writes could destroy the file | [#845](https://github.com/jepegit/cellpy/issues/845) | 2.1.2a4 — `readers/cellpy_file/atomic.py`, staged write + `os.replace` |
+> | 21 | No selective summary rebuild after metadata edits | [#846](https://github.com/jepegit/cellpy/issues/846) | 2.1.2a4 — `CellpyCell.refresh_after(fields=…)`, now used instead of a full `make_summary()` |
+> | 25 | `dva_plot(direction="both")` drew both half-cycles identically | [#862](https://github.com/jepegit/cellpy/issues/862) | 2.1.2a4 — solid/dot |
+> | 26 | No `collect_dva` — DVA was the only single-cell family | [#863](https://github.com/jepegit/cellpy/issues/863) | 2.1.2a4 — DVA moved onto the shared collection path |
+>
+> ### Still open
+>
+> | # | Item | Upstream | App workaround |
+> |---|---|---|---|
+> | 27 | `raw_plot` has no point/cycle limit — 7–18 MiB of figure JSON per cell | [#867](https://github.com/jepegit/cellpy/issues/867) | `_thin_traces` keeps ~4000 points/trace and annotates the chart |
+> | 28 | `fullcell_standard_*` can't be collected: `family.transforms()` shape ≠ `SummaryOptions.transforms` | [#868](https://github.com/jepegit/cellpy/issues/868) | none possible — 7 of 25 families unreachable |
+>
+> ### Open but unfiled (app forwards a knob instead)
+>
+> | # | Item | App workaround |
+> |---|---|---|
+> | 17 | Cycles plotter ignores collect `mode` for `x_unit` | forwards `x_unit` |
+> | 18 | Summary y-labels omit units; CE / C-rate have no unit hooks | passes `y_label_mapper` |
+> | 20 | Summary facet order ignores collect column order on group-avg | passes `category_orders` |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -420,6 +470,12 @@ app now stages project folders atomically, but each individual
 close the zip, then `os.replace` onto the final path so readers never see a
 half-written archive. Optionally validate required members before replace.
 
+**Resolved in 2.1.2a4:** `readers/cellpy_file/atomic.py` stages the write beside
+the target and finishes with `os.replace`, so an interrupted save can no longer
+destroy the previous file. The app keeps its own project-level staging — that
+protects the whole folder commit (many cells + manifest), which is a wider unit
+than a single file.
+
 ## 20. 🟠 Summary facet order ignores collect column order on group-avg
 
 `collect_summaries(..., columns=(…))` records the requested variable set, but
@@ -462,6 +518,137 @@ targeted updates or warn users precisely.
 scope rebuilds and UX messaging. Dedicated setters (vs bare attribute assign)
 would also help discoverability.
 
+**Resolved in 2.1.2a4:** `CellpyCell.refresh_after(fields=[...])` recomputes only
+the meta-dependent (scaled / equivalent-cycle) columns and falls back to a full
+`make_summary()` when there is no summary yet. `apply_physical_meta` uses it.
+
+---
+
+## Round 3 — configuration (all resolved in 2.1.2a3)
+
+cellpy 2.1.2 replaced `parameters.prms` with a layered pydantic-settings stack —
+defaults → user `cellpy.toml` → project `cellpy.toml` → env → runtime, with
+per-key provenance via `config.sources()`. That is a large improvement for app
+builders: it is the first time an app could *show* a user where a setting came
+from. These were the rough edges found while wiring that into a settings panel.
+
+### 22. 🔴 `model_dump_for_file()` wrote credentials in plaintext
+
+The dump documented as "secrets excluded" dropped the `[secrets]` section but
+let a legacy `instruments.Arbin.SQL_PWD` through, because the instrument models
+are `extra="allow"`. Worse, the asymmetry: a hand-written `[secrets]` block was
+correctly *rejected* on load, while the same credential under `[instruments]`
+was written **and** silently accepted. A "Save settings" button would have
+written a migrating user's database password into `%LOCALAPPDATA%`.
+
+**Upstream:** [#849](https://github.com/jepegit/cellpy/issues/849) — fixed in 2.1.2a3.
+
+### 23. 🔴 `config.override()` was process-global
+
+It reads as a scoped context manager but mutated a module-level stack, so in a
+thread pool two workers saw each other's values *inside their own blocks*. For a
+GUI running work off the request thread that is silent wrong-numbers, not a
+crash — the worse failure mode.
+
+**Upstream:** [#850](https://github.com/jepegit/cellpy/issues/850) — fixed in
+2.1.2a3 with `contextvars`. The app still switches config on the request thread,
+because a *project* switch should be process-global by design.
+
+### 24. 🟠 Reporting disagreed with the loader about the active config
+
+`cellpy info` / `edit config` re-derived `~/.cellpy_prms_<user>.conf` instead of
+asking the loader, so after `cellpy setup migrate` they named and validated a
+file that no longer had any effect.
+
+**Upstream:** [#851](https://github.com/jepegit/cellpy/issues/851) — fixed in
+2.1.2a3 by `config.loader.active_config_file()`, which also reports a legacy
+`.conf` *shadowed* by a `cellpy.toml`. The app's config panel uses it, and shows
+the shadowed file as ignored — a real source of "I edited the config and nothing
+happened".
+
+---
+
+## Round 4 — DVA and raw data
+
+### 25. 🟠 `dva_plot(direction="both")` drew both half-cycles identically
+
+Same colour, same trace name, no dash — only the hover told them apart, so on a
+static export (PNG/SVG/PDF for a report) the information was simply gone.
+`ica_plotter` had already gained `line_dash` for exactly this in #821.
+
+**Upstream:** [#862](https://github.com/jepegit/cellpy/issues/862) — fixed in 2.1.2a4.
+
+### 26. 🟠 No `collect_dva`
+
+`collect_summaries`, `collect_cycles` and `collect_ica` all existed; DVA had no
+collector, so it was the one analysis family that could not be compared across
+cells. Apps had to special-case it onto the single-cell `dva_plot`, with its own
+pandas (not polars) export path.
+
+**Upstream:** [#863](https://github.com/jepegit/cellpy/issues/863) — fixed in
+2.1.2a4. The app's DVA view moved onto the shared collection path and the
+special case disappeared.
+
+### 27. 🟠 `raw_plot` has no way to limit points *(still open)*
+
+`prepare_raw` copies the whole raw frame — no cycle filter, no thinning — so a
+single 155k-row demo cell produces **7 MiB** (`voltage-current`) to **18 MiB**
+(`full`) of figure JSON. Every other family is bounded, by cycle or by cycle
+selection; raw is unbounded by construction. Not something a browser canvas can
+take.
+
+**Workaround (app):** thin the traces after the fact — every Nth point, ~4000 per
+trace, which takes `full` from 18.5 MiB to 482 KiB (2.6%) with the curve shape
+intact — and annotate the chart so a thinned plot is never passed off as
+complete.
+
+**Wish:** `max_points=` (ideally min/max per bucket, which preserves spikes that
+striding drops) or the `cycles=` bound the other families already have, applied
+before the frame is copied.
+
+**Upstream:** [#867](https://github.com/jepegit/cellpy/issues/867) — open.
+
+---
+
+### 28. 🔴 Seven registered families cannot be collected at all *(still open)*
+
+Building a plot menu from `registry.families()` gives 25 entries. On the demo
+cell only **8** have all their columns with default collect options. Digging in:
+
+| collect options | families satisfied |
+|---|---|
+| defaults | 8 / 25 |
+| `SummaryOptions(partition_by_cv=True)` | 12 / 25 |
+| + the family's own `transforms` | **`TypeError`** |
+
+Two separate problems.
+
+**The CV families are reachable but undiscoverable.** `*_cv` / `*_non_cv` are
+produced by the *collector* (`partition_by_cv=True`), not by the cell summary.
+Nothing on the family says so, so a caller enumerating the registry has to know
+out of band which families need which options. (This half was our bug — the app
+now knows to ask; tracked as cellpy-simple-gui#106.)
+
+**The full-cell families are unreachable, full stop.** `PlotFamily.transforms()`
+returns a nested mapping `{output: {(cycle, source): fn}}`, while
+`SummaryOptions.transforms` is applied as `frame = transform(frame)` — callables.
+Feeding one to the other raises `TypeError: 'dict' object is not callable`, so
+the `mod_01_*` column the family needs can never be produced, and all seven
+`fullcell_standard_*` entries are dead.
+
+For an app this is the worst of the failure modes in this document, because it
+surfaces to the *user* as "your data is missing columns" when the truth is the
+app was never able to ask for them.
+
+**Wish:** make the registry self-describing — `family.summary_options(hdr)`
+returning a ready `SummaryOptions` (CV flag set where needed, transforms in the
+shape the collector accepts), so `collect_summaries(batch,
+options=family.summary_options(hdr))` just works.
+
+**Upstream:** [#868](https://github.com/jepegit/cellpy/issues/868) — open.
+
+---
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args
@@ -476,4 +663,21 @@ would also help discoverability.
 - `instrument_configurations()` exists at all — discovery was possible; it just
   needs a quieter, app-facing wrapper (see #5).
 
-*Generated while building [cellpy-simple-gui](./README.md) on cellpy 2.1.0.post1.*
+Added after the later rounds:
+
+- The **2.1.2 config stack** is the single biggest app-facing improvement here.
+  Layered sources with per-key provenance (`config.sources()`) let an app *show*
+  a user which file a setting came from — most libraries make that unknowable.
+  `active_config_file()` reporting a shadowed legacy `.conf` is a small touch
+  that removes a whole category of confusion.
+- **`from_cells` / `collect_*` / the family registry together** turned out to be
+  the right shape: the app builds a Collection and lets cellpy plot it, so
+  grouping, spread, per-cell cycle isolation and multi-format export all stay
+  consistent with cellpy instead of drifting.
+- **Fix turnaround.** Every issue in rounds 2–4 was closed quickly, which is what
+  made it possible to keep *deleting* workarounds rather than accumulating them.
+  `core/collect.py` is substantially shorter than at 2.1.1, and nearly all of the
+  difference is logic upstream now owns.
+
+*Started while building [cellpy-simple-gui](./README.md) on cellpy 2.1.0.post1;
+kept up to date through 2.1.2a4. 25 issues filed from this project, 23 closed.*
