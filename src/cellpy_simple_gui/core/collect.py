@@ -684,6 +684,88 @@ def curve_layout_kwargs(layout: str) -> dict:
     return {"layout": layout}
 
 
+#: cellpy names the band edges of a spread plot; the mean line keeps the group.
+_SPREAD_BOUND_PREFIXES = ("upper bound", "lower bound")
+
+
+def _add_spread_hover(fig) -> None:
+    """Give spread traces the hover the plain group-average plot already has (#40).
+
+    ``spread_plot`` builds its traces with bare ``go.Scatter`` and never sets a
+    hovertemplate, so turning Spread on drops hover entirely — group, variable,
+    cycle and value all disappear. Everything needed is on the figure: the group
+    is the mean trace's name, and the variable is the y-axis title the user is
+    already reading. The band edge gives the spread itself, so the mean carries
+    ``± std`` as customdata.
+
+    Best-effort by design: hover is chrome, and a figure without it still draws.
+    """
+    try:
+        import numpy as np
+
+        for (_, yaxis), traces in _facet_traces(fig).items():
+            variable = _axis_title(fig, yaxis)
+            mean_tr = None
+            for tr in traces:
+                name = str(getattr(tr, "name", "") or "")
+                if name.lower().startswith(_SPREAD_BOUND_PREFIXES):
+                    # A band edge is not a data series; hovering it would report
+                    # "mean+std" as though it were a measurement.
+                    tr.hoverinfo = "skip"
+                    if mean_tr is not None and name.lower().startswith("upper bound"):
+                        _attach_spread(mean_tr, tr, variable, np)
+                        mean_tr = None
+                    continue
+                mean_tr = tr
+                tr.hovertemplate = _spread_hovertemplate(name, variable, spread=False)
+    except Exception:  # noqa: BLE001 - hover is chrome, never break the chart
+        log.warning("could not add hover to spread traces", exc_info=True)
+
+
+def _spread_hovertemplate(group: str, variable: str, *, spread: bool) -> str:
+    """Match the fields the non-averaged plot shows: series, variable, x, y."""
+    value = "mean=%{y:.4g} ± %{customdata:.3g}" if spread else "mean=%{y:.4g}"
+    return (
+        f"group={group}<br>variable={variable}<br>cycle=%{{x}}<br>{value}<extra></extra>"
+    )
+
+
+def _attach_spread(mean_tr, upper_tr, variable: str, np) -> None:
+    """Put the band half-width on the mean trace so hover can show ``± std``."""
+    try:
+        mean_y = np.asarray(mean_tr.y, dtype=float)
+        upper_y = np.asarray(upper_tr.y, dtype=float)
+        if mean_y.shape != upper_y.shape:
+            return
+        # A plain list, not the numpy array: plotly.io serialises arrays as a
+        # base64 {dtype, bdata} blob that plotly.js does not decode for
+        # customdata, so the tooltip would read "± NaN".
+        mean_tr.customdata = [float(v) for v in np.abs(upper_y - mean_y)]
+        mean_tr.hovertemplate = _spread_hovertemplate(
+            str(mean_tr.name or ""), variable, spread=True
+        )
+    except Exception:  # noqa: BLE001 - keep the plain mean hover
+        log.warning("could not attach spread to hover", exc_info=True)
+
+
+def _facet_traces(fig) -> dict[tuple[str, str], list]:
+    """Traces grouped by the subplot they live on, in figure order."""
+    out: dict[tuple[str, str], list] = {}
+    for tr in fig.data:
+        key = (getattr(tr, "xaxis", None) or "x", getattr(tr, "yaxis", None) or "y")
+        out.setdefault(key, []).append(tr)
+    return out
+
+
+def _axis_title(fig, yaxis: str) -> str:
+    """The y-axis title for ``y``/``y2``/… — what names the facet on screen."""
+    key = "yaxis" + yaxis[1:]
+    axis = fig.layout[key] if key in fig.layout else None
+    text = getattr(getattr(axis, "title", None), "text", None) or ""
+    # Titles are pretty-printed and may wrap; hover wants one line.
+    return text.replace("<br>", " ").strip()
+
+
 def figure_json(
     collection,
     *,
@@ -705,6 +787,8 @@ def figure_json(
         # cellpy ≥2.1.2 honours share_y / match_axes on the collection itself,
         # incl. the group-avg + spread path (#816/#817), so no app re-link here.
         fig = collection.plot(spread=spread, **opts)
+        if spread:
+            _add_spread_hover(fig)
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         if y_ranges:
             _apply_y_ranges(fig, y_ranges)

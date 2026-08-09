@@ -11,14 +11,15 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 >
 > The notes below were written against **cellpy 2.1.0.post1**; the app now runs
 > on **≥2.1.2** (released). #867 and #868 both closed in 2.1.2, clearing the
-> backlog; §29 was found afterwards and is the only one outstanding. Each fix
+> backlog; §29 and §30 were found afterwards, while building on it. Each fix
 > was verified against the installed package before the corresponding app
 > workaround was removed — closed upstream is not the same as released, and that
 > caught us twice (see the release-gating note in
 > `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
 >
-> **26 issues filed from this project · 25 closed · 1 open** (§29 /
-> [#874](https://github.com/jepegit/cellpy/issues/874)). Plus
+> **27 issues filed from this project · 25 closed · 2 open** (§29 /
+> [#874](https://github.com/jepegit/cellpy/issues/874), §30 /
+> [#875](https://github.com/jepegit/cellpy/issues/875)). Plus
 > [#851](https://github.com/jepegit/cellpy/issues/851), which cellpy raised
 > itself and whose fix the app adopted.
 >
@@ -99,6 +100,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | # | Item | Upstream | App workaround |
 > |---|---|---|---|
 > | 29 | An unknown `layout=` is accepted silently — `layout="film"` draws a line plot that looks fine | [#874](https://github.com/jepegit/cellpy/issues/874) | `curve_layout_kwargs()` translates `film` → `kind="film"` |
+> | 30 | `spread_plot` traces have no hovertemplate — ticking Spread drops all hover detail | [#875](https://github.com/jepegit/cellpy/issues/875) | `_add_spread_hover()` rebuilds it from the figure |
 >
 > ### Open but unfiled (app forwards a knob instead)
 >
@@ -738,6 +740,38 @@ document `kind=` in `Collection.plot`, where it is currently absent.
 
 ---
 
+### 30. 🟠 `spread_plot` traces carry no hover at all *(open)*
+
+Found while chasing [cellpy-simple-gui#40](https://github.com/cellpy/cellpy-simple-gui/issues/40).
+
+Same collection, same columns, three renderings:
+
+| mode | `hovertemplate` on the first trace |
+|---|---|
+| per-cell | `cellpy<br>group=1<br>sub_group=1<br>variable=…<br>Cycle (n.)=%{x}<br>value=%{y}` |
+| `group_it=True` | `group=1<br>variable=…<br>Cycle (n.)=%{x}<br>mean=%{y}` |
+| `group_it=True, spread=True` | **`None`** — on all 18 traces, mean lines included |
+
+`summary_plotter` goes through plotly.express, which attaches hover from the
+frame. `spread_plot` builds traces directly with `go.Scatter` and never sets
+one.
+
+Spread is exactly where hover matters most: the band hides the individual
+cells, so the tooltip is the only way to read a value. A user ticking one
+checkbox loses group, variable, cycle and value at the moment they most need
+them. The **Upper Bound / Lower Bound** traces are also hoverable, and they are
+construction artefacts — a tooltip on one reads like a measurement nobody took.
+
+**Workaround (app):** `_add_spread_hover()` rebuilds it after the fact — group
+from the mean trace's name, variable from the y-axis title the user is already
+reading, `± std` derived from the upper-bound trace, and `hoverinfo="skip"` on
+the bounds. It works, but it leans on trace naming (`"Upper Bound <group>"`) and
+emission order (mean, upper, lower), which are internal details.
+
+**Upstream:** [#875](https://github.com/jepegit/cellpy/issues/875) — open.
+
+---
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args
@@ -775,4 +809,4 @@ Added after the later rounds:
   describes how to satisfy itself makes that table unnecessary.
 
 *Started while building [cellpy-simple-gui](./README.md) on cellpy 2.1.0.post1;
-kept up to date through 2.1.2. 26 issues filed from this project, 25 closed.*
+kept up to date through 2.1.2. 27 issues filed from this project, 25 closed.*
