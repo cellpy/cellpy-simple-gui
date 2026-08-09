@@ -11,7 +11,15 @@ CapacityMode = Literal["gravimetric", "areal", "absolute"]
 Direction = Literal["charge", "discharge"]
 CycleMethod = Literal["forth-and-forth", "back-and-forth", "forth"]
 # cellpy collected cycles layouts (legacy fig_pr_cell / fig_pr_cycle).
-CyclesLayout = Literal["per_cell", "per_cycle"]
+#
+# "film" is presented here as a third layout because that is how it reads in the
+# UI, but cellpy models it as a *kind* (``kind="film"`` + ``layout="per_cell"``,
+# a histogram2d rather than lines). The translation happens in
+# ``collect.curve_layout_kwargs`` — passing ``layout="film"`` straight to cellpy
+# silently draws a line plot instead (see CELLPY_PAINPOINTS §29).
+CyclesLayout = Literal["per_cell", "per_cycle", "film"]
+# What the Cycles pane draws: voltage curves, or the differentials (#95).
+CurveKind = Literal["voltage", "dqdv", "dvdq"]
 # ICA plotter only accepts charge|discharge (not "both") — see CELLPY_PAINPOINTS §16.
 IcaDirection = Literal["charge", "discharge", "both"]
 # Resolved figure chrome (UI maps "match app" → light|dark before POST).
@@ -125,6 +133,12 @@ class CyclesPlotSpec(BaseModel):
     mode: CapacityMode = "gravimetric"
     method: CycleMethod = "forth-and-forth"
     layout: CyclesLayout = "per_cycle"
+    # dQ/dV and dV/dQ over the same cells and cycles (#95). They come from
+    # collect_ica / collect_dva rather than collect_cycles, so `mode` / `method`
+    # do not apply to them and `direction` / `voltage_resolution` do.
+    curve_kind: CurveKind = "voltage"
+    direction: IcaDirection = "charge"
+    voltage_resolution: float = 0.005
     # Legend click mutes whole journal group vs one cell (Plotly).
     # Meaningless for layout=per_cell (cellpy forces group_cells=False).
     group_legend_muting: bool = True

@@ -3,8 +3,9 @@
 Against **cellpy 2.1.2** (post7 → 2.1.2a2 → a3 → a4 → 2.1.2). Goal: prefer cellpy
 APIs; keep only app chrome that cellpy still does not own.
 
-As of 2.1.2 **no issue filed from this project is still open**, and no app code
-remains that exists solely to work around one.
+As of 2.1.2 every issue from the first four rounds is closed. One workaround
+remains, and it is newer than the upgrade: the `film` layout translation
+([#874](https://github.com/jepegit/cellpy/issues/874)).
 
 ## Release-gating note (resolved for #816/#818/#819)
 
@@ -134,6 +135,16 @@ the whole frame, giving **7.35 MiB** of figure JSON for one 155k-row demo cell.
 2.1.2 added `max_points` (and `cycles`), taking that to **0.18 MiB**. The app
 computes its annotation from the actual trace length rather than assuming a
 stride, so the label stays correct whatever downsampling cellpy uses.
+
+## Cycles pane curve kinds (#95)
+
+| Area | Decision |
+|------|----------|
+| Voltage curves | **Delegated** — `collect_cycles` + `family_kind="cycles"` |
+| dQ/dV, dV/dQ across many cells | **Delegated** — `collect_ica` / `collect_dva` take the whole record list, so the Cycles pane reuses the Cell-explorer collectors unchanged |
+| Film (density) rendering | **Delegated** — cellpy's `kind="film"` (`histogram2d`) |
+| `film` as a *layout* | **App-owned (translation)** — `curve_layout_kwargs()` maps the app's `layout="film"` to `kind="film", layout="per_cell"`. cellpy accepts an unknown `layout` silently and draws lines ([#874](https://github.com/jepegit/cellpy/issues/874)); remove this when it validates or aliases |
+| Differential export | **App-owned (routing)** — `cycles_export` picks the collector matching `curve_kind` so the CSV matches the chart, then reuses `select_ica_direction` |
 
 ## Summary plot families
 

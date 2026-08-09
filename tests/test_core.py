@@ -197,6 +197,49 @@ def test_cycles_figure(loaded_library):
     assert len(fig["data"]) >= 1
 
 
+def test_cycles_pane_plots_differentials(loaded_library):
+    """#95: the Cycles pane draws dQ/dV and dV/dQ across the same selection."""
+    recs = loaded_library.selected()
+    for curve_kind in ("dqdv", "dvdq"):
+        spec = CyclesPlotSpec(cycles=[1, 2], curve_kind=curve_kind, direction="both")
+        fig = json.loads(plotting.cycles_figure(recs, spec))
+        assert len(fig["data"]) >= 2, curve_kind
+        text = " ".join(
+            a.get("text", "") for a in fig["layout"].get("annotations") or []
+        )
+        assert "Could not render" not in text, text
+
+
+def test_cycles_film_layout_is_a_density_plot(loaded_library):
+    """``film`` is a cellpy *kind*, not a layout — passing it through as a
+    layout silently drew lines (CELLPY_PAINPOINTS §29)."""
+    recs = loaded_library.selected()
+    assert collect.curve_layout_kwargs("film") == {"kind": "film", "layout": "per_cell"}
+    assert collect.curve_layout_kwargs("per_cell") == {"layout": "per_cell"}
+
+    for curve_kind in ("voltage", "dqdv", "dvdq"):
+        fig = json.loads(
+            plotting.cycles_figure(
+                recs, CyclesPlotSpec(cycles=[1, 2, 3], curve_kind=curve_kind, layout="film")
+            )
+        )
+        types = {t.get("type") for t in fig["data"]}
+        assert types == {"histogram2d"}, (curve_kind, types)
+
+
+def test_cycles_export_follows_curve_kind(loaded_library):
+    """Exported data must be what the chart shows, not always the curves (#95)."""
+    recs = loaded_library.selected()
+    for curve_kind, marker in (("dqdv", "dqdv"), ("dvdq", "dvdq")):
+        data, _ = export.cycles_export(
+            recs, CyclesPlotSpec(cycles=[1, 2], curve_kind=curve_kind), "csv"
+        )
+        header = data.decode().splitlines()[0]
+        assert marker in header, header
+    data, _ = export.cycles_export(recs, CyclesPlotSpec(cycles=[1, 2]), "csv")
+    assert "dqdv" not in data.decode().splitlines()[0]
+
+
 def test_cycles_figure_xy_ranges(loaded_library):
     """Cell-explorer / Cycles-collector x/y range widgets pin Plotly axes."""
     rec = loaded_library.all()[0]

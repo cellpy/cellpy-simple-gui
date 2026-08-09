@@ -7,16 +7,18 @@ roughly by impact.
 
 Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 
-> **Update — every one of these is now fixed upstream** 🎉
+> **Update — everything from the first four rounds is fixed upstream** 🎉
 >
 > The notes below were written against **cellpy 2.1.0.post1**; the app now runs
-> on **≥2.1.2** (released). With #867 and #868 closed in 2.1.2, **nothing filed
-> from this project is still open.** Each fix was verified against the installed
-> package before the corresponding app workaround was removed — closed upstream
-> is not the same as released, and that caught us twice (see the release-gating
-> note in `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
+> on **≥2.1.2** (released). #867 and #868 both closed in 2.1.2, clearing the
+> backlog; §29 was found afterwards and is the only one outstanding. Each fix
+> was verified against the installed package before the corresponding app
+> workaround was removed — closed upstream is not the same as released, and that
+> caught us twice (see the release-gating note in
+> `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
 >
-> **25 issues filed from this project · 25 closed · 0 open.** Plus
+> **26 issues filed from this project · 25 closed · 1 open** (§29 /
+> [#874](https://github.com/jepegit/cellpy/issues/874)). Plus
 > [#851](https://github.com/jepegit/cellpy/issues/851), which cellpy raised
 > itself and whose fix the app adopted.
 >
@@ -91,6 +93,12 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > getting wrong ([cellpy-simple-gui#106](https://github.com/cellpy/cellpy-simple-gui/issues/106)).
 > Measured on the demo cells: **8 of 25 families selectable → 15 of 20**, every
 > one rendering real traces.
+>
+> ### Still open
+>
+> | # | Item | Upstream | App workaround |
+> |---|---|---|---|
+> | 29 | An unknown `layout=` is accepted silently — `layout="film"` draws a line plot that looks fine | [#874](https://github.com/jepegit/cellpy/issues/874) | `curve_layout_kwargs()` translates `film` → `kind="film"` |
 >
 > ### Open but unfiled (app forwards a knob instead)
 >
@@ -695,6 +703,41 @@ lacks these columns" is the right message, which it was not before.
 
 ---
 
+### 29. 🟠 An unknown `layout=` is accepted silently *(open)*
+
+Found while adding dQ/dV and dV/dQ to the multi-cell Cycles pane (#95).
+
+`film` reads like a layout — it sits in `_METHOD_TO_LAYOUT` next to
+`fig_pr_cell` / `fig_pr_cycle`, and `Collection.plot`'s docstring mentions only
+`layout=` for the cycles/ICA path. It is actually a **kind**. Passing it as a
+layout falls through `_LAYOUT_TO_METHOD.get(layout, "fig_pr_cell")` to the line
+renderer:
+
+```python
+>>> resolve_collected_layout_kind(layout="film")
+('film', 'line', 'fig_pr_cell')      # kind='line' — draws lines
+>>> resolve_collected_layout_kind(layout="totally_bogus")
+('totally_bogus', 'line', 'fig_pr_cell')   # no error, no warning
+>>> resolve_collected_layout_kind(kind="film")
+('per_cell', 'film', 'film')         # the intended histogram2d
+```
+
+The trap is that the wrong call **produces a perfectly plausible figure** —
+identical `scattergl` traces to `per_cell`. Nothing suggests it is wrong, so it
+ships. That is worse than a traceback.
+
+**Workaround (app):** `collect.curve_layout_kwargs()` translates the app's
+`film` layout into `kind="film", layout="per_cell"`, with a test asserting the
+result is `histogram2d` and not lines.
+
+**Wish:** validate unknown `layout` / `kind` (`totally_bogus` reaching the
+renderer is a bug on its own), or accept `layout="film"` as an alias — and
+document `kind=` in `Collection.plot`, where it is currently absent.
+
+**Upstream:** [#874](https://github.com/jepegit/cellpy/issues/874) — open.
+
+---
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args
@@ -732,4 +775,4 @@ Added after the later rounds:
   describes how to satisfy itself makes that table unnecessary.
 
 *Started while building [cellpy-simple-gui](./README.md) on cellpy 2.1.0.post1;
-kept up to date through 2.1.2. 25 issues filed from this project, all 25 closed.*
+kept up to date through 2.1.2. 26 issues filed from this project, 25 closed.*
