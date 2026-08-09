@@ -331,3 +331,47 @@ def test_dva_endpoints_available_in_dev_mode(client, monkeypatch):
         assert "dva_" in data.headers.get("content-disposition", "")
     finally:
         get_settings.cache_clear()
+
+
+def test_raw_and_cycle_info_are_dev_only(client, monkeypatch):
+    from cellpy_simple_gui.config import get_settings
+
+    spec = _dva_spec(client)          # loads a cell, gives us its id
+    cell_id = spec["cell_id"]
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        for url, body in (
+            ("/api/plots/raw", {"cell_id": cell_id}),
+            ("/api/plots/cycle-info", {"cell_id": cell_id, "cycles": [1, 2]}),
+        ):
+            r = client.post(url, json=body)
+            assert r.status_code == 403, url
+            assert "developer mode" in r.json()["detail"].lower()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_raw_and_cycle_info_in_dev_mode(client, monkeypatch):
+    from cellpy_simple_gui.config import get_settings
+
+    spec = _dva_spec(client)
+    cell_id = spec["cell_id"]
+    monkeypatch.setenv("CSG_DEV_MODE", "1")
+    get_settings.cache_clear()
+    try:
+        raw = client.post(
+            "/api/plots/raw", json={"cell_id": cell_id, "plot_type": "full", "max_points": 1500}
+        )
+        assert raw.status_code == 200
+        assert raw.json()["data"]
+        # the whole point: the response must not be the multi-MiB raw frame
+        assert len(raw.content) < 3_000_000
+
+        info = client.post(
+            "/api/plots/cycle-info", json={"cell_id": cell_id, "cycles": [1, 2]}
+        )
+        assert info.status_code == 200
+        assert info.json()["data"]
+    finally:
+        get_settings.cache_clear()

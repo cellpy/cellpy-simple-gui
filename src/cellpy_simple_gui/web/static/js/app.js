@@ -71,6 +71,7 @@ function app() {
       cell_id: "", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
       plotKind: "curves", mode: "gravimetric", method: "forth-and-forth",
       voltageResolution: 0.005, direction: "charge",
+      rawPlotType: "voltage-current", maxPoints: 4000,
       xRange: { min: "", max: "" },
       yRange: { min: "", max: "" },
     },
@@ -209,12 +210,19 @@ function app() {
       // dQ/dV and dV/dQ share cellpy's IcaOptions (cycles, resolution, direction).
       return this.cell.plotKind === "dqdv" || this.cell.plotKind === "dvdq";
     },
+    get cellIsRawKind() {
+      // cellpy plots the whole raw frame (cellpy #867), so these are thinned.
+      return this.cell.plotKind === "raw" || this.cell.plotKind === "cycleinfo";
+    },
     get cellPlotKindLabel() {
-      return { dqdv: "dQ/dV", dvdq: "dV/dQ" }[this.cell.plotKind] || "Curves";
+      return {
+        dqdv: "dQ/dV", dvdq: "dV/dQ", raw: "Raw", cycleinfo: "Raw + steps",
+      }[this.cell.plotKind] || "Curves";
     },
     get cellAxisLabels() {
       if (this.cell.plotKind === "dqdv") return { x: "Voltage x", y: "dQ/dV y" };
       if (this.cell.plotKind === "dvdq") return { x: "Capacity x", y: "dV/dQ y" };
+      if (this.cell.plotKind === "raw") return { x: "Time x", y: "Value y" };
       return { x: "Capacity x", y: "Voltage y" };
     },
 
@@ -733,6 +741,23 @@ function app() {
         ...this.appearanceFields(),
       };
     },
+    rawSpec() {
+      return {
+        cell_id: this.cell.cell_id,
+        plot_type: this.cell.rawPlotType || "voltage-current",
+        max_points: this._num(this.cell.maxPoints) || 4000,
+        ...this.axisRangeFields(this.cell),
+        ...this.appearanceFields(),
+      };
+    },
+    cycleInfoSpec() {
+      return {
+        cell_id: this.cell.cell_id,
+        cycles: this.buildCycleListFrom(this.cell),
+        max_points: this._num(this.cell.maxPoints) || 4000,
+        ...this.appearanceFields(),
+      };
+    },
     icaSpec() {
       const res = Number(this.cell.voltageResolution);
       return {
@@ -752,9 +777,14 @@ function app() {
       const kind = this.cell.plotKind;
       const url = kind === "dqdv" ? "/api/plots/ica"
         : kind === "dvdq" ? "/api/plots/dva"
+        : kind === "raw" ? "/api/plots/raw"
+        : kind === "cycleinfo" ? "/api/plots/cycle-info"
         : "/api/plots/cycles";
       // DVA reuses the ICA spec — cellpy derives both from IcaOptions.
-      const body = this.cellUsesIcaOptions ? this.icaSpec() : this.cellSpec();
+      const body = this.cellUsesIcaOptions ? this.icaSpec()
+        : kind === "raw" ? this.rawSpec()
+        : kind === "cycleinfo" ? this.cycleInfoSpec()
+        : this.cellSpec();
       const fig = await (await api(url, { method: "POST", body })).json();
       Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
       this._applyFigureHeight("cellChart", fig);
@@ -777,6 +807,16 @@ function app() {
       }
       if (this.cell.plotKind === "dvdq") {
         await this.download(`/api/export/dva?fmt=${fmt}`, this.icaSpec(), `dva.${fmt}`);
+        return;
+      }
+      if (this.cellIsRawKind) {
+        // No raw data endpoint: the figure is thinned for the browser, so an
+        // export from it would be misleading. Point at the real sources.
+        this.notify(
+          "warn",
+          "For raw data use Export cells (csv); for this figure use the camera " +
+          "icon in the plot toolbar."
+        );
         return;
       }
       await this.download(`/api/export/cycles?fmt=${fmt}`, this.cellSpec(), `cycles.${fmt}`);

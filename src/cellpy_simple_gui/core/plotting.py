@@ -13,9 +13,11 @@ from . import collect
 from .library import CellRecord
 from .models import (
     CAPACITY_UNITS,
+    CycleInfoPlotSpec,
     CyclesPlotSpec,
     DvaPlotSpec,
     IcaPlotSpec,
+    RawPlotSpec,
     SummaryPlotSpec,
 )
 
@@ -95,6 +97,36 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         x_unit=x_unit,
         x_range=spec.x_range,
         y_range=spec.y_range,
+    )
+
+
+def raw_figure(record: CellRecord, spec: RawPlotSpec) -> str:
+    """Raw time-series traces for one cell — developer mode."""
+    return collect.raw_figure_json(
+        record.cell,
+        plot_type=spec.plot_type,
+        max_points=spec.max_points,
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
+        x_range=spec.x_range,
+        y_range=spec.y_range,
+    )
+
+
+def cycle_info_figure(record: CellRecord, spec: CycleInfoPlotSpec) -> str:
+    """Raw traces with step/cycle annotations — developer mode."""
+    cycles = tuple(sorted(set(spec.cycles)))
+    if not cycles:
+        return collect._empty_figure_json(
+            "Pick one or more cycles to show step and cycle info.",
+            figure_theme=spec.figure_theme,
+        )
+    return collect.cycle_info_figure_json(
+        record.cell,
+        cycles=cycles,
+        max_points=spec.max_points,
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
     )
 
 

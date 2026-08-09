@@ -169,6 +169,47 @@ class DvaPlotSpec(IcaPlotSpec):
     """
 
 
+RawPlotType = Literal["voltage-current", "raw", "capacity", "capacity-current", "full"]
+
+#: Points per trace kept when shipping a raw figure to the browser. cellpy plots
+#: the whole raw frame (cellpy #867) — 18 MiB of JSON for one demo cell — so the
+#: app thins it for transport.
+DEFAULT_RAW_MAX_POINTS = 4000
+
+
+class RawPlotSpec(BaseModel):
+    """Raw time-series traces for one cell — developer mode."""
+
+    cell_id: str
+    plot_type: RawPlotType = "voltage-current"
+    max_points: int = Field(default=DEFAULT_RAW_MAX_POINTS, ge=100, le=100_000)
+    x_range: Optional[list[Optional[float]]] = None
+    y_range: Optional[list[Optional[float]]] = None
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
+    title: str = ""
+
+    @field_validator("x_range", "y_range")
+    @classmethod
+    def _clean_xy_range(cls, value: list[float | None] | None):
+        return _clean_axis_range(value)
+
+
+class CycleInfoPlotSpec(BaseModel):
+    """Raw traces annotated with step/cycle information — developer mode.
+
+    Cycle-scoped, so unlike :class:`RawPlotSpec` the payload is bounded by the
+    selection rather than by thinning.
+    """
+
+    cell_id: str
+    cycles: list[int] = Field(default_factory=list)
+    max_points: int = Field(default=DEFAULT_RAW_MAX_POINTS, ge=100, le=100_000)
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
+    title: str = ""
+
+
 class ExportSpec(BaseModel):
     """A plot spec plus the desired file format."""
 

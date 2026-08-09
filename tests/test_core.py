@@ -1463,3 +1463,69 @@ def test_summary_schema_unions_across_cells(loaded_library):
     hdr2, available2 = collect._summary_schema([_Rec(), *recs])
     assert hdr2 is not None
     assert available2 == available
+
+
+# ---- raw / cycle_info views ----------------------------------------------- #
+
+def test_raw_figure_is_thinned_for_transport(loaded_library):
+    """cellpy #867: raw_plot ships the whole frame (~18 MiB); we thin it."""
+    from cellpy_simple_gui.core.models import RawPlotSpec
+
+    rec = loaded_library.all()[0]
+    raw_rows = len(rec.cell.data.raw)
+    assert raw_rows > 10_000, "example cell should be big enough to exercise thinning"
+
+    spec = RawPlotSpec(cell_id=rec.id, plot_type="full", max_points=2000)
+    payload = plotting.raw_figure(rec, spec)
+    fig = json.loads(payload)
+    assert fig["data"]
+    # every trace is capped, so the payload stays sane for a browser
+    for tr in fig["data"]:
+        x = tr.get("x")
+        if isinstance(x, list):
+            assert len(x) <= spec.max_points + 1
+    assert len(payload) < 4_000_000
+    # ...and the thinning is disclosed rather than silent
+    notes = " ".join(a.get("text", "") for a in fig["layout"].get("annotations") or [])
+    assert "point" in notes
+
+
+def test_raw_figure_plot_types(loaded_library):
+    from cellpy_simple_gui.core.models import RawPlotSpec
+
+    rec = loaded_library.all()[0]
+    for plot_type in ("voltage-current", "capacity", "full"):
+        fig = json.loads(
+            plotting.raw_figure(rec, RawPlotSpec(cell_id=rec.id, plot_type=plot_type))
+        )
+        assert fig["data"], plot_type
+
+
+def test_cycle_info_figure(loaded_library):
+    """cycle_info_plot returns None for plotly unless get_axes=True."""
+    from cellpy_simple_gui.core.models import CycleInfoPlotSpec
+
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.cycle_info_figure(rec, CycleInfoPlotSpec(cell_id=rec.id, cycles=[1, 2]))
+    )
+    assert fig["data"], "expected a figure, not the None cellpy returns by default"
+
+
+def test_cycle_info_needs_cycles(loaded_library):
+    from cellpy_simple_gui.core.models import CycleInfoPlotSpec
+
+    rec = loaded_library.all()[0]
+    fig = json.loads(plotting.cycle_info_figure(rec, CycleInfoPlotSpec(cell_id=rec.id)))
+    assert not fig["data"]
+    assert "cycle" in fig["layout"]["annotations"][0]["text"].lower()
+
+
+def test_thin_traces_leaves_small_figures_alone(loaded_library):
+    """Thinning must be a no-op below the cap — no spurious 'every Nth' note."""
+    from cellpy_simple_gui.core.models import IcaPlotSpec
+
+    rec = loaded_library.all()[0]
+    fig = json.loads(plotting.ica_figure(rec, IcaPlotSpec(cell_id=rec.id, cycles=[1])))
+    notes = " ".join(a.get("text", "") for a in fig["layout"].get("annotations") or [])
+    assert "every" not in notes
