@@ -244,3 +244,10 @@ def test_export_cells_cellpy(client):
     assert r.status_code == 200
     assert "attachment" in r.headers.get("content-disposition", "").lower()
     assert len(r.content) > 1000
+
+
+def test_pin_config_requires_a_project(client):
+    """Settings are pinned to a project folder, so there must be one."""
+    r = client.post("/api/projects/pin-config")
+    assert r.status_code == 400
+    assert "project" in r.json()["detail"].lower()

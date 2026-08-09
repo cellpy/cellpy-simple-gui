@@ -764,6 +764,15 @@
                   <dd><code x-text="cellpyConfig.discovery.legacy_config_path"></code></dd>
                 </div>
               </template>
+              <template x-if="cellpyConfig.discovery.shadowed_legacy">
+                <div class="cfg-legacy">
+                  <dt>Shadowed</dt>
+                  <dd>
+                    <code x-text="cellpyConfig.discovery.shadowed_legacy"></code>
+                    <span class="cfg-flag missing">ignored</span>
+                  </dd>
+                </div>
+              </template>
             </dl>
 
             <template x-for="section in cellpyConfig.sections" :key="section.name">
@@ -807,7 +816,15 @@
         </template>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot cfg-foot">
+        <div class="cfg-pin" x-show="project" x-cloak>
+          <button class="btn" type="button" @click="pinProjectConfig()"
+                  :disabled="cellpyConfigPinning"
+                  :title="`Write reader / units / defaults into ${project} so it keeps reproducing these numbers`">
+            <span x-text="cellpyConfigPinning ? 'Pinning…' : (projectCellpyConfig ? 'Re-pin settings to project' : 'Pin settings to project')"></span>
+          </button>
+          <span class="cfg-note">Paths and credentials are never written.</span>
+        </div>
         <button class="btn" type="button" @click="cellpyConfigOpen = false">Close</button>
       </div>
     </div>

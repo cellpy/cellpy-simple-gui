@@ -1,6 +1,6 @@
 # cellpy delegation inventory (issue #52)
 
-Against **cellpy 2.1.2a2** (bumped from post7). Goal: prefer cellpy APIs;
+Against **cellpy 2.1.2a3** (post7 → 2.1.2a2 → 2.1.2a3). Goal: prefer cellpy APIs;
 keep only app chrome that cellpy still does not own.
 
 ## Release-gating note (resolved for #816/#818/#819)
@@ -68,35 +68,31 @@ cellpy 2.1.2 replaced `parameters.prms` with a layered pydantic-settings stack:
 | Area | Decision |
 |------|----------|
 | Reading resolved settings | **Delegated** — `core/cellpy_config.diagnostics()` wraps `get_config()` + `sources()` |
+| Which file actually won | **Delegated** — `config.loader.active_config_file()` (#851/#852), incl. a legacy `.conf` shadowed by a `cellpy.toml` |
 | Showing where a value came from | **Delegated** — provenance layer badges in the config panel |
 | Writing cellpy's **user** config | **Never** — that file is shared with the user's notebooks/CLI; only `cellpy setup` writes it |
 | Reading a **project** `cellpy.toml` | **Delegated** — `activate_project_config()` pins it via `LoadOptions(project_config_file=…)` on project open |
-| Writing a **project** `cellpy.toml` | **Blocked on a release** — needs #857 (or the app scrubs `instruments.*.SQL_*` itself) |
-| Credentials | **Never surfaced** — `secrets` section skipped; credential-ish instrument keys masked. **Keep this even after #857**: that fix cleans up *dumps*, but a legacy `SQL_PWD` can still sit in the in-memory config, and masking in a UI is right regardless |
-| Per-job overrides | **Blocked on a release** — needs #858. Until then resolve on the request thread and pass concrete values into jobs |
+| Writing a **project** `cellpy.toml` | **Done** — `pin_project_config()` writes `reader`/`units`/`defaults` only |
+| Credentials | **Never surfaced** — `secrets` skipped; credential-ish instrument keys masked. **Kept even though #857 landed**: that fix cleans up *dumps*, but a legacy `SQL_PWD` can still sit in the in-memory config, and masking in a UI is right regardless |
+| Per-job overrides | **Available but unused** — `override()` is thread-safe as of #858. The app still switches config on the request thread, because a *project* switch should be process-global, not per-thread |
 
-Two upstream issues came out of this pass. Both are **closed and fixed on
-master, but not in any release yet** — re-verified against the installed
-2.1.2a2 on 2026-08-09 and both repros still fire, so nothing here can be
-retired until a release ships (same trap as the #816/#818/#819 pass):
+### Resolved in 2.1.2a3
 
-| Issue | Fixed on master by | In 2.1.2a2? |
-|-------|--------------------|-------------|
-| [#849](https://github.com/jepegit/cellpy/issues/849) `model_dump_for_file()` writes legacy `instruments.Arbin.SQL_PWD` in plaintext (`extra="allow"` passthrough); reloading such a file is accepted silently while a real `[secrets]` block is rejected | `1977e64e` (#857) | **no** |
-| [#850](https://github.com/jepegit/cellpy/issues/850) `config.override()` is process-global; concurrent workers observe each other's values | `da9ccc8d` (#858, contextvars) | **no** |
+Three config fixes we depend on shipped in **2.1.2a3**, each verified against the
+installed package rather than taken on trust (the #816/#818/#819 pass taught us
+that closed ≠ released):
 
-Neither fix requires changing code the app has already shipped — the UI masking
-and the request-thread config switch stay correct either way. What a release
-unlocks is *new* work: writing a project `cellpy.toml` ("pin current settings")
-and per-job config overrides.
+| Issue | Fix | Verified in 2.1.2a3 |
+|-------|-----|---------------------|
+| [#849](https://github.com/jepegit/cellpy/issues/849) `model_dump_for_file()` wrote a legacy `instruments.Arbin.SQL_PWD` in plaintext | `1977e64e` (#857) | ✅ dump no longer carries `SQL_PWD`/`SQL_UID` |
+| [#850](https://github.com/jepegit/cellpy/issues/850) `config.override()` was process-global | `da9ccc8d` (#858, contextvars) | ✅ two pool workers each see their own value |
+| [#851](https://github.com/jepegit/cellpy/issues/851) reporting disagreed with the loader about which file wins | `7d432004` (#852) | ✅ `active_config_file()` present and adopted |
 
-Also landed on master and worth adopting when released:
-
-- **[#851](https://github.com/jepegit/cellpy/issues/851) / `7d432004` (#852)** — adds
-  `config.loader.active_config_file()`, the authoritative answer to "which user-layer
-  file actually won", including a legacy `.conf` shadowed by a `cellpy.toml`. The
-  diagnostics panel currently derives that itself in `_discovery()`; swap to this API
-  once it ships.
+**Pinning settings to a project** writes only `reader` / `units` / `defaults`
+(`PINNED_SECTIONS`). That allow-list is the point: `paths` would bake this
+machine's layout into a portable project, and omitting `instruments`/`db` means
+the written file *structurally* cannot contain a credential — independent of
+cellpy's own dump scrubbing.
 
 ## Still app-owned (no upstream yet / by design)
 

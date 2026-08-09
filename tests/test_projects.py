@@ -284,3 +284,75 @@ def test_diagnostics_reports_project_as_source(tmp_path):
         assert any("own cellpy settings" in w for w in d["warnings"])
     finally:
         cellpy_config.deactivate_project_config()
+
+
+def test_pin_project_config_writes_safe_sections(tmp_path):
+    """Pinning captures interpretation settings — never paths or credentials."""
+    from cellpy import config
+    from cellpy_simple_gui.core import cellpy_config
+
+    pdir = tmp_path / "StudyP"
+    (pdir / "data").mkdir(parents=True)
+    try:
+        path = cellpy_config.pin_project_config(pdir)
+        text = path.read_text(encoding="utf-8")
+        assert path == pdir / "cellpy.toml"
+        # only the interpretation sections
+        headers = {ln.strip("[]").split(".")[0] for ln in text.splitlines() if ln.startswith("[")}
+        assert headers == set(cellpy_config.PINNED_SECTIONS)
+        # a project is portable: no machine-specific paths baked in
+        assert "[paths]" not in text
+        assert str(tmp_path.home()) not in text
+        # structurally cannot carry a credential
+        assert not any(k in text.lower() for k in ("pwd", "password", "uid", "secret", "token"))
+        # and it is active immediately
+        assert cellpy_config.active_project_config() == path
+        assert config.sources()["units.mass"] == "project_file"
+    finally:
+        cellpy_config.deactivate_project_config()
+
+
+def test_pin_project_config_round_trips(tmp_path):
+    """What is pinned is what a later open reproduces."""
+    from cellpy import config
+    from cellpy_simple_gui.core import cellpy_config
+
+    pdir = tmp_path / "StudyR"
+    (pdir / "data").mkdir(parents=True)
+    try:
+        pinned_mass = config.get_config().units.mass
+        pinned_mode = config.get_config().reader.cycle_mode
+        cellpy_config.pin_project_config(pdir)
+        cellpy_config.deactivate_project_config()
+        cellpy_config.activate_project_config(pdir)
+        cfg = config.get_config()
+        assert cfg.units.mass == pinned_mass
+        assert cfg.reader.cycle_mode == pinned_mode
+        assert config.sources()["reader.cycle_mode"] == "project_file"
+    finally:
+        cellpy_config.deactivate_project_config()
+
+
+def test_discovery_reports_shadowed_legacy(monkeypatch, tmp_path):
+    """A legacy .conf outranked by cellpy.toml is surfaced, not hidden (cellpy #851)."""
+    from cellpy.config.loader import ActiveConfigFile
+    from cellpy_simple_gui.core import cellpy_config
+
+    legacy = tmp_path / ".cellpy_prms_x.conf"
+    toml = tmp_path / "cellpy.toml"
+    monkeypatch.setattr(
+        cellpy_config,
+        "_config_dump",
+        lambda: {"reader": {"cycle_mode": "anode"}},
+    )
+    monkeypatch.setattr(
+        "cellpy.config.loader.active_config_file",
+        lambda options=None: ActiveConfigFile(
+            path=toml, kind="toml", shadowed_legacy=legacy, project_path=None
+        ),
+    )
+    d = cellpy_config.diagnostics()
+    assert d["discovery"]["user_config_kind"] == "toml"
+    assert d["discovery"]["shadowed_legacy"] == str(legacy)
+    assert not d["discovery"]["legacy_fallback"]
+    assert any("ignored" in w and str(legacy) in w for w in d["warnings"])

@@ -61,10 +61,46 @@ def project_config_path(project_dir: str | Path) -> Path:
     return Path(project_dir) / PROJECT_CONFIG_FILENAME
 
 
+#: Sections written when pinning settings to a project.
+#:
+#: Deliberately *not* ``paths`` — a project is portable, and baking this
+#: machine's directory layout into it would break it on someone else's box.
+#: Deliberately not ``instruments``/``db`` either: those carry connection
+#: details, and this way the written file structurally cannot contain a
+#: credential, independently of cellpy's own dump scrubbing (#849/#857).
+PINNED_SECTIONS = ("reader", "units", "defaults")
+
+
 def active_project_config() -> Path | None:
     """The project ``cellpy.toml`` this app activated, if any."""
     with _config_lock:
         return _active_project_config
+
+
+def pin_project_config(project_dir: str | Path) -> Path:
+    """Write the settings that shape *interpretation* into the project, and activate it.
+
+    Captures the resolved ``reader`` / ``units`` / ``defaults`` in full — not
+    just what differs from today's defaults — so the project keeps reproducing
+    the same numbers even if cellpy's defaults move later.
+
+    Returns the written path. Overwrites any existing project config.
+    """
+    from cellpy import config
+    from cellpy.config.loader import write_toml
+
+    # model_dump_for_file() already drops `secrets`; the section allow-list below
+    # is the structural guarantee (belt and braces — see PINNED_SECTIONS).
+    dump = config.get_config().model_dump_for_file()
+    payload = {name: dump[name] for name in PINNED_SECTIONS if name in dump}
+    if not payload:
+        raise RuntimeError("cellpy reported no settings to pin.")
+
+    path = project_config_path(project_dir)
+    write_toml(path, payload)
+    log.info("Pinned cellpy settings to %s (%s)", path, ", ".join(payload))
+    activate_project_config(project_dir)
+    return path
 
 
 def activate_project_config(project_dir: str | Path) -> Path | None:
@@ -192,39 +228,47 @@ def _config_dump() -> dict[str, Any]:
 
 
 def _discovery() -> dict[str, Any]:
-    """Which files cellpy looked for, and which it found."""
-    from cellpy.config.loader import find_project_config_file, user_config_path
+    """Which config files actually apply, straight from cellpy.
 
-    info: dict[str, Any] = {}
-    user_file = user_config_path()
-    info["user_config_path"] = str(user_file)
-    info["user_config_exists"] = user_file.is_file()
+    ``active_config_file`` (cellpy #851/#853) is the loader's own answer, so this
+    panel and ``load_config`` cannot disagree about which file wins — including
+    a legacy ``.conf`` that still exists but is outranked by a ``cellpy.toml``.
+    """
+    from cellpy.config.loader import LoadOptions, active_config_file, user_config_path
 
-    # An open project's config wins; otherwise cellpy walks up from the cwd.
     active = active_project_config()
-    project_file = active
-    if project_file is None:
-        try:
-            project_file = find_project_config_file()
-        except Exception:  # noqa: BLE001
-            log.warning("project cellpy.toml lookup failed", exc_info=True)
-    info["project_config_path"] = str(project_file) if project_file else None
-    info["project_config_source"] = (
-        "project" if active else ("discovered" if project_file else None)
-    )
+    try:
+        resolved = active_config_file(
+            LoadOptions(project_config_file=active) if active else None
+        )
+    except Exception:  # noqa: BLE001 - diagnostics must never be the thing that breaks
+        log.warning("could not resolve the active cellpy config file", exc_info=True)
+        return {
+            "user_config_path": str(user_config_path()),
+            "user_config_exists": False,
+            "user_config_kind": "unknown",
+            "shadowed_legacy": None,
+            "project_config_path": None,
+            "project_config_source": None,
+            "legacy_config_path": None,
+            "legacy_fallback": False,
+        }
 
-    legacy_file = None
-    if not info["user_config_exists"]:
-        try:
-            from cellpy.config.legacy import find_legacy_yaml_file
-
-            legacy_file = find_legacy_yaml_file()
-        except Exception:  # noqa: BLE001
-            log.warning("legacy config lookup failed", exc_info=True)
-    info["legacy_config_path"] = str(legacy_file) if legacy_file else None
-    # A legacy YAML only feeds the user layer when no cellpy.toml exists.
-    info["legacy_fallback"] = bool(legacy_file) and not info["user_config_exists"]
-    return info
+    return {
+        # The file that actually feeds the user layer (or where one would live).
+        "user_config_path": str(resolved.path or user_config_path()),
+        "user_config_exists": resolved.kind != "none",
+        "user_config_kind": resolved.kind,  # "toml" | "legacy" | "none"
+        # A legacy .conf that still exists but lost to a cellpy.toml.
+        "shadowed_legacy": str(resolved.shadowed_legacy) if resolved.shadowed_legacy else None,
+        "project_config_path": str(resolved.project_path) if resolved.project_path else None,
+        "project_config_source": (
+            "project" if active and resolved.project_path else
+            ("discovered" if resolved.project_path else None)
+        ),
+        "legacy_config_path": str(resolved.path) if resolved.kind == "legacy" else None,
+        "legacy_fallback": resolved.kind == "legacy",
+    }
 
 
 def _secret_env_state() -> list[dict]:
@@ -249,6 +293,12 @@ def _warnings(discovery: dict[str, Any], layer_counts: dict[str, int]) -> list[s
         out.append(
             "No user cellpy.toml found — cellpy is running on built-in defaults, "
             f"so data is read from and written under {Path.home()}."
+        )
+    if discovery.get("shadowed_legacy"):
+        out.append(
+            f"A legacy config ({discovery['shadowed_legacy']}) still exists but is "
+            "ignored — your cellpy.toml outranks it. Edits to the old file have no "
+            "effect; delete it once you are happy with the migration."
         )
     if discovery.get("project_config_source") == "project":
         out.append(

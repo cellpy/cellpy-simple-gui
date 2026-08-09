@@ -510,3 +510,8 @@ input:focus, select:focus { border-color: var(--accent); }
   background: transparent;
 }
 .proj-tag.cfg:hover { border-color: var(--accent-2); }
+
+/* config modal footer: pin action on the left, Close on the right */
+.cfg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cfg-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cfg-pin .cfg-note { margin: 0; }

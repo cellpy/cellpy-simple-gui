@@ -125,6 +125,13 @@ from one project to the next. Click the chip (or the cellpy version badge) to se
 every setting and which layer it came from — defaults, your user `cellpy.toml`,
 the project file, or the environment.
 
+Rather than writing the file by hand, open that panel with a project loaded and
+hit **Pin settings to project**: it captures the `reader`, `units` and
+`defaults` currently in effect. Only those sections are written — `paths` would
+bake your machine's directory layout into a folder meant to be portable, and
+leaving out `instruments`/`db` means the file structurally cannot contain a
+credential.
+
 The app never writes your user `cellpy.toml`; that file belongs to you and is
 shared with your notebooks and the `cellpy` CLI.
 
