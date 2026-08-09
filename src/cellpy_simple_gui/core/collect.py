@@ -272,45 +272,44 @@ def cycles_collection(
     return collect_cycles(_batch(records), options=opts)
 
 
-def _filter_ica_by_direction(collection, direction: str):
-    """Keep one half-cycle in a collected ICA frame.
-
-    cellpy's ``ica_plotter`` documents ``direction`` but only applies
-    ``_select_direction`` for ``method=="film"`` — default ``fig_pr_cell``
-    line plots ignore it (CELLPY_PAINPOINTS §16 / issue #67). Filter here so
-    Charge vs Discharge in the app actually differ.
-    """
-    data = getattr(collection, "data", None)
-    if data is None or getattr(data, "height", 0) == 0:
-        return collection
-    if "direction" not in data.columns:
-        log.warning(
-            "no 'direction' column in ICA frame - direction filter skipped"
-        )
-        return collection
-    want = (direction or "charge").lower()
-    if want not in ("charge", "discharge"):
-        want = "charge"
-    try:
-        import polars as pl
-
-        filtered = data.filter(pl.col("direction").str.to_lowercase() == want)
-        collection.data = filtered
-    except Exception:  # noqa: BLE001 - plot path stays best-effort
-        log.warning("could not filter ICA by direction=%s", want, exc_info=True)
-    return collection
-
-
 def ica_collection(
     records: list[CellRecord],
     *,
     cycles: tuple[int, ...],
     voltage_resolution: float | None = 0.005,
-    direction: str = "charge",
 ):
+    """Collect ICA (dQ/dV) curves, both half-cycles (``direction`` column kept).
+
+    Direction selection is delegated to cellpy: the plot passes ``direction`` to
+    ``ica_plotter`` (#821), and exports use :func:`select_ica_direction` to match
+    the chart. No app-side half-cycle filter on the collect step.
+    """
     opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-    collection = collect_ica(_batch(records), options=opts)
-    return _filter_ica_by_direction(collection, direction)
+    return collect_ica(_batch(records), options=opts)
+
+
+def select_ica_direction(collection, direction: str):
+    """Filter a collected ICA frame to one half-cycle for **export**.
+
+    Mirrors what cellpy's ``ica_plotter`` draws (#821) so the exported data
+    matches the chart. ``both`` (or an unknown value) keeps all directions.
+    """
+    want = (direction or "charge").lower()
+    if want not in ("charge", "discharge"):
+        return collection  # "both" -> keep both half-cycles
+    data = getattr(collection, "data", None)
+    if data is None or getattr(data, "height", 0) == 0:
+        return collection
+    if "direction" not in data.columns:
+        log.warning("no 'direction' column in ICA frame - export filter skipped")
+        return collection
+    try:
+        import polars as pl
+
+        collection.data = data.filter(pl.col("direction").str.to_lowercase() == want)
+    except Exception:  # noqa: BLE001 - export stays best-effort
+        log.warning("could not filter ICA export by direction=%s", want, exc_info=True)
+    return collection
 
 
 # --------------------------------------------------------------------------- #

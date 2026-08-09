@@ -13,7 +13,7 @@ CycleMethod = Literal["forth-and-forth", "back-and-forth", "forth"]
 # cellpy collected cycles layouts (legacy fig_pr_cell / fig_pr_cycle).
 CyclesLayout = Literal["per_cell", "per_cycle"]
 # ICA plotter only accepts charge|discharge (not "both") — see CELLPY_PAINPOINTS §16.
-IcaDirection = Literal["charge", "discharge"]
+IcaDirection = Literal["charge", "discharge", "both"]
 # Resolved figure chrome (UI maps "match app" → light|dark before POST).
 FigureTheme = Literal["light", "dark"]
 # Curated plot colorways; "cellpy" keeps upstream/Plotly defaults.

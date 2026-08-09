@@ -33,7 +33,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 13 | In-memory figure export (PNG/SVG/PDF bytes) | [#818](https://github.com/jepegit/cellpy/issues/818) | ✅ **in 2.1.2a2** — app `figure_bytes` delegates to `figures.write_image` + `image_media_type` |
 > | 14 | `.h5` auto-pick vs raw `instrument=` | [#819](https://github.com/jepegit/cellpy/issues/819) | ✅ **in 2.1.2a2** — set `instrument=` wins; app forced `auto_pick=False` **removed** |
 > | 15 | Cycles facet strip pretty labels | [#820](https://github.com/jepegit/cellpy/issues/820) | ✅ **in post7** — app gets clean `Cycle N` / label strips for free (no app code) |
-> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ✅ **in post7** — app `#67` frame-filter redundant for the plot; **follow-up** to delegate + add "Both" |
+> | 16 | ICA `direction` for line plots + `both` | [#821](https://github.com/jepegit/cellpy/issues/821) | ✅ **delegated** — `ica_plotter` selects charge/discharge/both; app `#67` frame-filter **removed**, UI has "Both", export mirrors chart |
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | — | ◑ open, unfiled (app `#72` forwards `x_unit`) |
 > | 18 | Summary default y-labels omit units; CE / C-rate unit hooks | — | ◑ open, unfiled (app `#38` passes `y_label_mapper`) |
 > | 19 | Non-atomic v9 `.cellpy` writes | [#845](https://github.com/jepegit/cellpy/issues/845) | ◑ **filed** — app stages project saves; cellpy zip still truncates in place |
@@ -347,6 +347,13 @@ without depending on cellpy’s film-only filter.
 honour `direction="both"` (e.g. two series or grouped legend entries per cycle,
 with a break so half-cycles do not join); prefer a logger warning over `print`
 when coercing invalid values.
+
+**Resolved in 2.1.2a2:** `ica_plotter` normalizes `direction` and applies
+`_select_direction` on the line path too; `direction="both"` overlays both
+half-cycles with `line_dash` (charge=dot, discharge=solid) and logs a warning
+on invalid values. App `_filter_ica_by_direction` **removed** — `ica_figure`
+passes `direction` to cellpy; the UI gained a "Both" option and exports use
+`select_ica_direction` to keep the exported rows matching the chart.
 
 ---
 

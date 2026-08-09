@@ -408,7 +408,7 @@ def test_ica_figure_discharge(loaded_library):
 
 
 def test_ica_figure_charge_differs_from_discharge(loaded_library):
-    """Direction must filter half-cycles (#67); cellpy plot kwarg alone does not."""
+    """Direction selects the half-cycle (#67/#821); cellpy's ica_plotter owns it."""
     rec = loaded_library.all()[0]
     cycles = [1, 2, 3]
     kwargs = dict(cell_id=rec.id, cycles=cycles, voltage_resolution=0.005)
@@ -427,19 +427,38 @@ def test_ica_figure_charge_differs_from_discharge(loaded_library):
     assert sum(y_d) / len(y_d) < 0
 
 
-def test_ica_collection_filters_direction(loaded_library):
+def test_ica_figure_both_overlays_directions(loaded_library):
+    """direction="both" overlays charge + discharge on each cycle (#821)."""
+    rec = loaded_library.all()[0]
+    kwargs = dict(cell_id=rec.id, cycles=[1, 2], voltage_resolution=0.005)
+    both = json.loads(plotting.ica_figure(rec, IcaPlotSpec(**kwargs, direction="both")))
+    charge = json.loads(
+        plotting.ica_figure(rec, IcaPlotSpec(**kwargs, direction="charge"))
+    )
+    # "both" carries both half-cycles, so more traces than a single direction.
+    assert len(both["data"]) > len(charge["data"])
+    names = " ".join(str(tr.get("name")) for tr in both["data"]).lower()
+    assert "charge" in names and "discharge" in names
+
+
+def test_select_ica_direction_for_export(loaded_library):
+    """Export filter mirrors the chart: charge/discharge slice, "both" keeps all."""
     from cellpy_simple_gui.core import collect
 
     rec = loaded_library.all()[0]
-    charge = collect.ica_collection(
-        [rec], cycles=(1, 2), voltage_resolution=0.005, direction="charge"
-    )
-    discharge = collect.ica_collection(
-        [rec], cycles=(1, 2), voltage_resolution=0.005, direction="discharge"
-    )
-    assert charge.data.height > 0 and discharge.data.height > 0
+
+    def fresh():
+        return collect.ica_collection([rec], cycles=(1, 2), voltage_resolution=0.005)
+
+    both = fresh()
+    assert set(both.data["direction"].unique().to_list()) == {"charge", "discharge"}
+
+    charge = collect.select_ica_direction(fresh(), "charge")
+    discharge = collect.select_ica_direction(fresh(), "discharge")
+    kept = collect.select_ica_direction(fresh(), "both")
     assert set(charge.data["direction"].unique().to_list()) == {"charge"}
     assert set(discharge.data["direction"].unique().to_list()) == {"discharge"}
+    assert set(kept.data["direction"].unique().to_list()) == {"charge", "discharge"}
 
 
 def test_ica_figure_empty_cycles(loaded_library):

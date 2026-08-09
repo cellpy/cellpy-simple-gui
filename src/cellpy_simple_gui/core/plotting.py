@@ -89,14 +89,13 @@ def ica_figure(record: CellRecord, spec: IcaPlotSpec) -> str:
         [record],
         cycles=cycles,
         voltage_resolution=spec.voltage_resolution,
-        direction=spec.direction,
     )
     return collect.figure_json(
         collection,
         family_kind="ica",
         layout="per_cell",
-        # Forwarded for forward-compat; cellpy currently ignores this for
-        # fig_pr_cell line plots (app filters in ica_collection instead).
+        # cellpy ≥2.1.2 selects the half-cycle in ica_plotter (#821): charge /
+        # discharge filter, "both" overlays with line_dash.
         direction=spec.direction,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
