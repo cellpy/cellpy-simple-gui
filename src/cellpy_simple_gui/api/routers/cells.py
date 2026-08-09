@@ -66,10 +66,10 @@ def _load_examples_job(progress: Progress, kinds: list[str]) -> dict:
 
 
 def _load_files_job(progress: Progress, paths: list[str], max_files: int) -> dict:
-    from ...core.files import expand_paths
+    from ...core.files import effective_max_files, expand_paths
 
     lib = get_library()
-    exp = expand_paths(paths, max_files=max_files)
+    exp = expand_paths(paths, max_files=effective_max_files(max_files))
     added, errors = [], list(exp.errors)
     total = len(exp.paths)
     for i, path in enumerate(exp.paths):

@@ -12,9 +12,21 @@ import glob
 import os
 from dataclasses import dataclass, field
 
+from ..config import DEFAULT_MAX_FILES, get_settings  # noqa: F401 - re-exported
+
 _GLOB_CHARS = ("*", "?", "[")
 
-DEFAULT_MAX_FILES = 10
+
+def effective_max_files(requested: int | None) -> int:
+    """Clamp a client-supplied cap to the policy for this session (#97).
+
+    The UI reads the ceiling from ``/system/capabilities``, but the cap is
+    enforced here so a stale or hand-made request cannot exceed it.
+    """
+    ceiling = get_settings().max_files
+    if not requested or requested <= 0:
+        return min(DEFAULT_MAX_FILES, ceiling)
+    return min(requested, ceiling)
 
 
 @dataclass

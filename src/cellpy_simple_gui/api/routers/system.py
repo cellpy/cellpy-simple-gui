@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 
+from ...config import get_settings
 from ...core import cellpy_config
 
 log = logging.getLogger(__name__)
@@ -60,7 +61,12 @@ def _normalize_dialog_path(result) -> str | None:
 
 @router.get("/system/capabilities")
 def capabilities() -> dict:
-    return {"file_picker": _webview_window() is not None}
+    settings = get_settings()
+    return {
+        "file_picker": _webview_window() is not None,
+        "dev_mode": settings.dev_mode,
+        "max_files": settings.max_files,
+    }
 
 
 @router.get("/system/cellpy-config")

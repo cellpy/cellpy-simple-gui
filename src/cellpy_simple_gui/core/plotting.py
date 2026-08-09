@@ -20,7 +20,21 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
             "Select one or more cells to plot the cycle summary.",
             figure_theme=spec.figure_theme,
         )
-    columns = collect.summary_columns_for(spec.plot_type, spec.basis)
+    columns = collect.summary_columns_for(spec.plot_type, spec.basis, records)
+    if not columns:
+        return collect._empty_figure_json(
+            "This cellpy plot family declares no summary columns.",
+            figure_theme=spec.figure_theme,
+        )
+    # A family names its columns whether or not the data has them, so say which
+    # are missing rather than rendering a blank chart (#97).
+    missing = collect.missing_summary_columns(columns, records)
+    if missing:
+        return collect._empty_figure_json(
+            "These cells have no " + ", ".join(missing)
+            + " — pick a plot type the loaded data supports.",
+            figure_theme=spec.figure_theme,
+        )
     # cellpy ≥2.1.2 averages multi-member groups even when a singleton group is
     # present and returns them in one collection (#816), so no app-side split.
     collection = collect.summary_collection(

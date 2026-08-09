@@ -57,7 +57,9 @@ def test_index_uses_cellpy_logo(client):
 
 def test_system_capabilities_no_file_picker(client):
     """TestClient has no pywebview window — same as --server mode."""
-    assert client.get("/api/system/capabilities").json() == {"file_picker": False}
+    caps = client.get("/api/system/capabilities").json()
+    assert caps["file_picker"] is False
+    assert "dev_mode" in caps and "max_files" in caps
 
 
 def test_system_pick_rejected_without_webview(client):
@@ -251,3 +253,35 @@ def test_pin_config_requires_a_project(client):
     r = client.post("/api/projects/pin-config")
     assert r.status_code == 400
     assert "project" in r.json()["detail"].lower()
+
+
+def test_plot_types_curated_by_default(client, monkeypatch):
+    """Regular users see only the curated list — no registry families."""
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        data = client.get("/api/plot-types").json()
+        assert data["dev_mode"] is False
+        assert all(t["source"] == "curated" for t in data["types"])
+        assert not any(t["id"].startswith("family:") for t in data["types"])
+    finally:
+        get_settings.cache_clear()
+
+
+def test_plot_types_include_registry_in_dev_mode(client, monkeypatch):
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.setenv("CSG_DEV_MODE", "1")
+    get_settings.cache_clear()
+    try:
+        data = client.get("/api/plot-types").json()
+        assert data["dev_mode"] is True
+        families = [t for t in data["types"] if t["source"] == "registry"]
+        assert families, "dev mode should expose cellpy's registry"
+        assert any(t["source"] == "curated" for t in data["types"])
+        caps = client.get("/api/system/capabilities").json()
+        assert caps["dev_mode"] is True and caps["max_files"] > 10
+    finally:
+        get_settings.cache_clear()

@@ -26,10 +26,10 @@ def list_instruments() -> dict:
 
 
 def _ingest_job(progress: Progress, req: IngestRequest) -> dict:
-    from ...core.files import expand_paths
+    from ...core.files import effective_max_files, expand_paths
 
     lib = get_library()
-    exp = expand_paths(req.paths, max_files=req.max_files)
+    exp = expand_paths(req.paths, max_files=effective_max_files(req.max_files))
     added, errors = [], list(exp.errors)
     total = len(exp.paths)
     for i, path in enumerate(exp.paths):

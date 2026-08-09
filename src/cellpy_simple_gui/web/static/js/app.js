@@ -39,6 +39,8 @@ function app() {
     filesMax: 10,
     journalPath: "",
     canPick: false,
+    devMode: false,
+    maxFilesCeiling: 10, // server-enforced ceiling; higher in dev mode (#97)
     tab: "summary",
     project: null,
     projects: [],
@@ -183,8 +185,24 @@ function app() {
     },
     async probeCapabilities() {
       try {
-        this.canPick = (await (await api("/api/system/capabilities")).json()).file_picker;
+        const caps = await (await api("/api/system/capabilities")).json();
+        this.canPick = caps.file_picker;
+        this.devMode = !!caps.dev_mode;
+        if (caps.max_files) this.maxFilesCeiling = caps.max_files;
       } catch (_) { this.canPick = false; }
+    },
+
+    get curatedPlotTypes() {
+      return this.plotTypes.filter((t) => t.source !== "registry");
+    },
+    get registryPlotTypes() {
+      // Dev mode lists every cellpy family; split so the ones this data cannot
+      // plot are visibly grouped and disabled rather than silently empty (#97).
+      const reg = this.plotTypes.filter((t) => t.source === "registry");
+      return {
+        available: reg.filter((t) => !t.unavailable_reason),
+        unavailable: reg.filter((t) => t.unavailable_reason),
+      };
     },
 
     get nSelected() { return this.cells.filter((c) => c.selected).length; },

@@ -3,11 +3,13 @@
     cellpy-simple-gui            -> open in a native desktop window (default)
     cellpy-simple-gui --server   -> just run the local server, open the browser
     cellpy-simple-gui --no-open  -> run the server without opening anything
+    cellpy-simple-gui --dev      -> developer mode (also via CSG_DEV_MODE=1)
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import webbrowser
 
 from loguru import logger
@@ -28,9 +30,22 @@ def main() -> None:
         "--no-open", action="store_true", help="do not open a browser/window"
     )
     parser.add_argument("--port", type=int, default=None)
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="developer mode: every cellpy plot family and the higher batch limits",
+    )
     args = parser.parse_args()
 
+    # Settings read the environment and are cached, so this must land before the
+    # first get_settings() call (setup_logging above does not read them).
+    if args.dev:
+        os.environ["CSG_DEV_MODE"] = "1"
+        get_settings.cache_clear()
+
     settings = get_settings()
+    if settings.dev_mode:
+        logger.warning("DEVELOPER MODE — unrestricted plot families and batch limits")
 
     if not args.server:
         try:

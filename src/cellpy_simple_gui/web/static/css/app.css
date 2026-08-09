@@ -515,3 +515,11 @@ input:focus, select:focus { border-color: var(--accent); }
 .cfg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cfg-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cfg-pin .cfg-note { margin: 0; }
+
+/* developer mode (#97) */
+.badge-dev {
+  font-weight: 700; letter-spacing: 1px;
+  color: var(--warn, #e0a24a);
+  border-color: color-mix(in srgb, var(--warn, #e0a24a) 55%, var(--line));
+  background: color-mix(in srgb, var(--warn, #e0a24a) 12%, transparent);
+}
