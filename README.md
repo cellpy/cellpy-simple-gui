@@ -92,6 +92,7 @@ A project is a portable folder — move it, zip it, share it:
 ```
 <project>/
 ├── project.json      # manifest: name, timestamps, versions, per-cell grouping/labels/selection
+├── cellpy.toml       # optional: cellpy settings pinned to this project
 └── data/
     ├── c1.cellpy     # every loaded cell saved as a self-contained cellpy file
     └── c2.cellpy
@@ -101,6 +102,31 @@ Projects live under `~/.cellpy_simple_gui/projects/` by default; **Save** writes
 current set there and **Open** restores it (physical quantities come from the
 `.cellpy` files, organisational metadata from the manifest). Changes in the UI
 are **not** written until you Save.
+
+### Per-project cellpy settings
+
+Drop a `cellpy.toml` next to `project.json` and the app activates it as cellpy's
+**project** configuration layer whenever that project is open — so the project
+pins the settings its data was analysed with (cycle mode, units, defaults)
+instead of being silently re-interpreted under whatever your global config says
+today:
+
+```toml
+[reader]
+cycle_mode = "cathode"
+
+[units]
+mass = "g"
+```
+
+A **cellpy.toml** chip appears next to the project name while those settings are
+active; closing the project restores your own configuration. Settings never leak
+from one project to the next. Click the chip (or the cellpy version badge) to see
+every setting and which layer it came from — defaults, your user `cellpy.toml`,
+the project file, or the environment.
+
+The app never writes your user `cellpy.toml`; that file belongs to you and is
+shared with your notebooks and the `cellpy` CLI.
 
 ## How it is built
 

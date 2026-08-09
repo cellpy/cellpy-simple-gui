@@ -502,3 +502,11 @@ input:focus, select:focus { border-color: var(--accent); }
 .cfg-note { margin: 0 0 8px; font-size: 11.5px; color: var(--text-faint); }
 .cfg-envlist { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; }
 .cfg-envlist li { display: flex; align-items: center; gap: 7px; }
+
+/* project carries its own cellpy.toml */
+.proj-tag.cfg {
+  cursor: pointer; font-family: inherit;
+  color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line));
+  background: transparent;
+}
+.proj-tag.cfg:hover { border-color: var(--accent-2); }

@@ -95,6 +95,7 @@ function app() {
     cellpyConfigLoading: false,
     cellpyConfigError: "",
     cellpyConfig: null,
+    projectCellpyConfig: "", // set when the open project carries its own cellpy.toml
 
     // ---- lifecycle ----
     async init() {
@@ -234,6 +235,7 @@ function app() {
         const r = await (await api("/api/projects")).json();
         this.projects = r.projects;
         this.project = r.current.name;
+        this.projectCellpyConfig = r.current.cellpy_config || "";
         if (this.project && !this.saveName) this.saveName = this.project;
         if (this.openTarget && !this.projects.some((p) => p.slug === this.openTarget)) {
           this.openTarget = "";

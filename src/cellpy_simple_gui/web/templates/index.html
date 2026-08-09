@@ -48,6 +48,10 @@
           <span class="proj-tag" x-text="projectTagLabel"
                 :class="{saved: project && !dirty, dirty: project && dirty}"
                 :title="projectTagTitle"></span>
+          <button class="proj-tag cfg" type="button" x-show="projectCellpyConfig" x-cloak
+                  @click="openCellpyConfig()"
+                  :title="`This project's cellpy settings are active (${projectCellpyConfig}) — click for details`"
+          >cellpy.toml</button>
         </div>
         <div class="proj-open">
           <select x-model="openTarget">

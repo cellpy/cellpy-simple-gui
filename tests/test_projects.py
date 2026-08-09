@@ -205,3 +205,82 @@ def test_api_classify_import(temp_projects_root, tmp_path):
 
     r = client.post("/api/projects/classify-import", json={"path": str(tmp_path / "missing")})
     assert r.status_code == 400
+
+
+# ---- per-project cellpy settings ------------------------------------------ #
+
+def _make_project_dir(tmp_path, toml_text: str | None = None):
+    pdir = tmp_path / "StudyA"
+    (pdir / "data").mkdir(parents=True)
+    (pdir / "project.json").write_text("{}", encoding="utf-8")
+    if toml_text is not None:
+        (pdir / "cellpy.toml").write_text(toml_text, encoding="utf-8")
+    return pdir
+
+
+def test_project_config_activates_and_restores(tmp_path):
+    """A project's cellpy.toml wins while open, and is dropped on close."""
+    from cellpy import config
+    from cellpy_simple_gui.core import cellpy_config
+
+    baseline = config.get_config().reader.cycle_mode
+    pdir = _make_project_dir(tmp_path, '[reader]\ncycle_mode = "cathode"\n')
+    try:
+        activated = cellpy_config.activate_project_config(pdir)
+        assert activated == pdir / "cellpy.toml"
+        assert config.get_config().reader.cycle_mode == "cathode"
+        assert config.sources()["reader.cycle_mode"] == "project_file"
+        assert cellpy_config.active_project_config() == activated
+    finally:
+        cellpy_config.deactivate_project_config()
+    assert config.get_config().reader.cycle_mode == baseline
+    assert cellpy_config.active_project_config() is None
+
+
+def test_project_without_config_drops_previous(tmp_path):
+    """Settings must not leak from one project into the next."""
+    from cellpy import config
+    from cellpy_simple_gui.core import cellpy_config
+
+    baseline = config.get_config().reader.cycle_mode
+    with_cfg = _make_project_dir(tmp_path, '[reader]\ncycle_mode = "cathode"\n')
+    plain = tmp_path / "StudyB"
+    (plain / "data").mkdir(parents=True)
+    try:
+        cellpy_config.activate_project_config(with_cfg)
+        assert config.get_config().reader.cycle_mode == "cathode"
+        # opening a project with no config reverts rather than inheriting
+        assert cellpy_config.activate_project_config(plain) is None
+        assert cellpy_config.active_project_config() is None
+        assert config.get_config().reader.cycle_mode == baseline
+    finally:
+        cellpy_config.deactivate_project_config()
+
+
+def test_broken_project_config_does_not_block_open(tmp_path):
+    """An unparseable cellpy.toml must not stop the project from opening."""
+    from cellpy import config
+    from cellpy_simple_gui.core import cellpy_config
+
+    baseline = config.get_config().reader.cycle_mode
+    pdir = _make_project_dir(tmp_path, "this is not valid toml {{{\n")
+    try:
+        assert cellpy_config.activate_project_config(pdir) is None
+        assert cellpy_config.active_project_config() is None
+        assert config.get_config().reader.cycle_mode == baseline
+    finally:
+        cellpy_config.deactivate_project_config()
+
+
+def test_diagnostics_reports_project_as_source(tmp_path):
+    from cellpy_simple_gui.core import cellpy_config
+
+    pdir = _make_project_dir(tmp_path, '[units]\nmass = "g"\n')
+    try:
+        cellpy_config.activate_project_config(pdir)
+        d = cellpy_config.diagnostics()
+        assert d["discovery"]["project_config_source"] == "project"
+        assert d["discovery"]["project_config_path"] == str(pdir / "cellpy.toml")
+        assert any("own cellpy settings" in w for w in d["warnings"])
+    finally:
+        cellpy_config.deactivate_project_config()

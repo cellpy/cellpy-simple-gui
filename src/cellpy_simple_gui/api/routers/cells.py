@@ -7,7 +7,7 @@ import time
 
 from fastapi import APIRouter, HTTPException
 
-from ...core import cellpy_adapter
+from ...core import cellpy_adapter, cellpy_config
 from ...core.library import get_library
 from ...core.models import (
     JournalRowUpdate,
@@ -139,5 +139,8 @@ def delete_cell(cell_id: str) -> dict:
 def clear() -> dict:
     n = len(get_library())
     get_library().clear()
+    # Closing the project also drops its cellpy settings, so the next load does
+    # not silently inherit them.
+    cellpy_config.deactivate_project_config()
     log.info("Cleared library (%d cell(s))", n)
     return _state()

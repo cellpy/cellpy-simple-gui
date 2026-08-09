@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException
 
-from ...core import cellpy_adapter, projects
+from ...core import cellpy_adapter, cellpy_config, projects
 from ...core.library import get_library
 from ..jobs import Progress, get_job_manager
 
@@ -15,12 +15,22 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _current_state(lib) -> dict:
+    """Current project + whether it brought its own cellpy settings."""
+    active = cellpy_config.active_project_config()
+    return {
+        "name": lib.project_name,
+        "path": lib.project_path,
+        "cellpy_config": str(active) if active else None,
+    }
+
+
 @router.get("/projects")
 def list_projects() -> dict:
     lib = get_library()
     return {
         "projects": [p.model_dump() for p in projects.list_projects()],
-        "current": {"name": lib.project_name, "path": lib.project_path},
+        "current": _current_state(lib),
     }
 
 
@@ -62,12 +72,19 @@ def save_project(name: str = Body(..., embed=True)) -> dict:
 @router.post("/projects/open")
 def open_project(target: str = Body(..., embed=True)) -> dict:
     try:
-        projects.resolve_project_path(target)
+        pdir = projects.resolve_project_path(target)
     except FileNotFoundError:
         raise HTTPException(404, f"No project found for “{target}”.")
     log.info("Opening project “%s”", target)
+    # Switch cellpy's config here, on the request thread and *before* the load
+    # job starts: the cells must be read under this project's settings, and the
+    # config session is process-global and not thread-safe (cellpy #850).
+    project_config = cellpy_config.activate_project_config(pdir)
     job = get_job_manager().submit("open-project", _open_job, target)
-    return {"job_id": job.id}
+    return {
+        "job_id": job.id,
+        "project_config": str(project_config) if project_config else None,
+    }
 
 
 @router.post("/projects/classify-import")
@@ -155,7 +172,8 @@ def delete_project(slug: str) -> dict:
     if lib.project_name and projects.slugify(lib.project_name) == projects.slugify(slug):
         lib.project_name = None
         lib.project_path = None
+        cellpy_config.deactivate_project_config()
     return {
         "projects": [p.model_dump() for p in projects.list_projects()],
-        "current": {"name": lib.project_name, "path": lib.project_path},
+        "current": _current_state(lib),
     }
