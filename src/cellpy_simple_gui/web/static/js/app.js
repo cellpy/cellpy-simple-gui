@@ -28,6 +28,10 @@ const PLOTLY_CONFIG = {
   modeBarButtonsToRemove: ["lasso2d", "select2d"],
 };
 
+// Breathing room under a chart grown to fill the window (#93), matching the
+// page's bottom padding so the card does not sit flush against the edge.
+const CHART_BOTTOM_GUTTER = 16;
+
 function app() {
   return {
     theme: localStorage.getItem("csg-theme") || "dark",
@@ -965,16 +969,57 @@ function app() {
       localStorage.setItem("csg-theme", this.theme);
     },
     _applyFigureHeight(id, fig) {
-      // Keep the Plotly div at the figure's layout height so Plots.resize only
-      // adjusts width and does not squash the last facet / x-axis (#63).
+      // Keep the Plotly div at least at the figure's layout height so
+      // Plots.resize only adjusts width and does not squash the last facet /
+      // x-axis (#63). The natural height is remembered so a later window
+      // resize can re-fit without another round trip.
       const el = document.getElementById(id);
       const h = fig && fig.layout && fig.layout.height;
-      if (el && h) el.style.height = `${h}px`;
+      if (!el || !h) return;
+      el.dataset.naturalHeight = String(h);
+      this._fitChartHeight(el);
+    },
+    _fitChartHeight(el) {
+      const natural = Number(el.dataset.naturalHeight);
+      if (!natural) return;
+      // offsetParent is null while the tab is hidden — measuring then gives a
+      // meaningless height, so leave it for when the tab is shown.
+      // .chart carries a CSS min-height; without folding it in, the div sits at
+      // that floor while the figure stays shorter, leaving a gap inside the card.
+      const cssMin = parseFloat(getComputedStyle(el).minHeight) || 0;
+      const target = el.offsetParent === null
+        ? Math.max(natural, cssMin)
+        : Math.max(natural, cssMin, this._availableChartHeight(el));
+      el.style.height = `${target}px`;
+      // Plotly honours an explicit layout.height, so the div alone is not
+      // enough — the figure has to be told as well.
+      const current = el.layout && el.layout.height;
+      if (el.data && current !== target) Plotly.relayout(el, { height: target });
+    },
+    _availableChartHeight(el) {
+      // A single-panel figure is much shorter than the pane, which left a big
+      // empty gap under the Cell-explorer chart (#93). Grow it to the bottom of
+      // the scroll area; never shrink — that is what clipped facets in #63.
+      const card = el.closest(".chart-card") || el;
+      const scroller = el.closest(".main");
+      if (!scroller) return 0;
+      const cardBox = card.getBoundingClientRect();
+      // Measure the card's offset within the *content*, not the viewport:
+      // using viewport coordinates makes the result depend on scroll position,
+      // and since this only ever grows, the height then ratchets up and never
+      // comes back down.
+      const cardTop = cardBox.top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      const chartInset = cardBox.height - el.getBoundingClientRect().height;
+      return Math.floor(
+        scroller.clientHeight - cardTop - chartInset - CHART_BOTTOM_GUTTER
+      );
     },
     relayoutCharts() {
       ["summaryChart", "cyclesChart", "cellChart"].forEach((id) => {
         const el = document.getElementById(id);
-        if (el && el.data) Plotly.Plots.resize(el);
+        if (!el || !el.data) return;
+        this._fitChartHeight(el);
+        Plotly.Plots.resize(el);
       });
     },
   };
