@@ -20,7 +20,7 @@ from cellpy.plotting import figures as cellpy_figures
 
 from . import cellpy_adapter, collect, plotting
 from .library import CellRecord
-from .models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from .models import CyclesPlotSpec, DvaPlotSpec, IcaPlotSpec, SummaryPlotSpec
 
 CELL_EXPORT_FORMATS = ("cellpy", "csv", "xlsx")
 _CELL_MEDIA = {
@@ -91,6 +91,22 @@ def ica_figure_export(
     record: CellRecord, spec: IcaPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
     return figure_bytes(plotting.ica_figure(record, spec), fmt)
+
+
+def dva_export(record: CellRecord, spec: DvaPlotSpec, fmt: str) -> tuple[bytes, str]:
+    frame = collect.dva_frame(
+        record.cell,
+        cycles=tuple(sorted(set(spec.cycles))),
+        direction=spec.direction,
+        voltage_resolution=spec.voltage_resolution,
+    )
+    return collect.export_frame_bytes(frame, fmt)
+
+
+def dva_figure_export(
+    record: CellRecord, spec: DvaPlotSpec, fmt: str
+) -> tuple[bytes, str]:
+    return figure_bytes(plotting.dva_figure(record, spec), fmt)
 
 
 def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:

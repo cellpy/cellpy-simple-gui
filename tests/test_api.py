@@ -285,3 +285,49 @@ def test_plot_types_include_registry_in_dev_mode(client, monkeypatch):
         assert caps["dev_mode"] is True and caps["max_files"] > 10
     finally:
         get_settings.cache_clear()
+
+
+def _dva_spec(client):
+    """Load one example cell through the API and build a dV/dQ spec for it."""
+    snap = _wait_for_job(client, client.post(
+        "/api/load/example", json={"kinds": ["cellpy"]}
+    ).json()["job_id"])
+    if snap["status"] != "done":
+        pytest.skip("example data unavailable")
+    cell_id = client.get("/api/state").json()["cells"][0]["id"]
+    return {"cell_id": cell_id, "cycles": [1, 2], "direction": "both"}
+
+
+def test_dva_endpoints_hidden_without_dev_mode(client, monkeypatch):
+    """dV/dQ is a developer-mode view — refused, with a hint, when off."""
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        spec = _dva_spec(client)
+        for url in ("/api/plots/dva", "/api/export/dva?fmt=csv"):
+            r = client.post(url, json=spec)
+            assert r.status_code == 403, url
+            assert "developer mode" in r.json()["detail"].lower()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_dva_endpoints_available_in_dev_mode(client, monkeypatch):
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.setenv("CSG_DEV_MODE", "1")
+    get_settings.cache_clear()
+    try:
+        spec = _dva_spec(client)
+        fig = client.post("/api/plots/dva", json=spec)
+        assert fig.status_code == 200
+        assert fig.json()["data"]
+
+        data = client.post("/api/export/dva?fmt=csv", json=spec)
+        assert data.status_code == 200
+        assert data.content.decode().splitlines()[0].startswith("cycle,direction")
+        assert "dva_" in data.headers.get("content-disposition", "")
+    finally:
+        get_settings.cache_clear()

@@ -205,6 +205,19 @@ function app() {
       };
     },
 
+    get cellUsesIcaOptions() {
+      // dQ/dV and dV/dQ share cellpy's IcaOptions (cycles, resolution, direction).
+      return this.cell.plotKind === "dqdv" || this.cell.plotKind === "dvdq";
+    },
+    get cellPlotKindLabel() {
+      return { dqdv: "dQ/dV", dvdq: "dV/dQ" }[this.cell.plotKind] || "Curves";
+    },
+    get cellAxisLabels() {
+      if (this.cell.plotKind === "dqdv") return { x: "Voltage x", y: "dQ/dV y" };
+      if (this.cell.plotKind === "dvdq") return { x: "Capacity x", y: "dV/dQ y" };
+      return { x: "Capacity x", y: "Voltage y" };
+    },
+
     get nSelected() { return this.cells.filter((c) => c.selected).length; },
     get nGroups() { return new Set(this.cells.map((c) => c.group)).size; },
     get projectTagLabel() {
@@ -244,6 +257,10 @@ function app() {
       this.cells = s.cells;
       this.project = s.project;
       if (this.project && !this.saveName) this.saveName = this.project;
+      // Dev mode marks each cellpy family against the *loaded* cells, so the
+      // list goes stale whenever the library changes (it is first built at
+      // startup, when nothing is loaded yet).
+      if (this.devMode) await this.refreshPlotTypes();
       if (this.tab === "summary") this.plotSummary();
       if (this.tab === "cycles") this.ensureCyclesBounds();
       if (this.tab === "cell") this.ensureCellSelected();
@@ -732,8 +749,12 @@ function app() {
     },
     async _plotCellFigure() {
       if (!this.cell.cell_id) return;
-      const url = this.cell.plotKind === "dqdv" ? "/api/plots/ica" : "/api/plots/cycles";
-      const body = this.cell.plotKind === "dqdv" ? this.icaSpec() : this.cellSpec();
+      const kind = this.cell.plotKind;
+      const url = kind === "dqdv" ? "/api/plots/ica"
+        : kind === "dvdq" ? "/api/plots/dva"
+        : "/api/plots/cycles";
+      // DVA reuses the ICA spec — cellpy derives both from IcaOptions.
+      const body = this.cellUsesIcaOptions ? this.icaSpec() : this.cellSpec();
       const fig = await (await api(url, { method: "POST", body })).json();
       Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
       this._applyFigureHeight("cellChart", fig);
@@ -752,6 +773,10 @@ function app() {
       if (!this.cell.cell_id) return;
       if (this.cell.plotKind === "dqdv") {
         await this.download(`/api/export/ica?fmt=${fmt}`, this.icaSpec(), `ica.${fmt}`);
+        return;
+      }
+      if (this.cell.plotKind === "dvdq") {
+        await this.download(`/api/export/dva?fmt=${fmt}`, this.icaSpec(), `dva.${fmt}`);
         return;
       }
       await this.download(`/api/export/cycles?fmt=${fmt}`, this.cellSpec(), `cycles.${fmt}`);

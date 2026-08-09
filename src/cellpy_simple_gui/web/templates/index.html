@@ -532,12 +532,13 @@
             </div>
           </div>
           <aside class="plot-sidepane" aria-label="Curve options">
-            <h3 class="plot-sidepane-title" x-text="cell.plotKind === 'dqdv' ? 'dQ/dV' : 'Curves'">Curves</h3>
+            <h3 class="plot-sidepane-title" x-text="cellPlotKindLabel">Curves</h3>
             <div class="ctl">
               <label>Plot</label>
               <select x-model="cell.plotKind" @change="plotCell()">
                 <option value="curves">Voltage curves</option>
                 <option value="dqdv">dQ/dV</option>
+                <option value="dvdq" x-show="devMode">dV/dQ (differential voltage)</option>
               </select>
             </div>
             <div class="ctl">
@@ -568,11 +569,11 @@
                 <option value="forth">forth</option>
               </select>
             </div>
-            <div class="ctl" x-show="cell.plotKind === 'dqdv'">
+            <div class="ctl" x-show="cellUsesIcaOptions">
               <label>V resolution</label>
               <input type="number" class="num" x-model.number="cell.voltageResolution" min="0.0001" step="0.001" @change="plotCell()" />
             </div>
-            <div class="ctl" x-show="cell.plotKind === 'dqdv'">
+            <div class="ctl" x-show="cellUsesIcaOptions">
               <label>Direction</label>
               <select x-model="cell.direction" @change="plotCell()">
                 <option value="charge">Charge</option>
@@ -581,7 +582,7 @@
               </select>
             </div>
             <div class="ctl yrange" title="Fixed x-axis range — set min, max, or both (blank end uses data extent)">
-              <label x-text="cell.plotKind === 'dqdv' ? 'Voltage x' : 'Capacity x'"></label>
+              <label x-text="cellAxisLabels.x"></label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
                        x-model="cell.xRange.min" @change="plotCell()" />
@@ -591,7 +592,7 @@
               </div>
             </div>
             <div class="ctl yrange" title="Fixed y-axis range — set min, max, or both (blank end uses data extent)">
-              <label x-text="cell.plotKind === 'dqdv' ? 'dQ/dV y' : 'Voltage y'"></label>
+              <label x-text="cellAxisLabels.y"></label>
               <div class="yrange-inputs">
                 <input type="number" class="num num-mini" step="any" placeholder="min"
                        x-model="cell.yRange.min" @change="plotCell()" />

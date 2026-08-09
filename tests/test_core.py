@@ -1349,3 +1349,99 @@ def test_curated_plot_types_unaffected(loaded_library):
         "charge_capacity_gravimetric",
         "discharge_capacity_gravimetric",
     )
+
+
+# ---- differential voltage (DVA) ------------------------------------------- #
+
+def test_dva_figure_directions(loaded_library):
+    """dV/dQ renders per direction; cellpy's dva_plot is single-cell."""
+    from cellpy_simple_gui.core.models import DvaPlotSpec
+
+    rec = loaded_library.all()[0]
+    kwargs = dict(cell_id=rec.id, cycles=[1, 2])
+    for direction in ("charge", "discharge"):
+        fig = json.loads(
+            plotting.dva_figure(rec, DvaPlotSpec(**kwargs, direction=direction))
+        )
+        assert len(fig["data"]) >= 1
+        assert all((t.get("line") or {}).get("dash") is None for t in fig["data"])
+
+
+def test_dva_both_distinguishes_half_cycles(loaded_library):
+    """cellpy #862: dva_plot draws both directions identically — we mark them."""
+    from cellpy_simple_gui.core.models import DvaPlotSpec
+
+    rec = loaded_library.all()[0]
+    fig = json.loads(
+        plotting.dva_figure(
+            rec, DvaPlotSpec(cell_id=rec.id, cycles=[1, 2], direction="both")
+        )
+    )
+    names = [t.get("name") or "" for t in fig["data"]]
+    dashes = [(t.get("line") or {}).get("dash") for t in fig["data"]]
+    assert any("charge" in n for n in names) and any("discharge" in n for n in names)
+    # exactly the discharge halves are dashed, so a static export stays readable
+    assert any(d == "dot" for d in dashes) and any(d is None for d in dashes)
+    for name, dash in zip(names, dashes, strict=True):
+        assert (dash == "dot") == name.endswith("discharge")
+
+
+def test_dva_figure_needs_cycles(loaded_library):
+    from cellpy_simple_gui.core.models import DvaPlotSpec
+
+    rec = loaded_library.all()[0]
+    fig = json.loads(plotting.dva_figure(rec, DvaPlotSpec(cell_id=rec.id, cycles=[])))
+    assert not fig["data"]
+    assert "dV/dQ" in fig["layout"]["annotations"][0]["text"]
+
+
+def test_dva_export_frame(loaded_library):
+    from cellpy_simple_gui.core.models import DvaPlotSpec
+
+    rec = loaded_library.all()[0]
+    spec = DvaPlotSpec(cell_id=rec.id, cycles=[1, 2], direction="both")
+    frame = collect.dva_frame(
+        rec.cell, cycles=(1, 2), direction="both", voltage_resolution=spec.voltage_resolution
+    )
+    assert {"cycle", "direction", "capacity", "dvdq"} <= set(frame.columns)
+    assert set(frame["direction"].unique().to_list()) == {"charge", "discharge"}
+    data, media = export.dva_export(rec, spec, "csv")
+    assert media == "text/csv"
+    assert data.decode().splitlines()[0].startswith("cycle,direction")
+
+
+def test_registry_plot_types_without_cells_says_so(loaded_library):
+    """With nothing loaded, availability is unknown — do not claim data is missing.
+
+    The list is built at startup before any cells exist, so the wrong wording
+    here made every family look unplottable on a freshly opened project.
+    """
+    types = collect.registry_plot_types([])
+    assert types and all(t["unavailable_reason"] for t in types)
+    assert all("load cells" in t["unavailable_reason"] for t in types)
+    # ...and with cells it resolves properly again
+    with_cells = collect.registry_plot_types(loaded_library.selected())
+    assert any(not t.get("unavailable_reason") for t in with_cells)
+
+
+def test_summary_schema_unions_across_cells(loaded_library):
+    """One cell with an unreadable summary must not hide the others' columns."""
+    class _Broken:
+        @property
+        def data(self):
+            raise RuntimeError("no summary here")
+
+        @property
+        def schema(self):
+            raise RuntimeError("no schema here")
+
+    class _Rec:
+        cell = _Broken()
+
+    recs = loaded_library.selected()
+    hdr, available = collect._summary_schema(recs)
+    assert hdr is not None and available
+    # a broken cell in the mix leaves the good cells' columns intact
+    hdr2, available2 = collect._summary_schema([_Rec(), *recs])
+    assert hdr2 is not None
+    assert available2 == available
