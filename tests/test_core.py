@@ -1244,3 +1244,108 @@ def test_config_diagnostics_survives_broken_provenance(monkeypatch):
     monkeypatch.setattr(cellpy_config, "_sources", lambda: {})
     d = cellpy_config.diagnostics()
     assert all(e["layer"] == "default" for s in d["sections"] for e in s["entries"])
+
+
+# ---- developer mode (#97) ------------------------------------------------- #
+
+@pytest.fixture()
+def dev_mode(monkeypatch):
+    """Run a block with CSG_DEV_MODE=1 and a fresh settings cache."""
+    from cellpy_simple_gui.config import get_settings
+
+    monkeypatch.setenv("CSG_DEV_MODE", "1")
+    get_settings.cache_clear()
+    yield get_settings()
+    get_settings.cache_clear()
+
+
+def test_dev_mode_off_by_default(monkeypatch):
+    from cellpy_simple_gui.config import DEFAULT_MAX_FILES, get_settings
+
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        s = get_settings()
+        assert s.dev_mode is False
+        assert s.max_files == DEFAULT_MAX_FILES
+    finally:
+        get_settings.cache_clear()
+
+
+def test_dev_mode_raises_file_ceiling(dev_mode):
+    from cellpy_simple_gui.config import DEV_MAX_FILES
+    from cellpy_simple_gui.core.files import effective_max_files
+
+    assert dev_mode.dev_mode is True
+    assert dev_mode.max_files == DEV_MAX_FILES
+    # a client may ask for more than the regular cap, but never past the ceiling
+    assert effective_max_files(200) == 200
+    assert effective_max_files(10_000) == DEV_MAX_FILES
+
+
+def test_regular_mode_clamps_file_request(monkeypatch):
+    """A hand-made request cannot exceed the regular-user cap."""
+    from cellpy_simple_gui.config import DEFAULT_MAX_FILES, get_settings
+    from cellpy_simple_gui.core.files import effective_max_files
+
+    monkeypatch.delenv("CSG_DEV_MODE", raising=False)
+    get_settings.cache_clear()
+    try:
+        assert effective_max_files(10_000) == DEFAULT_MAX_FILES
+        assert effective_max_files(0) == DEFAULT_MAX_FILES
+    finally:
+        get_settings.cache_clear()
+
+
+def test_registry_plot_types_mark_availability(loaded_library):
+    """Every cellpy family is listed; the unusable ones say what is missing."""
+    types = collect.registry_plot_types(loaded_library.selected())
+    assert len(types) > 10  # the whole registry, not the curated set
+    assert all(t["id"].startswith(collect.FAMILY_PREFIX) for t in types)
+    assert all(t["source"] == "registry" for t in types)
+
+    ok = [t for t in types if not t.get("unavailable_reason")]
+    bad = [t for t in types if t.get("unavailable_reason")]
+    assert ok and bad, "expected both plottable and unplottable families"
+    assert all(t["columns"] and not t["missing"] for t in ok)
+    # the reason names the actual missing columns, so it is actionable
+    for t in bad:
+        if t["missing"]:
+            assert all(c in t["unavailable_reason"] for c in t["missing"])
+
+
+def test_family_plot_type_renders(loaded_library):
+    recs = loaded_library.selected()
+    ok = next(
+        t for t in collect.registry_plot_types(recs) if not t.get("unavailable_reason")
+    )
+    cols = collect.summary_columns_for(ok["id"], "gravimetric", recs)
+    assert cols == tuple(ok["columns"])
+    fig = json.loads(plotting.summary_figure(recs, SummaryPlotSpec(plot_type=ok["id"])))
+    assert len(fig["data"]) >= 1
+
+
+def test_unavailable_family_explains_itself(loaded_library):
+    """A family the data cannot support must say so, not render blank (#97)."""
+    recs = loaded_library.selected()
+    bad = next(
+        t for t in collect.registry_plot_types(recs)
+        if t.get("unavailable_reason") and t["missing"]
+    )
+    fig = json.loads(plotting.summary_figure(recs, SummaryPlotSpec(plot_type=bad["id"])))
+    assert not fig["data"]
+    text = " ".join(a.get("text", "") for a in fig["layout"].get("annotations") or [])
+    assert text, "an unplottable family must explain itself"
+    assert bad["missing"][0] in text
+    with pytest.raises(ValueError, match=bad["missing"][0]):
+        export.summary_export(recs, SummaryPlotSpec(plot_type=bad["id"]), "csv")
+
+
+def test_curated_plot_types_unaffected(loaded_library):
+    """Regular users still get exactly the curated list."""
+    recs = loaded_library.selected()
+    assert collect.summary_columns_for("capacity_ce", "gravimetric", recs) == (
+        "coulombic_efficiency",
+        "charge_capacity_gravimetric",
+        "discharge_capacity_gravimetric",
+    )

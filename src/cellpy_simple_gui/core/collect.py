@@ -106,7 +106,109 @@ SUMMARY_PLOT_TYPES = [
 ]
 
 
-def summary_columns_for(plot_type: str, basis: str) -> tuple[str, ...]:
+#: Prefix marking a plot type that came from cellpy's registry rather than the
+#: curated list, so ``summary_columns_for`` can tell the two apart.
+FAMILY_PREFIX = "family:"
+
+
+def registry_plot_types(records: list[CellRecord] | None = None) -> list[dict]:
+    """Every summary family cellpy registers, marked available or not (#97).
+
+    Developer mode shows the whole registry, but most families need columns a
+    given cell simply does not have (CV-split, absolute capacity, transform-fed
+    ``mod_01_*``). Listing them unmarked would be a menu of silently empty
+    plots, so each entry carries the columns it wants and the ones missing from
+    the loaded cells.
+    """
+    try:
+        from cellpy.plotting import registry
+    except Exception:  # noqa: BLE001 - dev extra must never break the app
+        log.warning("cellpy plot registry unavailable", exc_info=True)
+        return []
+
+    hdr, available = _summary_schema(records)
+    out: list[dict] = []
+    for name, description in registry.families():
+        entry: dict = {
+            "id": f"{FAMILY_PREFIX}{name}",
+            "label": description or name,
+            "family": name,
+            "basis": False,  # the family name already fixes the basis
+            "source": "registry",
+        }
+        try:
+            columns = list(registry.get(name).columns(hdr)) if hdr is not None else []
+        except Exception as exc:  # noqa: BLE001 - a broken family is data, not a crash
+            entry.update(columns=[], missing=[], unavailable_reason=str(exc))
+            out.append(entry)
+            continue
+        missing = [c for c in columns if available is not None and c not in available]
+        entry["columns"] = columns
+        entry["missing"] = missing
+        if not columns:
+            entry["unavailable_reason"] = "this family declares no summary columns"
+        elif missing:
+            entry["unavailable_reason"] = "missing " + ", ".join(missing)
+        out.append(entry)
+    return out
+
+
+def _summary_schema(records: list[CellRecord] | None):
+    """``(header, available_columns)`` from the loaded cells, or ``(None, None)``."""
+    for rec in records or []:
+        try:
+            return rec.cell.schema.summary, set(rec.cell.data.summary.columns)
+        except Exception:  # noqa: BLE001 - try the next cell
+            continue
+    # No cells loaded yet: resolve names from the schema, availability unknown.
+    for rec in records or []:
+        try:
+            return rec.cell.schema.summary, None
+        except Exception:  # noqa: BLE001
+            continue
+    return None, None
+
+
+def missing_summary_columns(
+    columns: tuple[str, ...] | list[str], records: list[CellRecord] | None
+) -> list[str]:
+    """Which of ``columns`` the loaded cells do not actually carry.
+
+    A family's ``column_builder`` names columns whether or not the data has
+    them, so this is what separates "will plot" from "will render blank".
+    """
+    _, available = _summary_schema(records)
+    if available is None:
+        return []
+    return [c for c in columns if c not in available]
+
+
+def family_columns(family: str, records: list[CellRecord] | None = None) -> tuple[str, ...]:
+    """Columns for a registry family, resolved against the loaded cells."""
+    from cellpy.plotting import registry
+
+    hdr, _ = _summary_schema(records)
+    if hdr is None:
+        return ()
+    return tuple(registry.get(family).columns(hdr))
+
+
+def summary_columns_for(
+    plot_type: str, basis: str, records: list[CellRecord] | None = None
+) -> tuple[str, ...]:
+    # Developer mode can pick a cellpy family directly; its own builder decides
+    # the columns (and the basis), so the curated table does not apply (#97).
+    if plot_type.startswith(FAMILY_PREFIX):
+        family = plot_type[len(FAMILY_PREFIX) :]
+        try:
+            columns = family_columns(family, records)
+        except Exception:  # noqa: BLE001 - fall back rather than break the plot
+            log.warning("unknown cellpy plot family %r", family, exc_info=True)
+            columns = ()
+        if columns:
+            return columns
+        return ()
+
     s = _BASIS_SUFFIX.get(basis, "_gravimetric")
     table: dict[str, tuple[str, ...]] = {
         # CE on top (#81); pair with category_orders so Group avg cannot reorder.

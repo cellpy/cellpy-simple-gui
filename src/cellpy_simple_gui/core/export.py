@@ -40,7 +40,12 @@ class FigureExportError(RuntimeError):
 
 
 def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -> tuple[bytes, str]:
-    columns = collect.summary_columns_for(spec.plot_type, spec.basis)
+    columns = collect.summary_columns_for(spec.plot_type, spec.basis, records)
+    if not columns:
+        raise ValueError("This cellpy plot family declares no summary columns.")
+    missing = collect.missing_summary_columns(columns, records)
+    if missing:
+        raise ValueError("These cells have no " + ", ".join(missing) + ".")
     # cellpy ≥2.1.2 returns one collection that averages multi-member groups
     # while keeping singletons as per-cell rows (#816) — export it directly.
     collection = collect.summary_collection(

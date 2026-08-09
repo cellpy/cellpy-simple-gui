@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
+from ...config import get_settings
 from ...core import cellpy_adapter, collect, plotting
 from ...core.library import get_library
 from ...core.models import CyclesPlotSpec, IcaPlotSpec, SummaryPlotSpec
@@ -14,17 +15,29 @@ router = APIRouter()
 
 @router.get("/plot-types")
 def plot_types(basis: str = "gravimetric") -> dict:
-    """Curated summary plot types, with panel ids for the current capacity basis."""
+    """Curated summary plot types, with panel ids for the current capacity basis.
+
+    Developer mode appends every family cellpy registers, each marked with the
+    columns the loaded cells are missing so an unusable one is visibly greyed
+    out rather than silently empty (#97).
+    """
     types = []
     for entry in collect.SUMMARY_PLOT_TYPES:
         panel_basis = basis if entry.get("basis") else "absolute"
         types.append(
             {
                 **entry,
+                "source": "curated",
                 "panels": collect.summary_panels_for(entry["id"], panel_basis),
             }
         )
-    return {"types": types}
+
+    dev = get_settings().dev_mode
+    if dev:
+        # Availability depends on what is actually loaded, so resolve against
+        # the current selection rather than a static schema.
+        types.extend(collect.registry_plot_types(get_library().selected()))
+    return {"types": types, "dev_mode": dev}
 
 
 def _figure_response(figure_json: str) -> Response:

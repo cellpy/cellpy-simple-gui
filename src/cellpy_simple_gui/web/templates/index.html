@@ -21,6 +21,8 @@
       </div>
     </div>
     <div class="topbar-right">
+      <span class="badge badge-dev" x-show="devMode" x-cloak
+            title="Developer mode: every cellpy plot family and raised batch limits">DEV</span>
       <button class="badge badge-btn" type="button" @click="openCellpyConfig()"
               title="cellpy version — click to see where its settings come from">cellpy {{ cellpy_version }}</button>
       <button class="icon-btn" @click="toggleTheme()" :title="theme==='dark' ? 'Light mode' : 'Dark mode'">
@@ -108,7 +110,8 @@
                 Load files
               </button>
               <label class="maxlbl" title="Max files a glob may load">max
-                <input type="number" class="num-mini" x-model="filesMax" min="1" />
+                <input type="number" class="num-mini" x-model="filesMax" min="1" :max="maxFilesCeiling"
+                       :title="`server caps this at ${maxFilesCeiling}`" />
               </label>
             </div>
             <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.
@@ -169,7 +172,8 @@
               <button class="btn btn-ghost pick" x-show="canPick" @click="pickRaw()" title="Browse…">📁</button>
             </div>
             <label class="maxlbl" style="margin-top:7px" title="Max files a glob may load">max
-              <input type="number" class="num-mini" x-model="ingest.maxFiles" min="1" />
+              <input type="number" class="num-mini" x-model="ingest.maxFiles" min="1" :max="maxFilesCeiling"
+                     :title="`server caps this at ${maxFilesCeiling}`" />
             </label>
           </div>
           <button class="btn btn-primary block" @click="ingestRaw()" :disabled="job.active || !ingest.paths.trim()">
@@ -265,9 +269,20 @@
           <div class="ctl">
             <label>Plot type</label>
             <select x-model="summary.plot_type" @change="onSummaryPlotOptionsChange()">
-              <template x-for="t in plotTypes" :key="t.id">
+              <template x-for="t in curatedPlotTypes" :key="t.id">
                 <option :value="t.id" x-text="t.label"></option>
               </template>
+              <optgroup label="cellpy families — plottable" x-show="registryPlotTypes.available.length">
+                <template x-for="t in registryPlotTypes.available" :key="t.id">
+                  <option :value="t.id" x-text="t.label"></option>
+                </template>
+              </optgroup>
+              <optgroup label="cellpy families — data missing" x-show="registryPlotTypes.unavailable.length">
+                <template x-for="t in registryPlotTypes.unavailable" :key="t.id">
+                  <option :value="t.id" x-text="t.label" disabled
+                          :title="t.unavailable_reason"></option>
+                </template>
+              </optgroup>
             </select>
           </div>
           <div class="ctl" x-show="currentPlotTypeBasis()">
