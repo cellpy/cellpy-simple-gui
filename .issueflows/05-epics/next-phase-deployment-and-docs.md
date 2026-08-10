@@ -196,3 +196,24 @@ blocked on the PyPI decision.
 The first thing worth doing is **M2.2, the PyInstaller spike** — out of order,
 because it is the only item that can invalidate a whole route, and it is cheap
 to answer.
+
+## Issues
+
+| Item | Issue | Blocked by |
+|---|---|---|
+| **M2.2** PyInstaller spike ← *start here* | [#117](https://github.com/cellpy/cellpy-simple-gui/issues/117) | — |
+| M1.1 `pywebview` → `[desktop]` extra | [#118](https://github.com/cellpy/cellpy-simple-gui/issues/118) | — |
+| M1.2 `CSG_DATA_DIR` | [#119](https://github.com/cellpy/cellpy-simple-gui/issues/119) | — |
+| M1.3 Close the server-path surface | [#120](https://github.com/cellpy/cellpy-simple-gui/issues/120) | #119 |
+| M2.1 Container image + GHCR | [#121](https://github.com/cellpy/cellpy-simple-gui/issues/121) | #118, #119, #120 |
+| M2.3 Windows installer | [#122](https://github.com/cellpy/cellpy-simple-gui/issues/122) | #117 |
+| M2.4 PyPI + uv/pipx route | [#123](https://github.com/cellpy/cellpy-simple-gui/issues/123) | PyPI name decision |
+| M2.5 Release CI | [#124](https://github.com/cellpy/cellpy-simple-gui/issues/124) | #121, #122, #123 |
+| M3.1 Minimal starter app | [#125](https://github.com/cellpy/cellpy-simple-gui/issues/125) | — |
+| M3.2 Task-shaped guides | [#126](https://github.com/cellpy/cellpy-simple-gui/issues/126) | — |
+| M3.3 Machine-readable layer | [#127](https://github.com/cellpy/cellpy-simple-gui/issues/127) | #126 |
+| M3.4 MCP design + prototype | [#128](https://github.com/cellpy/cellpy-simple-gui/issues/128) | — |
+
+Two decisions are wanted from a human, and both gate work rather than follow it:
+the **PyPI name and owning account** (#123, and it becomes urgent if #117 goes
+badly), and whether a **code-signing certificate** is worth buying (#122).
