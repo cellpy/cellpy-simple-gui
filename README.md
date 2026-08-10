@@ -25,7 +25,9 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
 - **Save & reopen projects** — explicit Save (not autosave) writes the loaded set plus
   grouping / labels / selection into a portable project folder; reopen later. The project
   tag shows when you have unsaved edits (`name*`), and **Close** clears the current
-  session after confirmation.
+  session after confirmation. Re-saving only rewrites cells whose *data* changed —
+  renaming or regrouping is roughly **10× faster** than a full write, because
+  those live in the manifest, not in the `.cellpy` files.
 - **Cycle summary** across many cells — built with cellpy's own
   `collect_summaries` + plotting, with a **plot-type selector** (capacity + CE,
   capacity, coulombic efficiency, cumulated CE, end voltages, internal
@@ -147,6 +149,14 @@ Projects live under `~/.cellpy_simple_gui/projects/` by default; **Save** writes
 current set there and **Open** restores it (physical quantities come from the
 `.cellpy` files, organisational metadata from the manifest). Changes in the UI
 are **not** written until you Save.
+
+That split is also why Save is quick. Re-saving reuses a `.cellpy` file whenever
+the cell it holds provably has not changed — nothing edited it since it was
+read, the file is still there, and its size and timestamp still match. Renaming
+or regrouping touches only `project.json`. Editing mass, area, nominal capacity
+or cycle mode rewrites the summary, so those cells are written out again; if
+anything is uncertain, the file is rewritten. Save-As always produces a complete
+project.
 
 ### Per-project cellpy settings
 
