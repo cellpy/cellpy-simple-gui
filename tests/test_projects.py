@@ -72,6 +72,9 @@ def test_failed_resave_keeps_previous_project(loaded_library, temp_projects_root
     def boom(cell, path):
         raise RuntimeError("simulated save failure")
 
+    # A save that reuses every file never reaches save_cell (#29), so dirty one
+    # cell first — the point here is the write path's rollback.
+    lib.update(lib.all()[0].id, mass=1.23)
     monkeypatch.setattr(projects.adapter, "save_cell", boom)
     with pytest.raises(RuntimeError, match="simulated save failure"):
         projects.save_project(lib, "Atomic")
@@ -82,6 +85,163 @@ def test_failed_resave_keeps_previous_project(loaded_library, temp_projects_root
         p.name.startswith(".staging-") or p.name.startswith(".data-bak-")
         for p in pdir.iterdir()
     )
+
+
+# --------------------------------------------------------------------------- #
+# #29 — reuse unchanged .cellpy files on save
+# --------------------------------------------------------------------------- #
+
+
+def _counting_save_cell(monkeypatch):
+    """Wrap adapter.save_cell so a test can see how often it actually ran."""
+    calls: list[str] = []
+    real = projects.adapter.save_cell
+
+    def counted(cell, path):
+        calls.append(str(path))
+        return real(cell, path)
+
+    monkeypatch.setattr(projects.adapter, "save_cell", counted)
+    return calls
+
+
+@pytest.mark.essential
+def test_resave_reuses_unchanged_cells(loaded_library, temp_projects_root, monkeypatch):
+    """A label-only change must not re-serialise the cell data (#29)."""
+    lib = loaded_library
+    projects.save_project(lib, "Reuse")
+    pdir = temp_projects_root / "reuse"
+    before = {
+        p.name: p.read_bytes() for p in (pdir / "data").iterdir() if p.is_file()
+    }
+    assert before
+
+    calls = _counting_save_cell(monkeypatch)
+    lib.update(lib.all()[0].id, label="renamed", group=7, selected=False)
+    projects.save_project(lib, "Reuse")
+
+    assert calls == [], "no cell data changed, so nothing should be rewritten"
+    after = {p.name: p.read_bytes() for p in (pdir / "data").iterdir() if p.is_file()}
+    assert after == before, "reused files must be byte-identical"
+    # the organisational change still landed
+    manifest = projects.ProjectManifest(
+        **__import__("json").loads((pdir / "project.json").read_text())
+    )
+    entry = next(c for c in manifest.cells if c.id == lib.all()[0].id)
+    assert entry.label == "renamed" and entry.group == 7 and entry.selected is False
+
+
+@pytest.mark.essential
+def test_resave_rewrites_cells_whose_data_changed(
+    loaded_library, temp_projects_root, monkeypatch
+):
+    """Editing mass moves the cell, so its file must be rewritten (#29)."""
+    lib = loaded_library
+    projects.save_project(lib, "Dirty")
+    target = lib.all()[0]
+
+    calls = _counting_save_cell(monkeypatch)
+    lib.update(target.id, mass=0.77)
+    projects.save_project(lib, "Dirty")
+
+    assert len(calls) == 1, calls
+    assert calls[0].endswith(f"{target.id}.cellpy")
+
+
+def test_reuse_declines_when_file_changed_on_disk(
+    loaded_library, temp_projects_root, monkeypatch
+):
+    """Provably untouched means the file too — not just the in-memory cell."""
+    lib = loaded_library
+    projects.save_project(lib, "Tampered")
+    pdir = temp_projects_root / "tampered"
+    target = lib.all()[0]
+    victim = pdir / "data" / f"{target.id}.cellpy"
+
+    # Something rewrote the file behind the app's back.
+    time.sleep(0.01)
+    victim.write_bytes(b"not a cellpy file")
+
+    calls = _counting_save_cell(monkeypatch)
+    projects.save_project(lib, "Tampered")
+
+    assert [c for c in calls if c.endswith(f"{target.id}.cellpy")], (
+        "a file that changed on disk must be rewritten from memory"
+    )
+    assert victim.read_bytes() != b"not a cellpy file"
+
+
+def test_reuse_declines_when_file_is_missing(
+    loaded_library, temp_projects_root, monkeypatch
+):
+    lib = loaded_library
+    projects.save_project(lib, "Gone")
+    target = lib.all()[0]
+    (temp_projects_root / "gone" / "data" / f"{target.id}.cellpy").unlink()
+
+    calls = _counting_save_cell(monkeypatch)
+    projects.save_project(lib, "Gone")
+
+    assert [c for c in calls if c.endswith(f"{target.id}.cellpy")]
+    assert (temp_projects_root / "gone" / "data" / f"{target.id}.cellpy").is_file()
+
+
+def test_save_as_new_project_still_copies_every_cell(
+    loaded_library, temp_projects_root
+):
+    """Save-As must produce a complete project, reuse or not (#29)."""
+    lib = loaded_library
+    projects.save_project(lib, "First")
+    projects.save_project(lib, "Second")
+
+    for slug in ("first", "second"):
+        data = temp_projects_root / slug / "data"
+        assert sorted(p.name for p in data.iterdir()) == sorted(
+            f"{r.id}.cellpy" for r in lib.all()
+        )
+    # and the copies are real, openable cells
+    fresh = Library()
+    projects.open_project(fresh, str(temp_projects_root / "second"))
+    assert len(fresh) == len(lib)
+
+
+@pytest.mark.essential
+def test_reused_project_reopens_intact(loaded_library, temp_projects_root):
+    """The end-to-end guarantee: a reused save is still a loadable project."""
+    lib = loaded_library
+    projects.save_project(lib, "Intact")
+    expected = [(r.n_cycles, r.mass) for r in lib.all()]
+
+    fresh = Library()
+    projects.open_project(fresh, str(temp_projects_root / "intact"))
+    fresh.update(fresh.all()[0].id, label="only a label")
+    projects.save_project(fresh, "Intact")  # reuses every file
+
+    again = Library()
+    projects.open_project(again, str(temp_projects_root / "intact"))
+    assert [(r.n_cycles, r.mass) for r in again.all()] == expected
+    assert again.all()[0].label == "only a label"
+
+
+def test_opened_cells_start_clean_and_dirty_on_edit(
+    loaded_library, temp_projects_root
+):
+    """The flag itself: clean on open, dirty the moment the cell moves."""
+    lib = loaded_library
+    projects.save_project(lib, "Flags")
+
+    fresh = Library()
+    projects.open_project(fresh, str(temp_projects_root / "flags"))
+    rec = fresh.all()[0]
+    assert rec.data_dirty is False and rec.data_path
+    assert fresh.reusable_data_file(rec.id) is not None
+
+    fresh.update(rec.id, label="labels do not touch the data")
+    assert fresh.reusable_data_file(rec.id) is not None
+
+    fresh.update(rec.id, mass=0.9)
+    assert rec.data_dirty is True
+    assert fresh.reusable_data_file(rec.id) is None
 
 
 @pytest.mark.essential

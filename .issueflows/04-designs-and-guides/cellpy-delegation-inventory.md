@@ -182,3 +182,16 @@ which option.
   facet `category_orders` (§20) — all unfiled friction
 - Desktop Save As + zip packaging (encode itself now delegated to cellpy #818)
 - Ingest form layout (until a follow-up consumes `instrument_meta_schema`)
+- **Save reuse (#29)** — cellpy has no "has this cell changed?" signal, so the
+  app tracks it: `CellRecord.data_path` / `data_stat` / `data_dirty`, set on
+  project open and cleared by `Library.update` whenever `apply_physical_meta`
+  reports a change. `Library.reusable_data_file()` is the single decision point
+  and defaults to "rewrite" on any doubt. Only project files get provenance —
+  a loose `.h5` is a legacy-format file, and copying one in as `.cellpy` would
+  quietly downgrade the project. Measured: 0.94 s → 0.09 s for a label-only
+  re-save of 4 cells.
+
+  The freshness check is `(size, mtime_ns)`, not a hash: it catches a file
+  rewritten behind the app's back without re-reading megabytes on every save.
+  A tamper that preserved both would go unnoticed — acceptable for a
+  single-user desktop app, and the honest limit of the approach.

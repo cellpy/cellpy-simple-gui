@@ -182,11 +182,22 @@ def save_project(library: Library, name: str, progress: ProgressFn = None) -> Pr
     try:
         total = len(records)
         entries: list[CellEntry] = []
+        reused = 0
         for i, rec in enumerate(records):
-            if progress:
-                progress(i / total, f"Saving “{rec.label or rec.name}” …")
             data_file = f"{rec.id}.cellpy"
-            adapter.save_cell(rec.cell, staging_data / data_file)
+            # Re-serialising a cell nobody touched is the slow part of Save, and
+            # a label change should not pay for it (#29). Only skip when the
+            # existing file provably still matches — see reusable_data_file.
+            source = library.reusable_data_file(rec.id)
+            if source is not None:
+                if progress:
+                    progress(i / total, f"Keeping “{rec.label or rec.name}” …")
+                shutil.copy2(source, staging_data / data_file)
+                reused += 1
+            else:
+                if progress:
+                    progress(i / total, f"Saving “{rec.label or rec.name}” …")
+                adapter.save_cell(rec.cell, staging_data / data_file)
             entries.append(
                 CellEntry(
                     id=rec.id, name=rec.name, source=rec.source,
@@ -227,12 +238,21 @@ def save_project(library: Library, name: str, progress: ProgressFn = None) -> Pr
         if bak_data is not None and bak_data.exists():
             shutil.rmtree(bak_data, ignore_errors=True)
             bak_data = None
+        # Only now is the swap committed: every record's data is the file that
+        # is actually live. Doing this earlier would leave records pointing at
+        # a path a rollback had just undone.
+        for rec in records:
+            library.mark_saved(rec.id, live_data / f"{rec.id}.cellpy")
     finally:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
 
     library.project_name = name
     library.project_path = str(pdir)
+    log.info(
+        "Saved project “%s”: %d cell(s) written, %d unchanged",
+        name, len(records) - reused, reused,
+    )
     if progress:
         progress(1.0, "Saved")
     return manifest
@@ -255,6 +275,9 @@ def open_project(library: Library, path_or_slug: str, progress: ProgressFn = Non
         library.restore_cell(
             cell, source=entry.source, group=entry.group,
             label=entry.label, selected=entry.selected,
+            # This app wrote the file, and nothing has touched the cell since,
+            # so a Save that changes only labels can reuse it as-is (#29).
+            data_path=data_path,
         )
         log.info("Project open: loaded %d/%d “%s”", i + 1, total, label)
 
