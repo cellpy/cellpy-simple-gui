@@ -1,24 +1,19 @@
-# Real essential-test job — runs when code / test / lockfile paths change.
+# The single source of the required "Essential tests / essential" check.
+#
+# There used to be two workflows sharing this name: a real one gated on `paths`
+# and a mock gated on `paths-ignore`. Those filters are evaluated per changed
+# file, so a PR touching code *and* docs — which most of ours do — satisfied
+# both, and two runs reported under one check name. `gh pr checks` then showed
+# whichever it liked, and a 4-second mock is indistinguishable from a real pass
+# (#111).
+#
+# So: always trigger, decide inside, report exactly once.
 name: Essential tests
 
 on:
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".python-version"
-      - ".github/workflows/essential-tests.yml"
   pull_request:
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".python-version"
-      - ".github/workflows/essential-tests.yml"
 
 jobs:
   essential:
@@ -26,17 +21,66 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need enough history to diff against the base commit.
+          fetch-depth: 0
+
+      - name: Detect code changes
+        id: changed
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "pull_request" ]; then
+            base="$PR_BASE"
+          else
+            base="$PUSH_BASE"
+          fi
+
+          # A base we cannot resolve (first push to a branch, forced update,
+          # shallow history) means we cannot prove the change is docs-only.
+          # Run the tests — the failure mode of guessing wrong is a green tick
+          # on untested code.
+          if [ -z "$base" ] \
+            || [ "$base" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "Base commit unavailable — running tests."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          files="$(git diff --name-only "$base" HEAD)"
+          echo "Changed files:"
+          echo "$files" | sed 's/^/  /'
+
+          if echo "$files" | grep -qE '^(src/|tests/|pyproject\.toml$|uv\.lock$|\.python-version$|\.github/workflows/essential-tests\.yml$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install uv
+        if: steps.changed.outputs.code == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
       - name: Set up Python
+        if: steps.changed.outputs.code == 'true'
         run: uv python install
 
       - name: Sync dependencies
+        if: steps.changed.outputs.code == 'true'
         run: uv sync --extra dev
 
       - name: Run essential tests
+        if: steps.changed.outputs.code == 'true'
         run: uv run pytest -m essential
+
+      - name: Skipped (no code paths changed)
+        if: steps.changed.outputs.code != 'true'
+        run: |
+          echo "No code, test or dependency paths changed — pytest not run."
+          echo "The check stays green so docs-only PRs are not blocked."

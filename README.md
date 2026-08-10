@@ -261,8 +261,11 @@ uv run pytest -m e2e
 Without the `e2e` extra / Chromium browsers, those tests skip so a plain
 `uv run pytest` stays green.
 
-GitHub Actions runs the `essential` marker on code changes; a matching
-document-mock workflow keeps the same check name green on docs-only PRs.
+GitHub Actions runs the `essential` marker. One workflow decides internally
+whether the change touched code, so every PR gets exactly one `essential` check
+run — and a green one means either "tests passed" or "no code changed", never
+"a second workflow reported first". If the base commit cannot be resolved, it
+runs the tests rather than guessing.
 
 Optional static figure export (**Export ▾ → Figure → PNG / SVG / PDF**, via kaleido):
 
