@@ -8,11 +8,11 @@ cases so the UI can tell the user what happened.
 
 from __future__ import annotations
 
-import glob
 import os
 from dataclasses import dataclass, field
 
 from ..config import DEFAULT_MAX_FILES, get_settings  # noqa: F401 - re-exported
+from . import paths as _paths
 
 _GLOB_CHARS = ("*", "?", "[")
 
@@ -48,8 +48,11 @@ def expand_paths(patterns: list[str], max_files: int = DEFAULT_MAX_FILES) -> Exp
         pat = raw.strip().strip('"')
         if not pat:
             continue
+        # Both branches go through core.paths, so a served instance can only
+        # ever reach inside its data directory (#120). On a desktop instance
+        # these are pass-throughs.
         if is_glob(pat):
-            hits = sorted(p for p in glob.glob(pat, recursive=True) if os.path.isfile(p))
+            hits = _paths.expand_glob(pat)
             if not hits:
                 exp.errors.append(f"No files matched: {pat}")
                 continue
@@ -58,10 +61,15 @@ def expand_paths(patterns: list[str], max_files: int = DEFAULT_MAX_FILES) -> Exp
                     seen.add(h)
                     exp.paths.append(h)
         else:
-            if os.path.isfile(pat):
-                if pat not in seen:
-                    seen.add(pat)
-                    exp.paths.append(pat)
+            try:
+                resolved = str(_paths.resolve_input(pat))
+            except _paths.PathNotAllowed as exc:
+                exp.errors.append(str(exc))
+                continue
+            if os.path.isfile(resolved):
+                if resolved not in seen:
+                    seen.add(resolved)
+                    exp.paths.append(resolved)
             else:
                 exp.errors.append(f"Not found: {pat}")
 

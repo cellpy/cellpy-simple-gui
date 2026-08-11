@@ -15,6 +15,20 @@ TEMPLATES = Jinja2Templates(directory=str(WEB_DIR / "templates"))
 TOKEN_COOKIE = "csg_token"
 
 
+def guard_path(raw) -> Path:
+    """Resolve a client-supplied path, or refuse it with a 400 (#120).
+
+    Checks the *resolved* location rather than the text, so a slug, a relative
+    path and an absolute one are all judged by where they actually land.
+    """
+    from ..core import paths as core_paths
+
+    try:
+        return core_paths.resolve_input(raw)
+    except core_paths.PathNotAllowed as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def require_token(
     x_csg_token: str | None = Header(default=None),
     token_q: str | None = Query(default=None, alias="token"),

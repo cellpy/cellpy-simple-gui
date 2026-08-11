@@ -9,6 +9,7 @@ from fastapi import APIRouter, Body, HTTPException
 
 from ...core import cellpy_adapter, cellpy_config, projects
 from ...core.library import get_library
+from ..deps import guard_path
 from ..jobs import Progress, get_job_manager
 
 log = logging.getLogger(__name__)
@@ -75,6 +76,9 @@ def open_project(target: str = Body(..., embed=True)) -> dict:
         pdir = projects.resolve_project_path(target)
     except FileNotFoundError:
         raise HTTPException(404, f"No project found for “{target}”.")
+    # A slug resolves under the data dir and is always fine; an explicit path
+    # has to be checked (#120).
+    guard_path(pdir)
     log.info("Opening project “%s”", target)
     # Switch cellpy's config here, on the request thread and *before* the load
     # job starts: the cells must be read under this project's settings, and the
@@ -111,6 +115,7 @@ def pin_config() -> dict:
 @router.post("/projects/classify-import")
 def classify_import(path: str = Body(..., embed=True)) -> dict:
     """Return whether a path is a portable project or a batch journal (#75)."""
+    guard_path(path)
     try:
         kind = projects.classify_import_path(path)
     except ValueError as exc:
@@ -176,10 +181,11 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
 def load_journal(path: str = Body(..., embed=True)) -> dict:
     if not path.strip():
         raise HTTPException(400, "A journal file path is required.")
-    if not Path(path).is_file():
+    resolved = guard_path(path)
+    if not resolved.is_file():
         raise HTTPException(404, f"No such file: {path}")
-    log.info("Loading journal %s", path.strip())
-    job = get_job_manager().submit("load-journal", _load_journal_job, path.strip())
+    log.info("Loading journal %s", resolved)
+    job = get_job_manager().submit("load-journal", _load_journal_job, str(resolved))
     return {"job_id": job.id}
 
 
