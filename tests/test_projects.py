@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -516,3 +517,71 @@ def test_discovery_reports_shadowed_legacy(monkeypatch, tmp_path):
     assert d["discovery"]["shadowed_legacy"] == str(legacy)
     assert not d["discovery"]["legacy_fallback"]
     assert any("ignored" in w and str(legacy) in w for w in d["warnings"])
+
+
+# --------------------------------------------------------------------------- #
+# #119 — the data directory is configurable
+# --------------------------------------------------------------------------- #
+
+
+def test_data_dir_defaults_to_home(monkeypatch):
+    from cellpy_simple_gui.config import Settings
+
+    monkeypatch.delenv("CSG_DATA_DIR", raising=False)
+    assert Settings().data_dir == (Path.home() / ".cellpy_simple_gui").resolve()
+
+
+def test_data_dir_follows_the_env(monkeypatch, tmp_path):
+    """A container points this at a volume (#119)."""
+    from cellpy_simple_gui.config import Settings
+
+    target = tmp_path / "volume" / "state"
+    monkeypatch.setenv("CSG_DATA_DIR", str(target))
+    assert Settings().data_dir == target.resolve()
+
+
+def test_data_dir_expands_user_and_relative(monkeypatch, tmp_path):
+    """Env vars carry ~ and relative paths; downstream wants one canonical root."""
+    from cellpy_simple_gui.config import Settings
+
+    monkeypatch.setenv("CSG_DATA_DIR", "~/csg-test-dir")
+    assert Settings().data_dir == (Path.home() / "csg-test-dir").resolve()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CSG_DATA_DIR", "./state")
+    resolved = Settings().data_dir
+    assert resolved.is_absolute() and resolved == (tmp_path / "state").resolve()
+
+
+def test_reading_settings_creates_nothing(monkeypatch, tmp_path):
+    """Settings must not touch the filesystem — writers create what they need."""
+    from cellpy_simple_gui.config import Settings
+
+    target = tmp_path / "not-yet"
+    monkeypatch.setenv("CSG_DATA_DIR", str(target))
+    assert Settings().data_dir == target.resolve()
+    assert not target.exists()
+
+
+@pytest.mark.essential
+def test_projects_land_under_the_configured_data_dir(loaded_library, monkeypatch, tmp_path):
+    """End to end: point CSG_DATA_DIR at a volume and a save lands there (#119).
+
+    Deliberately does not use the ``temp_projects_root`` fixture — that one
+    stubs out ``projects_root``, which is the function under test here.
+    """
+    target = tmp_path / "volume"
+    monkeypatch.setenv("CSG_DATA_DIR", str(target))
+    get_settings.cache_clear()
+    try:
+        assert projects.projects_root() == target.resolve() / "projects"
+
+        projects.save_project(loaded_library, "On A Volume")
+        saved = target / "projects" / "on_a_volume" / "project.json"
+        assert saved.is_file()
+
+        fresh = Library()
+        projects.open_project(fresh, str(saved.parent))
+        assert len(fresh) == len(loaded_library)
+    finally:
+        get_settings.cache_clear()

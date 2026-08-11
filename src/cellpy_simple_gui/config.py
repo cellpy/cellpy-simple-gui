@@ -6,6 +6,7 @@ import secrets
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: Files one glob / load may pull in. The low default keeps a stray ``*`` from
@@ -30,11 +31,25 @@ class Settings(BaseSettings):
     #: ``CSG_DEV_MODE=1`` or pass ``--dev``.
     dev_mode: bool = False
 
-    @property
-    def data_dir(self) -> Path:
-        d = Path.home() / ".cellpy_simple_gui"
-        d.mkdir(parents=True, exist_ok=True)
-        return d
+    #: Where projects and app state live. A field rather than a fixed path so a
+    #: container can point it at a volume (``CSG_DATA_DIR``); the default keeps
+    #: desktop installs exactly where they were (#119).
+    #:
+    #: Creating it is left to whoever writes — ``projects_root()`` already
+    #: mkdirs with ``parents=True`` — so merely reading settings never touches
+    #: the filesystem.
+    data_dir: Path = Field(default_factory=lambda: Path.home() / ".cellpy_simple_gui")
+
+    @field_validator("data_dir")
+    @classmethod
+    def _absolute_data_dir(cls, value: Path) -> Path:
+        """``~`` and relative paths are normal in env vars; resolve them once.
+
+        Resolving here also means everything downstream gets a canonical,
+        symlink-free root — which is what makes it usable as a boundary to
+        check against (#120).
+        """
+        return Path(value).expanduser().resolve()
 
     @property
     def max_files(self) -> int:
