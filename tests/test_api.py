@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -548,3 +549,88 @@ def test_desktop_import_failure_names_the_extra(monkeypatch):
 
     with pytest.raises(ImportError):
         importlib.import_module("cellpy_simple_gui.desktop").run_desktop()
+
+
+# --------------------------------------------------------------------------- #
+# #120 — a served instance cannot read the host
+# --------------------------------------------------------------------------- #
+
+
+@pytest.fixture()
+def served_client(monkeypatch, tmp_path):
+    """A client for an instance bound to a network address."""
+    root = tmp_path / "data"
+    root.mkdir()
+    monkeypatch.setenv("CSG_HOST", "0.0.0.0")
+    monkeypatch.setenv("CSG_DATA_DIR", str(root))
+    monkeypatch.delenv("CSG_ALLOW_HOST_PATHS", raising=False)
+    get_settings.cache_clear()
+    get_library().clear()
+    c = TestClient(create_app())
+    c.headers.update({"X-CSG-Token": get_settings().token})
+    try:
+        yield c, root.resolve()
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.essential
+def test_served_instance_refuses_paths_outside_its_data_dir(served_client, tmp_path):
+    """The blast radius of the old behaviour was the host, not the app (#120)."""
+    client, _root = served_client
+    outside = tmp_path / "secret.json"
+    outside.write_text('{"nope": true}')
+
+    for path, endpoint in (
+        (str(outside), "/api/projects/load-journal"),
+        (str(outside), "/api/projects/classify-import"),
+    ):
+        r = client.post(endpoint, json={"path": path})
+        assert r.status_code == 400, (endpoint, r.status_code)
+        assert "outside the data directory" in r.json()["detail"]
+
+
+@pytest.mark.essential
+def test_served_instance_will_not_load_files_from_the_host(served_client, tmp_path):
+    """Loading is a job, so the refusal comes back as an error, not a status."""
+    client, _root = served_client
+    outside = tmp_path / "elsewhere.cellpy"
+    outside.write_bytes(b"not really a cell")
+
+    job = client.post(
+        "/api/load/files", json={"paths": [str(outside)], "max_files": 5}
+    ).json()
+    snap = _wait_for_job(client, job["job_id"])
+    assert snap["status"] == "done"
+    result = client.get(f"/api/jobs/{job['job_id']}").json()
+    assert result["status"] == "done"
+    # nothing loaded, and the reason names the boundary
+    assert not get_library().all()
+
+
+def test_served_instance_refuses_host_globs(served_client, tmp_path):
+    from cellpy_simple_gui.core import files
+
+    client, root = served_client
+    (tmp_path / "leak.cellpy").write_bytes(b"x")
+    (root / "mine.cellpy").write_bytes(b"x")
+
+    exp = files.expand_paths([str(tmp_path / "*.cellpy")])
+    assert exp.paths == []
+    exp = files.expand_paths(["*.cellpy"])
+    assert [Path(p).name for p in exp.paths] == ["mine.cellpy"]
+
+
+def test_local_instance_keeps_its_freedom(client, tmp_path):
+    """The desktop app takes host paths on purpose — that must not regress."""
+    from cellpy_simple_gui.core import files
+
+    target = tmp_path / "anywhere.cellpy"
+    target.write_bytes(b"x")
+    exp = files.expand_paths([str(target)])
+    assert exp.paths == [str(target)]
+
+    r = client.post("/api/projects/classify-import", json={"path": str(target)})
+    # a real file that is not a project.json classifies as a journal — the point
+    # is that it was not refused
+    assert r.status_code == 200 and r.json()["kind"] == "journal"

@@ -65,10 +65,15 @@ def _normalize_dialog_path(result) -> str | None:
 @router.get("/system/capabilities")
 def capabilities() -> dict:
     settings = get_settings()
+    from ...core import paths as core_paths
+
     return {
         "file_picker": _webview_window() is not None,
         "dev_mode": settings.dev_mode,
         "max_files": settings.max_files,
+        # Whether typing a host path works here, and if not, what the boundary
+        # is (#120) — so the UI can say so rather than looking broken.
+        **core_paths.describe_mode(),
     }
 
 

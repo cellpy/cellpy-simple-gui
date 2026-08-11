@@ -192,6 +192,39 @@ Overrides apply per field, so setting one leaves the rest alone. The **cellpy
 version badge** in the app shows every setting and which layer it came from,
 which is the quickest way to confirm a deployment is reading what you think.
 
+### Local vs served: what the app may touch
+
+Typing `D:\data\*.res` into the app is the point of a desktop tool. Answering
+requests over a network with that same freedom is arbitrary read and write on
+the **host**, behind nothing but a per-launch token — so the app has two modes,
+chosen by the bind address:
+
+| | bound to | paths |
+|---|---|---|
+| **local** | loopback | anywhere you can reach, as always |
+| **served** | anything else | inside `CSG_DATA_DIR` only |
+
+In served mode, absolute paths, `..`, drive letters, UNC paths and symlinks that
+point outward are all refused — the *resolved* location is what gets checked, so
+a link that looks innocent does not get through. Globs are rooted at the data
+directory and their results filtered, because `**` through a symlinked directory
+is the classic way out.
+
+One case the bind address gets wrong: an instance on loopback **published by a
+reverse proxy** looks local from inside, because the proxy connects from
+loopback. Force it:
+
+```bash
+CSG_ALLOW_HOST_PATHS=0
+```
+
+`/api/system/capabilities` reports `host_paths_allowed` and `sandbox_root`, so
+you can confirm which rules an instance is running under.
+
+> A served instance currently reads files that are already inside its data
+> directory — mount your data there. Browser upload is
+> [#133](https://github.com/cellpy/cellpy-simple-gui/issues/133).
+
 ### Per-project cellpy settings
 
 Drop a `cellpy.toml` next to `project.json` and the app activates it as cellpy's

@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     #: the filesystem.
     data_dir: Path = Field(default_factory=lambda: Path.home() / ".cellpy_simple_gui")
 
+    #: May the app read and write host paths, or only inside ``data_dir``?
+    #: ``None`` infers it from the bind address — loopback means a desktop-style
+    #: instance where typing a path is the whole point (#120).
+    #:
+    #: Set ``CSG_ALLOW_HOST_PATHS=0`` when a loopback-bound instance is
+    #: published by a reverse proxy: the proxy connects from loopback, so it
+    #: still looks local from in here.
+    allow_host_paths: bool | None = None
+
     @field_validator("data_dir")
     @classmethod
     def _absolute_data_dir(cls, value: Path) -> Path:
