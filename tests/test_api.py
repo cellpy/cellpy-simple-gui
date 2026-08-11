@@ -88,7 +88,13 @@ def test_cellpy_config_diagnostics_endpoint(client):
 
 
 def test_webview_file_type_filters_are_valid():
-    """pywebview rejects descriptions outside [\\w ] — keep dialog filters parseable."""
+    """pywebview rejects descriptions outside [\\w ] — keep dialog filters parseable.
+
+    Needs the [desktop] extra (#118). Skipped rather than dropped on a
+    server-only install: the constraint is real, and this is the only thing
+    checking it.
+    """
+    pytest.importorskip("webview", reason="pywebview lives in the [desktop] extra")
     from webview.util import parse_file_type
 
     from cellpy_simple_gui.api.routers import system
@@ -486,3 +492,59 @@ def test_index_alpine_state_is_defined():
 
     missing = [r for r in sorted(roots) if not re.search(rf"\b{re.escape(r)}\s*:", js)]
     assert not missing, f"template binds state the component never defines: {missing}"
+
+
+# --------------------------------------------------------------------------- #
+# #118 — pywebview is an optional extra, not a core dependency
+# --------------------------------------------------------------------------- #
+
+
+def _without_webview(monkeypatch):
+    """Make ``import webview`` fail, as it would on a server-only install."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "webview", None)
+    # desktop.py imports webview inside the function, so a stale module object
+    # would mask the very thing under test.
+    monkeypatch.delitem(sys.modules, "cellpy_simple_gui.desktop", raising=False)
+
+
+def test_api_works_without_pywebview(client, monkeypatch):
+    """A server-only install must serve the whole app (#118).
+
+    pywebview moved to the [desktop] extra so server images stop pulling GUI
+    libraries; nothing outside the native window may depend on it.
+    """
+    _without_webview(monkeypatch)
+
+    assert client.get("/api/system/capabilities").json()["file_picker"] is False
+    assert client.get("/").status_code == 200
+    assert client.get("/api/state").status_code == 200
+    assert client.get("/api/instruments").json()["instruments"]
+
+    fig = client.post(
+        "/api/plots/summary", json={"plot_type": "capacity_ce", "basis": "gravimetric"}
+    )
+    assert fig.status_code == 200
+
+
+def test_native_dialogs_refuse_without_pywebview(client, monkeypatch):
+    """The two endpoints that genuinely need a window fail clearly, not with a 500."""
+    _without_webview(monkeypatch)
+
+    pick = client.post("/api/system/pick", json={"kind": "cellpy"})
+    assert pick.status_code == 400
+    assert "desktop app" in pick.json()["detail"]
+
+    save = client.post("/api/system/save?filename=x.csv", content=b"data")
+    assert save.status_code == 400
+
+
+def test_desktop_import_failure_names_the_extra(monkeypatch):
+    """Falling back to the browser should say what to install, not raise ImportError."""
+    _without_webview(monkeypatch)
+
+    import importlib
+
+    with pytest.raises(ImportError):
+        importlib.import_module("cellpy_simple_gui.desktop").run_desktop()

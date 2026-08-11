@@ -257,7 +257,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
-    { name = "pywebview" },
     { name = "tables" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -265,6 +264,9 @@ dependencies = [
 [package.optional-dependencies]
 build = [
     { name = "pyinstaller" },
+]
+desktop = [
+    { name = "pywebview" },
 ]
 dev = [
     { name = "httpx" },
@@ -300,11 +302,11 @@ requires-dist = [
     { name = "pyinstaller", marker = "extra == 'build'", specifier = ">=6.10" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "python-multipart", specifier = ">=0.0.9" },
-    { name = "pywebview", specifier = ">=6.0" },
+    { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=6.0" },
     { name = "tables" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["export", "build", "dev", "e2e"]
+provides-extras = ["desktop", "export", "build", "dev", "e2e"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "issue-flow", specifier = ">=0.4.9.post1" }]

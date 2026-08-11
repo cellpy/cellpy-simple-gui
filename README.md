@@ -63,8 +63,12 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
 Requires **Python ≥ 3.13** and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync
+uv sync --extra desktop
 ```
+
+The native window lives in the `desktop` extra so a served instance need not
+install GUI libraries. Plain `uv sync` gives you a fully working app that opens
+in your browser instead.
 
 Then from this folder:
 
@@ -80,8 +84,9 @@ run --server              # local server + browser tab
 run --server --no-open    # headless: just serve
 ```
 
-The helpers use `uv run --extra export` so PNG/SVG/PDF figure export works.
-Equivalent without them: `uv run --extra export cellpy-simple-gui` (same flags).
+The helpers use `uv run --extra export --extra desktop`, so figure export and the
+native window both work. Equivalent without them:
+`uv run --extra export --extra desktop cellpy-simple-gui` (same flags).
 Then click **Load demo cells** and explore.
 
 ### Developer mode
@@ -249,6 +254,9 @@ uv sync --extra dev
 uv run pytest            # core unit tests + FastAPI integration tests
 uv run pytest -m essential   # critical-path subset (also run in CI)
 ```
+
+The suite passes without the `desktop` extra — that is the point of it being an
+extra, and one test skips accordingly. Add `--extra desktop` to run that one too.
 
 Optional Playwright GUI smoke tests (server/browser mode, not pywebview):
 

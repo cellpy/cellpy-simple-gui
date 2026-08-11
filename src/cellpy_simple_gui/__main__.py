@@ -54,6 +54,13 @@ def main() -> None:
             logger.info("Starting desktop window")
             run_desktop()
             return
+        except ImportError:
+            # pywebview lives in the [desktop] extra (#118). A bare ImportError
+            # here reads as a bug; say what to install instead.
+            logger.warning(
+                "No desktop support installed (pywebview); falling back to "
+                "browser mode. Install it with: uv sync --extra desktop"
+            )
         except Exception as exc:  # noqa: BLE001 - fall back to browser mode
             logger.warning(
                 "Desktop window unavailable ({}); falling back to browser mode.",

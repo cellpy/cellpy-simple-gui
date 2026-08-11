@@ -3,10 +3,14 @@
 Build a frozen Windows app and prove it actually works.
 
 ```bash
-uv sync --extra build
+uv sync --extra build --extra desktop --extra export
 uv run pyinstaller packaging/cellpy-simple-gui.spec --noconfirm
 uv run python packaging/smoke_test.py dist/cellpy-simple-gui/cellpy-simple-gui.exe
 ```
+
+`--extra desktop` is not optional for a shipped build: since #118 the native
+window is an extra, and PyInstaller can only bundle what is installed. Leave it
+out and you get a working app that silently only ever opens a browser.
 
 The smoke test drives the **built binary over HTTP** rather than importing
 anything, because the failures worth catching here only exist in the frozen
@@ -66,6 +70,6 @@ look — not in PyInstaller settings.
   `WEB_DIR` as `Path(__file__).parent.parent / "web"`, which keeps working
   because the spec places the web assets at `cellpy_simple_gui/web` inside the
   bundle. Keep those two in step.
-- `pywebview` is still bundled here. Once it moves to a `[desktop]` extra
-  (#118), the frozen build must explicitly opt in — a server-only bundle would
-  otherwise silently lose the native window.
+- `pywebview` now lives in the `[desktop]` extra (#118), so the build
+  environment must include it — see the sync line above. A bundle built without
+  it loses the native window and says nothing about it.
