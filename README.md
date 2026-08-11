@@ -163,6 +163,35 @@ or cycle mode rewrites the summary, so those cells are written out again; if
 anything is uncertain, the file is rewritten. Save-As always produces a complete
 project.
 
+### Moving the data directory
+
+`CSG_DATA_DIR` decides where projects live. It defaults to
+`~/.cellpy_simple_gui`, so desktop installs need nothing; a container points it
+at a volume:
+
+```bash
+CSG_DATA_DIR=/data cellpy-simple-gui --server --no-open
+```
+
+`~` and relative paths are expanded and resolved, and reading the setting never
+creates anything — whoever writes creates what it needs.
+
+**cellpy keeps its own directories**, separate from the app's, and they default
+under `$HOME` too. Anything running where `$HOME` is not persistent should place
+them deliberately. Every field under `[paths]` has an environment override,
+`CELLPY_PATHS__<FIELD>`:
+
+```bash
+CELLPY_PATHS__CELLPYDATADIR=/data/cellpy/cellpyfiles
+CELLPY_PATHS__OUTDATADIR=/data/cellpy/out
+CELLPY_PATHS__EXAMPLESDIR=/data/cellpy/examples   # bundled demo cells cache here
+CELLPY_PATHS__FILELOGDIR=/data/cellpy/logs
+```
+
+Overrides apply per field, so setting one leaves the rest alone. The **cellpy
+version badge** in the app shows every setting and which layer it came from,
+which is the quickest way to confirm a deployment is reading what you think.
+
 ### Per-project cellpy settings
 
 Drop a `cellpy.toml` next to `project.json` and the app activates it as cellpy's
