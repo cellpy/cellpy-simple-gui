@@ -14,6 +14,12 @@ import pytest
 from cellpy_simple_gui.config import get_settings
 from cellpy_simple_gui.core import files, paths
 
+# This is a security boundary, so it belongs in the subset CI actually runs.
+# It also matters that CI runs on Linux: the symlink cases below skip on a
+# Windows box without symlink privilege, so without this marker they would
+# execute nowhere at all.
+pytestmark = pytest.mark.essential
+
 
 @pytest.fixture()
 def served(monkeypatch, tmp_path):
