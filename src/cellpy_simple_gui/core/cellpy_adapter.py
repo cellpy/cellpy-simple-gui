@@ -180,17 +180,23 @@ def arbin_res_reader_available() -> bool:
     posix, and on Windows a driver enumeration that does not open a connection.
     Never raises — an inconclusive probe reports *available*, so a bad guess
     cannot hide a loader that would have worked.
+
+    The guard covers *both* branches, which the first version did not: only the
+    Windows one was wrapped, so on posix an unhappy ``shutil.which`` would have
+    propagated out of a listing and broken the instrument picker. Untestable
+    from a Windows box — the posix branch is dead code there — and duly caught
+    by the Linux CI the first time it ran.
     """
-    if sys.platform != "win32":
-        import shutil
-
-        return shutil.which("mdb-export") is not None
-
     try:
+        if sys.platform != "win32":
+            import shutil
+
+            return shutil.which("mdb-export") is not None
+
         import pyodbc
 
         return any("microsoft access driver" in d.lower() for d in pyodbc.drivers())
-    except Exception:  # noqa: BLE001 - no pyodbc, no driver manager, no opinion
+    except Exception:  # noqa: BLE001 - no reader, no driver manager, no opinion
         return True
 
 

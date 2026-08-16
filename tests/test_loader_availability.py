@@ -56,15 +56,38 @@ def test_an_unrecognised_error_is_passed_through_unchanged():
 # --- reporting it before the user picks a file ------------------------------ #
 
 
-def test_availability_probe_never_raises(monkeypatch):
-    """It runs on every instrument listing, so it must be harmless."""
+@pytest.mark.parametrize("platform", ["linux", "darwin", "win32"])
+def test_availability_probe_never_raises(monkeypatch, platform):
+    """It runs on every instrument listing, so it must be harmless.
+
+    Both branches are forced on every host. The first version of this test only
+    stubbed ``shutil.which``, which on Windows exercises nothing — the posix
+    branch is unreachable there. It passed locally and failed on the Linux CI,
+    where it found a genuine hole: only the Windows branch had been wrapped.
+    """
 
     def boom(*_a, **_k):
-        raise OSError("no driver manager here")
+        raise OSError("this machine has opinions")
 
+    monkeypatch.setattr(cellpy_adapter.sys, "platform", platform)
     monkeypatch.setattr("shutil.which", boom)
+    monkeypatch.setitem(
+        sys.modules, "pyodbc",
+        type("M", (), {"drivers": staticmethod(boom)}),
+    )
+
     # Must not propagate, whatever it decides.
-    assert cellpy_adapter.arbin_res_reader_available() in (True, False)
+    assert cellpy_adapter.arbin_res_reader_available() is True
+
+
+@pytest.mark.parametrize(
+    ("platform", "found", "expected"),
+    [("linux", "/usr/bin/mdb-export", True), ("linux", None, False)],
+)
+def test_posix_probe_follows_mdb_export(monkeypatch, platform, found, expected):
+    monkeypatch.setattr(cellpy_adapter.sys, "platform", platform)
+    monkeypatch.setattr("shutil.which", lambda _name: found)
+    assert cellpy_adapter.arbin_res_reader_available() is expected
 
 
 def test_instrument_list_carries_availability():
