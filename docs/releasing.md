@@ -55,15 +55,39 @@ number on PyPI can never be reused — not even after deleting it.
 
 GitHub → Actions → **Publish to PyPI** → *Run workflow* → target `testpypi`.
 
-Then check it installs:
+Then check the *published artifact* installs. Fetch the wheel from TestPyPI by
+URL and install that:
 
 ```bash
-uv tool install --index https://test.pypi.org/simple/ \
-  --index-strategy unsafe-best-match "cellpy-simple-gui[desktop]"
+python - <<'PY'
+import json, urllib.request
+d = json.load(urllib.request.urlopen(
+    "https://test.pypi.org/pypi/cellpy-simple-gui/json"))
+url = next(u["url"] for u in d["urls"] if u["packagetype"] == "bdist_wheel")
+print(url)
+PY
+# then, with that URL:
+uv tool install "<downloaded-wheel>[desktop]"
 ```
 
-(The extra index flags are needed because the dependencies live on real PyPI,
-not TestPyPI.)
+> **Do not point uv at the TestPyPI index for the dependencies.** The obvious
+> command —
+> `uv tool install --index https://test.pypi.org/simple/ --index-strategy unsafe-best-match ...`
+> — fails, and not because of anything wrong with our package:
+>
+> ```
+> × Failed to build `fastapi==1.0`
+>   help: `fastapi` (v1.0) was included because `cellpy-simple-gui` (v0.1.0)
+>         depends on `fastapi>=0.115`
+> ```
+>
+> TestPyPI's namespace is full of placeholder uploads, including a bogus
+> `fastapi==1.0` that uv prefers over the real one. Installing the wheel
+> directly resolves dependencies from real PyPI and tests the thing we actually
+> published.
+
+Worth comparing the downloaded file's SHA-256 against the `digests.sha256` in
+that JSON — it confirms you are testing the bytes the index is serving.
 
 ---
 
@@ -128,3 +152,23 @@ on 3.13. The `newest-python` CI job exists to catch the next one.
 **The `desktop` extra is not installed by default.** `uv tool install
 cellpy-simple-gui` gives a working app that opens in a browser;
 `cellpy-simple-gui[desktop]` gives the native window.
+
+**TestPyPI is not a mirror.** Its package namespace is separate and full of
+placeholder uploads, so resolving *dependencies* there gives nonsense. Only ever
+pull our own artifact from it — see the rehearsal section above.
+
+---
+
+## Rehearsal log
+
+**2026-08-16, 0.1.0 → TestPyPI.** First run of the whole path. Build, `twine
+check` and the web-asset assertion passed; the upload succeeded, so the trusted
+publisher and environment names line up. `publish (PyPI)` correctly skipped.
+
+The published wheel's SHA-256 matched the file served by the index, and the
+installed executable passed all 15 smoke checks on Python 3.14 against a fresh
+profile.
+
+One thing went wrong, and it was the documentation rather than the package: the
+install command originally written here pointed uv at the TestPyPI index for
+everything and died on a fake `fastapi==1.0`. Corrected above.
