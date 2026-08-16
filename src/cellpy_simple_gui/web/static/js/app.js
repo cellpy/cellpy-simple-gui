@@ -394,8 +394,11 @@ function app() {
           this.ingest.instrument = this.instruments[0].id;
       } catch (_) {}
     },
+    currentInstrument() {
+      return this.instruments.find((i) => i.id === this.ingest.instrument) || null;
+    },
     currentModels() {
-      const ins = this.instruments.find((i) => i.id === this.ingest.instrument);
+      const ins = this.currentInstrument();
       return ins ? ins.models : [];
     },
     _num(v) {

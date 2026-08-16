@@ -43,7 +43,7 @@ def _ingest_job(progress: Progress, req: IngestRequest) -> dict:
             rec = lib.add_cell(cell, source=f"raw:{req.instrument}")
             added.append(rec.id)
         except Exception as exc:  # noqa: BLE001
-            errors.append(f"{path}: {exc}")
+            errors.append(f"{path}: {cellpy_adapter.explain_load_error(exc)}")
         progress.update((i + 1) / max(total, 1))
     return {"added": added, "errors": errors, "notes": exp.notes}
 
@@ -61,7 +61,10 @@ def _ingest_example_job(progress: Progress, kind: str, mass: float | None) -> di
         rec = lib.add_cell(cell, source=f"raw:{spec['instrument']}")
         return {"added": [rec.id], "errors": []}
     except Exception as exc:  # noqa: BLE001
-        return {"added": [], "errors": [f"{spec['label']}: {exc}"]}
+        return {
+            "added": [],
+            "errors": [f"{spec['label']}: {cellpy_adapter.explain_load_error(exc)}"],
+        }
 
 
 @router.post("/ingest")
