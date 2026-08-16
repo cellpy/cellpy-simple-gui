@@ -84,6 +84,7 @@ include = [
     "tests/",
     "packaging/",
     "docs/",
+    "examples/",
     "Dockerfile",
     "docker-compose.yml",
     ".dockerignore",
