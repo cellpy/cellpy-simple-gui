@@ -40,10 +40,27 @@ WORKDIR /app
 # button still saves a PNG client-side.
 
 # Dependencies first, without the project: this layer is invalidated only by the
-# lockfile, so editing app source does not re-resolve ~160 packages.
+# lockfile and the version, so editing app source does not re-resolve ~160
+# packages.
+#
+# Three extra mounts, because even `--no-install-project` *reads* the project's
+# metadata, and each of these is referenced by it:
+#
+#   __init__.py  the version is dynamic ([tool.hatch.version] reads it there)
+#   README.md    readme = "README.md"
+#   LICENSE      license-files = ["LICENSE"]
+#
+# Each was found the same way — by the build failing on it:
+#
+#     OSError: Error getting the version from source `regex`:
+#             file does not exist: src/cellpy_simple_gui/__init__.py
+#     OSError: Readme file does not exist: README.md
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=README.md,target=README.md \
+    --mount=type=bind,source=LICENSE,target=LICENSE \
+    --mount=type=bind,source=src/cellpy_simple_gui/__init__.py,target=src/cellpy_simple_gui/__init__.py \
     uv sync --locked --no-install-project --no-dev
 
 COPY . /app
