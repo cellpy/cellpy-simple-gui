@@ -11,15 +11,17 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 >
 > The notes below were written against **cellpy 2.1.0.post1**; the app now runs
 > on **≥2.1.2** (released). #867 and #868 both closed in 2.1.2, clearing the
-> backlog; §29 and §30 were found afterwards, while building on it. Each fix
-> was verified against the installed package before the corresponding app
-> workaround was removed — closed upstream is not the same as released, and that
-> caught us twice (see the release-gating note in
-> `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
+> backlog; §29 and §30 were found afterwards, while building on it, and §31–§33
+> came out of deploying it headless. Each fix was verified against the installed
+> package before the corresponding app workaround was removed — closed upstream
+> is not the same as released, and that caught us twice (see the release-gating
+> note in `.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md`).
 >
-> **27 issues filed from this project · 25 closed · 2 open** (§29 /
+> **29 issues filed from this project · 25 closed · 4 open** (§29 /
 > [#874](https://github.com/jepegit/cellpy/issues/874), §30 /
-> [#875](https://github.com/jepegit/cellpy/issues/875)). Plus
+> [#875](https://github.com/jepegit/cellpy/issues/875), §31 + §33 /
+> [#938](https://github.com/jepegit/cellpy/issues/938), §32 /
+> [#937](https://github.com/jepegit/cellpy/issues/937)). Plus
 > [#851](https://github.com/jepegit/cellpy/issues/851), which cellpy raised
 > itself and whose fix the app adopted.
 >
@@ -772,6 +774,95 @@ emission order (mean, upper, lower), which are internal details.
 
 ---
 
+## Round 6 — deploying cellpy headless
+
+Found while building the server container
+([#121](https://github.com/cellpy/cellpy-simple-gui/issues/121)). These are not
+API problems; they are what shows up the first time cellpy has to run somewhere
+that is not a workstation.
+
+### 31. 🟠 Missing external tools fail quietly enough to look like success *(open)*
+
+Two of them, and the second is the reason this section exists at all.
+
+**`mdb-export`.** On posix, `arbin_res` shells out to mdbtools. Without it:
+
+```
+[Errno 2] No such file or directory: 'mdb-export'
+```
+
+Our smoke test asserted the import job reached `status: "done"`. It did. It also
+imported **zero cells** — the failure lives in the result payload, not the
+status. The test passed for a whole build cycle while the feature was broken:
+
+```json
+{"added": [], "errors": ["Arbin demo (.res): [Errno 2] No such file or directory: 'mdb-export'"]}
+```
+
+That is our test's fault, not cellpy's. But a bare `FileNotFoundError` naming a
+binary nobody has heard of is what made it easy to skim past.
+
+**`libodbc.so.2`.** `arbin_sql` and `arbin_sql_7` raise `ImportError` during
+discovery, so the app enumerated **11 instruments instead of 13** with nothing
+logged that a user would see. The picker simply did not offer them.
+
+**Workaround (app):** `apt install mdbtools unixodbc` in the image, and the
+smoke test now asserts on `added` / `errors` rather than on job status.
+
+**Wish:** a named, actionable error for a missing external tool
+(`shutil.which` before the call would do it), and discovery that reports
+*unavailable* loaders with a reason instead of omitting them — the shape
+`registry.families()` already uses so well for plots (§ round 5) would suit
+instruments too. Then an app can grey an entry out with a tooltip instead of
+silently narrowing the list.
+
+**Upstream:** [#938](https://github.com/jepegit/cellpy/issues/938) — open.
+
+### 32. 🟢 Notebook tooling is a hard runtime dependency *(open)*
+
+Traced with `importlib.metadata`, not guessed:
+
+```
+matplotlib   <- cellpy
+ipykernel    <- cellpy
+ipython      <- ipykernel        jedi <- ipython        debugpy <- ipykernel
+```
+
+In a headless server image that is ~90 MB of `matplotlib` + `jedi` + `debugpy`
+(plus `ipython`, `pyzmq`, `tornado`, `fontTools` behind them) that no code path
+reaches. The app plots with plotly and never opens a notebook. `debugpy` in a
+server image is also not something a deployer would pick.
+
+**Wish:** `cellpy[notebook]` and `cellpy[plotting-mpl]` extras, with local
+imports where they are used. Notebook users — surely the majority — would notice
+nothing.
+
+**Upstream:** [#937](https://github.com/jepegit/cellpy/issues/937) — open.
+
+### 33. 🟢 `examplesdir` is resolved at import time, and falls back into site-packages
+
+`example_data.DATA_PATH` is computed when the module is imported: if
+`config.paths.examplesdir` is not an existing directory, it falls back to
+`site-packages/cellpy/utils/data`. In a container that path is root-owned and
+the app runs as uid 10001, so the zero-setup demo fails on a permission error at
+the moment a new user clicks the friendliest button in the product.
+
+Setting `CELLPY_PATHS__EXAMPLESDIR` is not enough on its own — the directory has
+to **exist** before cellpy is imported, or the override is silently discarded
+with a `warnings.warn`.
+
+**Workaround (app):** the image creates the directory at build time and
+pre-downloads the demo cells into it, which also makes the demo work offline.
+
+**Wish:** create the directory rather than falling back, or at least keep the
+override and fail at *use* time with a message naming it. A config value that is
+accepted and then ignored is hard to debug from the outside.
+
+Not filed separately — folded into the discussion on
+[#938](https://github.com/jepegit/cellpy/issues/938).
+
+---
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args
@@ -809,4 +900,4 @@ Added after the later rounds:
   describes how to satisfy itself makes that table unnecessary.
 
 *Started while building [cellpy-simple-gui](./README.md) on cellpy 2.1.0.post1;
-kept up to date through 2.1.2. 27 issues filed from this project, 25 closed.*
+kept up to date through 2.1.2. 29 issues filed from this project, 25 closed.*

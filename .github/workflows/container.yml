@@ -1,0 +1,121 @@
+# Build the server image; publish it to GHCR on a tag (#121).
+#
+# Two triggers on purpose. The tag build publishes; the PR build only builds,
+# so a change that breaks the Dockerfile is caught when it is made rather than
+# at release time — a container recipe that is only exercised on tags is a
+# container recipe that is broken on tags.
+name: Container image
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "packaging/docker-entrypoint.sh"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/container.yml"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "packaging/docker-entrypoint.sh"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/container.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Only tags publish. A PR from a fork could not push anyway (no package
+      # write), and pushing every main build would bury real releases under
+      # noise nobody asked for.
+      - name: Log in to GHCR
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build (and push on tags)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          load: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags || 'cellpy-simple-gui:ci' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      # A tag that publishes an image which cannot start is worse than no image.
+      # Only meaningful on the non-tag path, where the image is loaded locally.
+      - name: Smoke-test the image
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          set -euo pipefail
+          docker run -d --name csg -p 8577:8577 \
+            -e CSG_TOKEN=ci-token \
+            -v csg-data:/data \
+            cellpy-simple-gui:ci
+
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8577/healthz >/dev/null 2>&1; then
+              echo "healthy after ${i}s"; break
+            fi
+            if [ "$i" = "60" ]; then
+              echo "never became healthy"; docker logs csg; exit 1
+            fi
+            sleep 1
+          done
+
+          # The token guard has to be real, not just present.
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:8577/api/system/capabilities)
+          [ "$code" = "401" ] || { echo "unguarded API: $code"; exit 1; }
+
+          caps=$(curl -fsS -H 'X-CSG-Token: ci-token' \
+            http://127.0.0.1:8577/api/system/capabilities)
+          echo "$caps"
+          # Bound to 0.0.0.0, so the served-mode sandbox must be on (#120).
+          echo "$caps" | grep -q '"host_paths_allowed":false' \
+            || { echo "sandbox not active"; exit 1; }
+
+          docker logs csg
+          docker rm -f csg
+
+      - name: Report image size
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          size=$(docker image inspect cellpy-simple-gui:ci --format '{{.Size}}')
+          echo "### Image size: $((size / 1000 / 1000)) MB" >> "$GITHUB_STEP_SUMMARY"

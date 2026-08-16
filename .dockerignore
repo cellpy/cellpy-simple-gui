@@ -1,0 +1,41 @@
+# Keep the build context small and the image reproducible.
+#
+# The context is only used to build the wheel, so anything that is not source,
+# pyproject.toml or uv.lock is dead weight — and .venv in particular is ~780 MB
+# of Windows-built packages that must never reach a Linux image.
+
+.venv/
+venv/
+env/
+
+.git/
+.github/
+.issueflows/
+.cursor/
+.aliases
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+
+build/
+dist/
+*.egg-info/
+graphify-out/
+local/
+run
+run.cmd
+
+# Tests, docs and screenshots do not belong in a server image.
+tests/
+docs/
+assets/
+*.md
+!README.md
+
+# Never bake a developer's environment or data into a published image.
+.env
+*.log
+*.cellpy
+*.h5
