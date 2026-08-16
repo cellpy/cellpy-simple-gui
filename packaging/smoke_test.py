@@ -64,16 +64,28 @@ def skip(name: str, detail: str) -> None:
     print(f"  SKIP  {name}  — {detail}")
 
 
-#: Reading Arbin `.res` on Windows goes through the Microsoft Access ODBC
-#: driver, which is a separate Microsoft download and is *not* present on a
-#: stock Windows install — only where Office or the Access Database Engine
-#: redistributable put it. Measured on a GitHub windows-latest runner:
+#: Reading Arbin `.res` needs a reader for Access databases — the Microsoft
+#: Access ODBC driver on Windows, mdbtools on posix — and neither is on a stock
+#: machine. Matched narrowly: any *other* Arbin failure is still a failure.
 #:
-#:   (pyodbc.InterfaceError) ('IM002', '[Microsoft][ODBC Driver Manager]
-#:    Data source name not found and no default driver specified')
+#: Two vocabularies, on purpose. The app translates these into advice (#143), so
+#: what a current build reports is *our* phrasing; the raw driver text is what
+#: an older build, or an untranslated path, still emits.
 #:
-#: Matched narrowly: any *other* Arbin failure is still a failure.
-_MISSING_ODBC = ("im002", "odbc driver manager", "no default driver")
+#: Worth the redundancy: this check first matched only the raw text, and then
+#: #143 rewrote that text one PR later, silently turning the skip back into a
+#: failure. Matching a message is fragile in exactly this way — our own wording
+#: is at least a string we control and would notice changing.
+_MISSING_ODBC = (
+    # our translation
+    "access database engine",
+    "mdbtools",
+    # the raw driver errors underneath it
+    "im002",
+    "odbc driver manager",
+    "no default driver",
+    "mdb-export",
+)
 
 
 class Client:
