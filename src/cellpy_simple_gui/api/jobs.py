@@ -13,7 +13,6 @@ import threading
 import time
 import traceback
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -115,48 +114,62 @@ class Job:
                 q.put(snap)
 
 
-class _DaemonThreadPoolExecutor(ThreadPoolExecutor):
-    """Like ThreadPoolExecutor, but workers are daemons so app exit is not blocked.
+_SHUTDOWN = object()  #: sentinel pushed onto the queue to retire a worker
 
-    A stuck cellpy load must not pin the console after the window closes.
+
+class _DaemonPool:
+    """A fixed set of daemon worker threads consuming a queue.
+
+    Workers are daemons so a stuck cellpy load cannot pin the process after the
+    window closes — the whole reason this is not a plain ``ThreadPoolExecutor``,
+    whose workers are non-daemon by design.
+
+    This used to be a ``ThreadPoolExecutor`` subclass that re-implemented the
+    private ``_adjust_thread_count`` with ``daemon=True``. That copied CPython
+    internals, and CPython moved: 3.14 replaced ``_worker(ref, queue,
+    initializer, initargs)`` with ``_worker(ref, ctx, queue)`` and dropped
+    ``_initializer``, so the app raised ``AttributeError`` on every job the
+    moment it ran on a newer interpreter than the one it was developed against.
+    Found by installing the wheel with ``uv tool install``, which picked 3.14
+    (#123).
+
+    Thirty lines of our own is version-proof, and this pool never needed the
+    parts of ThreadPoolExecutor we were paying for: nothing here awaits a
+    Future — ``Job`` already carries status, progress and cancellation.
     """
 
-    def _adjust_thread_count(self) -> None:
-        # Mirror stdlib logic with daemon=True (stdlib workers are non-daemon).
-        import weakref
-
-        from concurrent.futures.thread import _threads_queues, _worker
-
-        if self._idle_semaphore.acquire(timeout=0):
-            return
-
-        def weakref_cb(_, q=self._work_queue):
-            q.put(None)
-
-        num_threads = len(self._threads)
-        if num_threads < self._max_workers:
-            thread_name = "%s_%d" % (self._thread_name_prefix or self, num_threads)
-            t = threading.Thread(
-                name=thread_name,
-                target=_worker,
-                args=(
-                    weakref.ref(self, weakref_cb),
-                    self._work_queue,
-                    self._initializer,
-                    self._initargs,
-                ),
-                daemon=True,
-            )
+    def __init__(self, max_workers: int = 2, name_prefix: str = "csg-job") -> None:
+        self._queue: queue.Queue[Any] = queue.Queue()
+        self._threads = [
+            threading.Thread(target=self._worker, name=f"{name_prefix}_{i}", daemon=True)
+            for i in range(max(1, max_workers))
+        ]
+        for t in self._threads:
             t.start()
-            self._threads.add(t)
-            _threads_queues[t] = self._work_queue
+
+    def submit(self, fn: Callable[..., Any], *args: Any) -> None:
+        self._queue.put((fn, args))
+
+    def _worker(self) -> None:
+        while True:
+            item = self._queue.get()
+            if item is _SHUTDOWN:
+                return
+            fn, args = item
+            try:
+                fn(*args)
+            except BaseException:  # noqa: BLE001 - a worker must outlive one bad job
+                log.exception("Job worker raised; the pool stays up")
+
+    def shutdown(self) -> None:
+        """Retire the workers. Never waits — a stuck job would block exit."""
+        for _ in self._threads:
+            self._queue.put(_SHUTDOWN)
 
 
 class JobManager:
     def __init__(self, max_workers: int = 2) -> None:
-        self._pool = _DaemonThreadPoolExecutor(
-            max_workers=max_workers, thread_name_prefix="csg-job"
-        )
+        self._pool = _DaemonPool(max_workers=max_workers, name_prefix="csg-job")
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
         self._closed = False
@@ -183,10 +196,7 @@ class JobManager:
         for job in running:
             job.cancel_event.set()
         log.info("Shutting down job manager (%d job(s) signalled)", len(running))
-        try:
-            self._pool.shutdown(wait=False, cancel_futures=True)
-        except TypeError:  # pragma: no cover - older Python
-            self._pool.shutdown(wait=False)
+        self._pool.shutdown()
 
     def _run(self, job: Job, fn: Callable[..., Any], args: tuple, kwargs: dict) -> None:
         job.started_at = time.time()

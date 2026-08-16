@@ -1,0 +1,114 @@
+# Publish to PyPI on a tag (#123).
+#
+# Trusted publishing (OIDC): GitHub proves this workflow's identity to PyPI
+# directly, so there is no API token to create, store, rotate or leak. The trade
+# is that PyPI must be told to trust *this repository and this workflow file* —
+# a one-time setup in the PyPI web UI, described in docs/releasing.md.
+#
+# Renaming this file, or the environment below, breaks publishing until the
+# trusted publisher is updated to match.
+name: Publish to PyPI
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        required: true
+        default: testpypi
+        type: choice
+        options: [testpypi, pypi]
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # A tag is the version. If it disagrees with the package, stop: a wrong
+      # version cannot be corrected after upload, because PyPI never lets a
+      # version number be reused — not even after deleting it.
+      - name: Check the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(uv run --no-project --with hatchling python -c "
+          import re, pathlib
+          src = pathlib.Path('src/cellpy_simple_gui/__init__.py').read_text()
+          print(re.search(r'__version__\s*=\s*[\"\x27]([^\"\x27]+)', src).group(1))
+          ")"
+          echo "tag=$tag package=$pkg"
+          [ "$tag" = "$pkg" ] || {
+            echo "::error::Tag v$tag does not match __version__ $pkg"
+            exit 1
+          }
+
+      - name: Build sdist and wheel
+        run: uv build --out-dir dist
+
+      # Catches a broken long_description before PyPI rejects the upload, and a
+      # wheel that somehow lost its web assets before a user finds a blank page.
+      - name: Check the artifacts
+        run: |
+          set -euo pipefail
+          uv run --no-project --with twine twine check dist/*
+          python - <<'PY'
+          import zipfile, glob, sys
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          need = [
+              "cellpy_simple_gui/web/templates/index.html",
+              "cellpy_simple_gui/web/static/js/app.js",
+              "cellpy_simple_gui/web/static/js/plotly.min.js",
+              "cellpy_simple_gui/web/static/css/app.css",
+          ]
+          missing = [n for n in need if n not in names]
+          if missing:
+              sys.exit(f"wheel is missing web assets: {missing}")
+          print(f"{wheel}: {len(names)} entries, web assets present")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    name: publish (TestPyPI)
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write  # the OIDC token; this is what replaces an API token
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: publish (PyPI)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

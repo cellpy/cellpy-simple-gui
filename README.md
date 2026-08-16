@@ -58,7 +58,36 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
 - **Light & dark themes.**
 - **Colorized terminal logging** via loguru (`CSG_LOG_LEVEL`, default `INFO`).
 
-## Quick start
+## Install
+
+Requires **Python ≥ 3.13**. With [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv tool install "cellpy-simple-gui[desktop]"
+cellpy-simple-gui
+```
+
+Or run it once without installing anything:
+
+```bash
+uvx --from "cellpy-simple-gui[desktop]" cellpy-simple-gui
+```
+
+pipx works too: `pipx install "cellpy-simple-gui[desktop]"`.
+
+The `[desktop]` extra is what gives you the **native window**. Leave it off and
+you get a fully working app that opens in your browser instead — which is what a
+server wants, and why it is an extra rather than a dependency.
+
+Two heavier routes, if you would rather not have Python in the picture:
+
+- **Windows installer** — 178 MB, no admin, Start-menu entry.
+  See [`docs/windows-installer.md`](docs/windows-installer.md).
+- **Container** — `docker compose up`. See [`docs/deployment.md`](docs/deployment.md).
+
+---
+
+## Quick start (from a clone)
 
 Requires **Python ≥ 3.13** and [uv](https://docs.astral.sh/uv/).
 
@@ -89,7 +118,7 @@ native window both work. Equivalent without them:
 `uv run --extra export --extra desktop cellpy-simple-gui` (same flags).
 Then click **Load demo cells** and explore.
 
-### Install it as a Windows app
+### Build the Windows installer
 
 ```powershell
 pwsh packaging/build_installer.ps1
@@ -100,6 +129,9 @@ uninstall that leaves your projects alone. It is **unsigned**, so SmartScreen
 will warn on first run — [`docs/windows-installer.md`](docs/windows-installer.md)
 explains exactly what you will see, why, and what fixing it costs, along with
 where the app writes its logs when something goes wrong.
+
+Cutting a release of any of the three artefacts:
+[`docs/releasing.md`](docs/releasing.md).
 
 ### Run it as a server
 
