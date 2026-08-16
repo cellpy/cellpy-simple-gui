@@ -95,11 +95,17 @@ kind of thing that must be tested rather than reasoned about.
 
 ## Milestone 2 — Two ways to run it
 
-**M2.1 · Container image.**
+**M2.1 · Container image.** — *done (#121)*
 Multi-stage, uv-based, non-root, data dir as a volume, healthcheck. Publish to
 GHCR from a tagged workflow. Document that the per-launch token is *not* an
 authentication system: put it behind a reverse proxy with TLS and real auth, or
 keep it on a trusted network. Being explicit about this is part of shipping it.
+
+*How it landed:* 1.72 GB on disk / 379 MB compressed, ~5 s to healthy, 16/16
+smoke checks. The `export` extra is **out** — kaleido 1.x needs a separate Chrome
+that slim cannot run (#135). Two loaders needed system libraries (`mdbtools`,
+`unixodbc`) and failed silently without them, which the smoke test missed until
+it stopped asserting on job status alone.
 
 **M2.2 · PyInstaller spike.** ← *do this first in the milestone*
 Resolve the dynamic-import problem before building anything on top. Likely
@@ -109,12 +115,23 @@ build*, not by checking the app starts. If this cannot be made reliable, the
 installer-free route becomes the primary answer and the .exe is dropped — better
 to learn that in a day than after building an installer around it.
 
-**M2.3 · Windows installer.**
+**M2.3 · Windows installer.** — *done (#122)*
 Inno Setup around the PyInstaller output. WebView2 is present on Win10/11; add
 the evergreen bootstrapper as fallback. Decide on kaleido (large; figure export
 degrades gracefully without it). Flag SmartScreen: unsigned binaries warn on
 first run, and the fix is a code-signing certificate, which is a purchasing
 decision, not a technical one.
+
+*How it landed:* per-user install to `%LOCALAPPDATA%\Programs`, no admin, 178 MB.
+Two executables — the windowed app plus a console twin, because the spike's
+`console=True` was the only thing making a broken bundle diagnosable, and turning
+it off had to be paid for rather than just done. kaleido ships and works, but
+only where Chrome is installed; Edge hangs rather than rendering. Three things
+the plan did not anticipate, all found by testing the installed app rather than
+the build: a windowed build dies in `logger.add(sys.stderr)` because `stderr` is
+`None`; the app wrote demo data into its own install folder, which survived
+uninstall; and cellpy's `examplesdir` default is *relative*, so the first fix
+merely moved that mess somewhere else.
 
 **M2.4 · Installer-free route.**
 `uv tool install cellpy-simple-gui` / `uvx`. Prerequisite: **publish to PyPI**,

@@ -180,7 +180,9 @@ def run_checks(app: Client) -> None:
     # which is how the first container build passed this while importing zero
     # Arbin files (cellpy shells out to `mdb-export` on posix, and it was not
     # installed). Assert on what came back.
-    for kind, label in (("arbin", "Arbin .res (binary, via mdbtools)"),
+    # "Arbin .res" is one check but two mechanisms: ODBC on Windows, a shell-out
+    # to `mdb-export` on posix. Naming either one here would be wrong somewhere.
+    for kind, label in (("arbin", "Arbin .res (binary)"),
                         ("maccor", "Maccor (text)")):
         st = app.job(app.call("/api/ingest/example", {"kind": kind}))
         result = st.get("result") or {}
@@ -210,6 +212,25 @@ def run_checks(app: Client) -> None:
     data = app.call("/api/export/summary?fmt=csv",
                     {"plot_type": "capacity_ce", "basis": "gravimetric"})
     check("exports data as CSV", isinstance(data, bytes) and b"," in data[:200])
+
+    # Static figure export has one legitimate failure: kaleido 1.x renders by
+    # driving a separate Chrome, and there may not be one. So this asserts the
+    # *contract* — real PNG bytes, or a clean 503 — rather than success, which
+    # would fail on a perfectly good install that simply lacks a browser.
+    # Anything else (a 500, or a 200 that is not a PNG) is a genuine bug.
+    spec = {"plot_type": "capacity_ce", "basis": "gravimetric"}
+    try:
+        png = app.call("/api/export/summary?fmt=png", spec)
+        ok = isinstance(png, bytes) and png[:8] == b"\x89PNG\r\n\x1a\n"
+        detail = f"{len(png)} bytes" if ok else f"200 but not a PNG: {str(png)[:80]}"
+    except urllib.error.HTTPError as exc:
+        body = (exc.read() or b"").decode("utf-8", "replace")
+        ok = exc.code == 503
+        detail = (
+            f"unavailable (503) — {body[:90]}" if ok
+            else f"HTTP {exc.code}: {body[:90]}"
+        )
+    check("figure export works, or declines cleanly", ok, detail)
 
     # --- persistence: the volume has to be real ----------------------------- #
     # Saving writes .cellpy files under CSG_DATA_DIR, so this is also the check

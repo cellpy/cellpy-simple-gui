@@ -14,12 +14,13 @@
 #     ModuleNotFoundError: No module named 'cellpy.readers.filefinder'
 #       ... cellpy/__init__.py line 91, in __getattr__
 #
-# So this is not an optimisation to trim. Note the failure is only *visible*
-# because console=True; a windowed build would simply never appear.
+# So this is not an optimisation to trim. That failure was only *visible*
+# because the spike built with console=True; see the two-executable note below
+# for how the shipped build keeps that diagnosability without a console window.
 #
 # Build (from the repo root):
 #   uv run pyinstaller packaging/cellpy-simple-gui.spec --noconfirm
-#   uv run python packaging/smoke_test.py dist/cellpy-simple-gui/cellpy-simple-gui.exe
+#   uv run python packaging/smoke_test.py dist/cellpy-simple-gui/cellpy-simple-gui-console.exe
 
 from pathlib import Path
 
@@ -75,6 +76,22 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+ICON = str(ROOT / "src" / "cellpy_simple_gui" / "web" / "static" / "img" / "cellpy-icon.ico")
+
+# Two executables over one Analysis — one build, but *not* a free one: each EXE
+# embeds its own copy of the PYZ, so the console twin adds ~41 MB to a ~576 MB
+# bundle (measured, not estimated; an earlier version of this comment guessed
+# "a few hundred KB" and was wrong by two orders of magnitude).
+#
+# Worth it, because the spike's finding was that a broken bundle was only
+# diagnosable because of console=True — the failure was a ModuleNotFoundError at
+# import, and a windowed build would have shown nothing. Shipping a console
+# window behind the app is not something to inflict on users, so: the windowed
+# exe is what the Start menu launches, and the console twin is what prints the
+# error when someone needs it.
+#
+# The console build is also what packaging/smoke_test.py drives, because it
+# reads the URL and token from stdout — a windowed exe has no stdout at all.
 exe = EXE(
     pyz,
     a.scripts,
@@ -83,14 +100,25 @@ exe = EXE(
     debug=False,
     strip=False,
     upx=False,
-    # Console for the spike: a frozen app that dies silently is unreviewable.
-    # The installer build can flip this once the desktop path is trusted.
+    console=False,
+    icon=ICON,
+)
+
+exe_console = EXE(
+    pyz,
+    a.scripts,
+    exclude_binaries=True,
+    name="cellpy-simple-gui-console",
+    debug=False,
+    strip=False,
+    upx=False,
     console=True,
-    icon=str(ROOT / "src" / "cellpy_simple_gui" / "web" / "static" / "img" / "cellpy-icon.ico"),
+    icon=ICON,
 )
 
 coll = COLLECT(
     exe,
+    exe_console,
     a.binaries,
     a.datas,
     strip=False,
