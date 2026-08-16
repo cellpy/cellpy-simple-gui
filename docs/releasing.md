@@ -48,6 +48,39 @@ a **pending publisher**.
 
 ---
 
+## One-time: make the container image public
+
+A **new GHCR package is private by default**, even from a public repository. The
+push succeeds and the workflow goes green, so nothing looks wrong from the
+inside — but everyone else gets:
+
+```
+$ docker pull ghcr.io/cellpy/cellpy-simple-gui
+Error response from daemon: ... unauthorized
+```
+
+which reads like a broken image rather than a permissions setting. Confirmed the
+boring way after the 0.1.0 release: a known-public GHCR image pulled anonymously
+from the same machine, ours did not.
+
+After the first tagged release: GitHub → the org's **Packages** →
+`cellpy-simple-gui` → **Package settings** → *Danger Zone* → **Change
+visibility** → Public.
+
+**If "Public" is greyed out** — *"Setting is disabled by organization
+administrators"* — the org forbids public packages, and no amount of clicking on
+the package page will help. An org **owner** has to allow it first:
+
+> `https://github.com/organizations/<org>/settings/packages` → **Package
+> creation** → tick **Public**
+
+then return to the package's visibility dialog. This is what happened on the
+0.1.0 release.
+
+Only needed once; subsequent pushes inherit the package's visibility.
+
+---
+
 ## Rehearse on TestPyPI
 
 Optional but recommended before the very first release, because a version
@@ -172,3 +205,17 @@ profile.
 One thing went wrong, and it was the documentation rather than the package: the
 install command originally written here pointed uv at the TestPyPI index for
 everything and died on a fake `fastapi==1.0`. Corrected above.
+
+**2026-08-16, 0.1.0 → PyPI and GHCR.** First real release.
+
+`cellpy-simple-gui 0.1.0` is on PyPI. The wheel's SHA-256 is **byte-identical to
+the TestPyPI upload** — same source, same result, which is a pleasant thing to be
+able to check. `uv tool install "cellpy-simple-gui[desktop]"` works with no index
+flags, and the installed executable passed 15/15 smoke checks on a fresh profile.
+
+The container pushed to GHCR as `0.1.0`, `0.1` and `latest`, but landed
+**private** — see the visibility section above. Nothing in the release looked
+wrong from the inside; it was caught by trying an anonymous
+`docker manifest inspect` and confirming against a known-public image that it was
+a permissions setting rather than a broken push. Worth repeating that check after
+any first release to a new registry.
