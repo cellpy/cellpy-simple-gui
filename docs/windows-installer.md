@@ -92,6 +92,31 @@ only reason it was diagnosable was a console. So:
 
 ---
 
+## Arbin `.res` needs a Microsoft ODBC driver
+
+**The installer does not include it, and a stock Windows machine does not have
+it.** Arbin `.res` files are an Access database, and cellpy reads them on Windows
+through the Access ODBC driver. Without it, importing a `.res` file fails with:
+
+```
+(pyodbc.InterfaceError) ('IM002', '[Microsoft][ODBC Driver Manager]
+ Data source name not found and no default driver specified')
+```
+
+If you have Microsoft Office installed, you almost certainly already have the
+driver and will never see this. That is exactly why it went unnoticed for so
+long — every machine this was developed on had Office. It was a CI runner, with
+a clean Windows image, that showed the truth.
+
+**The fix** is Microsoft's free
+[Access Database Engine redistributable](https://www.microsoft.com/en-us/download/details.aspx?id=54920).
+Install the **64-bit** version to match the app. If you have 32-bit Office
+installed, the installer will object; the usual workaround is running it with
+`/quiet` from a command prompt.
+
+Every other format is unaffected — Maccor, Neware, PEC, Bio-Logic and the
+Arbin SQL/CSV/Excel exports all work with no extra driver.
+
 ## Static figure export needs Chrome
 
 **Export ▾ → Figure** (PNG/SVG/PDF) is rendered server-side by kaleido, which
