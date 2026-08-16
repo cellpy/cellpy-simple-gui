@@ -142,6 +142,8 @@ input[type="text"], input[type="number"], select {
 input:focus, select:focus { border-color: var(--accent); }
 .hint { font-size: 11px; color: var(--text-faint); margin: 2px 0 0; }
 .hint code { background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+/* A hint that is telling you something is missing, not just explaining. */
+.hint.warn { color: #e0a52e; }
 .input-row { display: flex; gap: 6px; align-items: center; }
 .input-row input[type="text"] { flex: 1; min-width: 0; }
 .btn.pick { flex: none; padding: 8px 10px; font-size: 15px; }

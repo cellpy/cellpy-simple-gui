@@ -129,9 +129,15 @@
             <label>Instrument</label>
             <select x-model="ingest.instrument">
               <template x-for="ins in instruments" :key="ins.id">
-                <option :value="ins.id" x-text="ins.label"></option>
+                <option :value="ins.id"
+                        x-text="ins.label + (ins.available === false ? ' — unavailable' : '')"></option>
               </template>
             </select>
+            <!-- Says so before a file is picked and a job runs, rather than
+                 after (#143). The option stays selectable: the driver may have
+                 been installed since the app started. -->
+            <p class="hint warn" x-show="currentInstrument() && currentInstrument().available === false"
+               x-text="currentInstrument() ? currentInstrument().unavailable_reason : ''"></p>
           </div>
           <div class="field" x-show="currentModels().length">
             <label>Format / model</label>

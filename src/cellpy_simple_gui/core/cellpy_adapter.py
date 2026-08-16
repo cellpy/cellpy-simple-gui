@@ -16,6 +16,7 @@ API pinned against cellpy 2.1:
 from __future__ import annotations
 
 import logging
+import sys
 import warnings
 from collections.abc import Callable
 from pathlib import Path
@@ -106,8 +107,21 @@ def list_instruments() -> list[dict[str, Any]]:
                 "label": entry.get("label") or entry["id"],
                 "models": models,
                 "suffixes": entry.get("suffixes", []),
+                # Discovered *and* usable are different questions. arbin_res is
+                # listed on any machine but only works where a reader for
+                # Access databases exists, so the UI is told which it is rather
+                # than letting someone pick a file and wait to find out (#143).
+                "available": True,
+                "unavailable_reason": None,
             }
         )
+
+    if not arbin_res_reader_available():
+        for entry in instruments:
+            if entry["id"] == "arbin_res":
+                entry["available"] = False
+                entry["unavailable_reason"] = _ARBIN_RES_HINT
+
     instruments.sort(key=lambda i: i["id"])
     _INSTRUMENTS_CACHE = instruments
     return instruments
@@ -115,6 +129,84 @@ def list_instruments() -> list[dict[str, Any]]:
 
 def instrument_ids() -> set[str]:
     return {i["id"] for i in list_instruments()}
+
+
+#: Environmental failures that are about the *machine*, not the file, and whose
+#: raw text tells a battery researcher nothing. Each maps a signature to an
+#: explanation naming the cause and the fix.
+#:
+#: Both entries are for Arbin `.res`, which is an Access database and therefore
+#: needs a platform-specific reader that is nobody's default install:
+#:
+#:   Windows — the Access ODBC driver, which arrives with Office or with
+#:             Microsoft's free Access Database Engine redistributable.
+#:   posix   — mdbtools, which provides the `mdb-export` binary cellpy shells
+#:             out to.
+#:
+#: Both were found by running the app on a machine that lacked them (a CI
+#: runner, and the container), never by reading the code (#143, #121).
+_ENVIRONMENT_ERRORS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        ("im002", "odbc driver manager", "no default driver"),
+        "Reading Arbin .res needs the Microsoft Access Database Engine "
+        "(64-bit), a free Microsoft download — it is not installed on this "
+        "machine. Every other format works without it. "
+        "https://www.microsoft.com/en-us/download/details.aspx?id=54920",
+    ),
+    (
+        ("mdb-export",),
+        "Reading Arbin .res on Linux/macOS needs mdbtools, which provides "
+        "`mdb-export` — it is not installed on this machine. "
+        "Debian/Ubuntu: apt install mdbtools · macOS: brew install mdbtools",
+    ),
+)
+
+
+#: Loaders that need something the machine may not have, and how to tell.
+#: Only Arbin `.res` so far — the SQL loaders need a server rather than a local
+#: reader, which is a different kind of "unavailable" and not ours to probe.
+_ARBIN_RES_HINT = (
+    "Needs the Microsoft Access Database Engine (64-bit), a free Microsoft "
+    "download."
+    if sys.platform == "win32"
+    else "Needs mdbtools (provides `mdb-export`)."
+)
+
+
+def arbin_res_reader_available() -> bool:
+    """Can this machine actually read an Arbin ``.res``?
+
+    Cheap enough to call on every instrument listing: a ``shutil.which`` on
+    posix, and on Windows a driver enumeration that does not open a connection.
+    Never raises — an inconclusive probe reports *available*, so a bad guess
+    cannot hide a loader that would have worked.
+    """
+    if sys.platform != "win32":
+        import shutil
+
+        return shutil.which("mdb-export") is not None
+
+    try:
+        import pyodbc
+
+        return any("microsoft access driver" in d.lower() for d in pyodbc.drivers())
+    except Exception:  # noqa: BLE001 - no pyodbc, no driver manager, no opinion
+        return True
+
+
+def explain_load_error(exc: BaseException) -> str:
+    """Turn a loader failure into something a user can act on (#143).
+
+    A raw ``pyodbc.InterfaceError`` reaching a toast names neither the problem
+    nor the fix, and the reader it is complaining about is not something most
+    people know they are missing. Anything unrecognised is passed through
+    unchanged — a wrong explanation would be worse than a raw one.
+    """
+    text = str(exc).lower()
+    for signatures, explanation in _ENVIRONMENT_ERRORS:
+        if any(s in text for s in signatures):
+            return explanation
+    return str(exc)
 
 
 def instrument_meta_schema(instrument: str | None = None) -> dict[str, Any]:
