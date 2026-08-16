@@ -100,7 +100,20 @@
           <span x-text="showLoadFiles ? '▾' : '▸'"></span> Add cellpy files
         </button>
         <div class="import-form" x-show="showLoadFiles" x-cloak>
+          <!-- Upload comes first when the server refuses host paths: to a
+               browser on another machine the path field below describes a
+               filesystem it cannot see (#133). -->
+          <div class="field" x-show="!hostPathsAllowed" x-cloak>
+            <label>Upload from this computer</label>
+            <input type="file" multiple accept=".cellpy,.h5,.hdf5"
+                   @change="uploadAndLoad($event)" :disabled="job.active || uploading" />
+            <p class="hint" x-show="!uploading"
+               x-text="`Uploaded to the server's data directory, then loaded. Up to ${maxUploadMb} MB each.`"></p>
+            <p class="hint" x-show="uploading" x-text="uploadStatus"></p>
+          </div>
+
           <div class="field">
+            <label x-show="!hostPathsAllowed" x-cloak>Or a path on the server</label>
             <div class="input-row">
               <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*.cellpy"
                      @keydown.enter="loadFiles()" />

@@ -8,7 +8,12 @@ async function api(path, { method = "GET", body = null } = {}) {
     headers: { "X-CSG-Token": TOKEN },
     credentials: "same-origin",
   };
-  if (body !== null) {
+  if (body instanceof FormData) {
+    // Multipart uploads (#133): the browser has to set Content-Type itself,
+    // because only it knows the boundary it generated. Setting the header here
+    // produces a request the server cannot parse.
+    opts.body = body;
+  } else if (body !== null) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
@@ -45,6 +50,10 @@ function app() {
     canPick: false,
     devMode: false,
     maxFilesCeiling: 10, // server-enforced ceiling; higher in dev mode (#97)
+    hostPathsAllowed: true, // served instances say false (#120) -> upload (#133)
+    maxUploadMb: 512,
+    uploading: false,
+    uploadStatus: "",
     tab: "summary",
     project: null,
     projects: [],
@@ -204,7 +213,42 @@ function app() {
         this.canPick = caps.file_picker;
         this.devMode = !!caps.dev_mode;
         if (caps.max_files) this.maxFilesCeiling = caps.max_files;
+        // Served instances refuse host paths (#120), so the path field there
+        // describes a filesystem the browser cannot see — upload leads instead.
+        this.hostPathsAllowed = caps.host_paths_allowed !== false;
+        if (caps.max_upload_mb) this.maxUploadMb = caps.max_upload_mb;
       } catch (_) { this.canPick = false; }
+    },
+
+    async uploadAndLoad(event) {
+      const input = event.target;
+      const files = [...(input.files || [])];
+      if (!files.length) return;
+
+      this.uploading = true;
+      this.uploadStatus = `Uploading ${files.length} file(s)…`;
+      try {
+        const body = new FormData();
+        for (const f of files) body.append("files", f, f.name);
+
+        // api() throws on a non-2xx with the server's detail already unwrapped.
+        const out = await (await api("/api/upload", { method: "POST", body })).json();
+        for (const err of out.errors || []) this.notify("warn", err);
+        if (!out.saved || !out.saved.length) return;
+
+        // Hand the server-side paths to the loader that already exists, so an
+        // uploaded file travels exactly the same road as any other.
+        this.uploadStatus = `Loading ${out.saved.length} file(s)…`;
+        const paths = out.saved.map((s) => s.path);
+        this.uploading = false; // runJob owns the progress display from here
+        await this.runJob("/api/load/files", { paths, max_files: paths.length });
+      } catch (e) {
+        this.notify("error", e.message || String(e));
+      } finally {
+        this.uploading = false;
+        this.uploadStatus = "";
+        input.value = ""; // let the same file be picked again
+      }
     },
 
     get curatedPlotTypes() {

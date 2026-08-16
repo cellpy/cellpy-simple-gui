@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     #: still looks local from in here.
     allow_host_paths: bool | None = None
 
+    #: Cap on a single browser upload (#133). Generous by default because real
+    #: cellpy files are not small — the bundled demo is 8 MB and a year of
+    #: cycling is comfortably a few hundred. The cap exists so a served
+    #: instance cannot have its disk filled by one request, not to be tidy.
+    max_upload_mb: int = 512
+
     @field_validator("data_dir")
     @classmethod
     def _absolute_data_dir(cls, value: Path) -> Path:

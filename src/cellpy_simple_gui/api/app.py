@@ -12,7 +12,7 @@ from ..config import get_settings
 from ..core import cellpy_adapter
 from ..logging_setup import enable_ring_buffer
 from .deps import TEMPLATES, TOKEN_COOKIE, WEB_DIR, require_token
-from .routers import cells, export, ingest, jobs, plots, projects, system
+from .routers import cells, export, ingest, jobs, plots, projects, system, uploads
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router, prefix="/api", dependencies=guarded)
     app.include_router(projects.router, prefix="/api", dependencies=guarded)
     app.include_router(ingest.router, prefix="/api", dependencies=guarded)
+    app.include_router(uploads.router, prefix="/api", dependencies=guarded)
     app.include_router(system.router, prefix="/api", dependencies=guarded)
 
     @app.get("/", response_class=HTMLResponse)
