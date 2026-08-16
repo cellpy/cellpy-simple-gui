@@ -345,6 +345,8 @@ src/cellpy_simple_gui/
 │   ├── plotting.py         # thin: delegates figures to cellpy via collect.py
 │   ├── projects.py         # save/open portable project folders (manifest + .cellpy files)
 │   ├── files.py            # glob/path expansion with a max cap + messages
+│   ├── paths.py            # the sandbox: what a served instance may read and write
+│   ├── uploads.py          # files brought in through the browser
 │   └── export.py           # csv / xlsx / parquet / json from cellpy collections
 ├── api/
 │   ├── app.py              # FastAPI factory + index route
@@ -364,6 +366,27 @@ the app feeds them a real `Batch` via `cellpy.collect.from_cells(...)` built fro
 the in-memory library (`collect.py`), and discovers instruments via
 `cellpy.list_instruments()`. The cellpy surface stays isolated to
 `cellpy_adapter.py` + `collect.py`.
+
+
+## Building your own cellpy app
+
+This app is a reference implementation. It is a poor thing to start *from* — at
+~8,000 lines, most of what you would read is machinery you have not decided you
+want yet.
+
+[`examples/starter/`](examples/starter/) is the starting point instead: one file,
+~340 lines, that loads cells, builds a cellpy `Collection`, plots it and exports
+the numbers, and nothing else.
+
+```bash
+uv run examples/starter/app.py     # then open http://127.0.0.1:8000
+```
+
+It carries its own dependencies in a PEP 723 header, so `uv run --script app.py`
+also works once you have copied it somewhere else — which is what it is for. See
+[`examples/starter/README.md`](examples/starter/README.md) for the four cellpy
+calls it is built from, how to add a plot, and where in this repository to look
+when you outgrow it.
 
 
 ## Development

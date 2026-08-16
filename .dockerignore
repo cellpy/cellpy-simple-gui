@@ -30,6 +30,7 @@ run.cmd
 # Tests, docs and screenshots do not belong in a server image.
 tests/
 docs/
+examples/
 assets/
 *.md
 !README.md

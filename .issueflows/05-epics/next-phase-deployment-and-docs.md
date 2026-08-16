@@ -150,12 +150,23 @@ demo cell, render one figure), attach artifacts to the release.
 The audience is human programmers *and* agents. They want different shapes of
 the same knowledge, so the plan produces both from one source of truth.
 
-**M3.1 · A minimal starter app.**
+**M3.1 · A minimal starter app.** — *done (#125)*
 ~250 lines: load cells → collect → plot → export, and nothing else. This app is
 now too large to serve as a starting template — that is a good problem, but it
 means the reference implementation and the *starting point* should be different
 artifacts. Small enough for a human to read in a sitting and for an agent to
 hold in context alongside the task.
+
+*How it landed:* `examples/starter/app.py`, 339 lines of which ~85 are the web
+page — over the 250 target, and the overshoot is the inline HTML rather than the
+cellpy story, which is about 100 lines. A PEP 723 header makes it runnable
+outside the repo (`uv run --script app.py`, verified from a directory with no
+`pyproject.toml`: 109 packages, server up, demo cell plotted). Two decisions
+worth recording: the file states its limits rather than hiding them (localhost
+only, one user, module-global cell dict) because a starter that pretends to be
+production-shaped teaches the wrong lesson; and `SUMMARY_PLOTS` is the single
+extension point, pinned by a test that runs the README's own worked example, so
+"adding a plot is one line" cannot quietly stop being true.
 
 **M3.2 · Task-shaped guides.**
 Organised by what someone is trying to do, not by module:
