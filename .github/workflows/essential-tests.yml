@@ -84,3 +84,26 @@ jobs:
         run: |
           echo "No code, test or dependency paths changed — pytest not run."
           echo "The check stays green so docs-only PRs are not blocked."
+
+  # `requires-python = ">=3.13"` is a promise, and until now nothing checked it.
+  # `uv tool install` picks the newest interpreter it can, so a user installing
+  # from PyPI got 3.14 — where the job pool raised AttributeError on every job,
+  # because it copied a private CPython function whose signature changed (#123).
+  # The suite was green throughout, on 3.13.
+  #
+  # Deliberately a separate job rather than a matrix on `essential`: a matrix
+  # renames the check to "essential (3.13)" and silently detaches the required
+  # status check, which is exactly the class of mistake #111 was about. Making
+  # this one required too is a repo-settings change, not a workflow change.
+  newest-python:
+    name: newest-python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run essential tests on the newest supported Python
+        run: uv run --python 3.14 --extra dev pytest -m essential

@@ -243,7 +243,6 @@ wheels = [
 
 [[package]]
 name = "cellpy-simple-gui"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "cellpy" },
@@ -306,7 +305,7 @@ requires-dist = [
     { name = "tables" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
-provides-extras = ["desktop", "export", "build", "dev", "e2e"]
+provides-extras = ["build", "desktop", "dev", "e2e", "export"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "issue-flow", specifier = ">=0.4.9.post1" }]

@@ -1,11 +1,35 @@
 [project]
 name = "cellpy-simple-gui"
-version = "0.1.0"
+# Single-sourced from the package, so a release cannot ship a wheel whose
+# metadata and __version__ disagree — see [tool.hatch.version] below.
+dynamic = ["version"]
 description = "A simple, good-looking desktop GUI for exploring battery cell data with cellpy (>= 2.1)."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 authors = [{ name = "cellpy" }]
+keywords = [
+    "battery",
+    "electrochemistry",
+    "cellpy",
+    "gui",
+    "data-analysis",
+    "cycling",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
 dependencies = [
     "cellpy>=2.1.2",
     "tables",                 # read legacy .h5 cellpy files
@@ -21,6 +45,14 @@ dependencies = [
     "openpyxl>=3.1",
     "loguru>=0.7.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/cellpy/cellpy-simple-gui"
+Repository = "https://github.com/cellpy/cellpy-simple-gui"
+Issues = "https://github.com/cellpy/cellpy-simple-gui/issues"
+"Deployment guide" = "https://github.com/cellpy/cellpy-simple-gui/blob/main/docs/deployment.md"
+"Windows installer" = "https://github.com/cellpy/cellpy-simple-gui/blob/main/docs/windows-installer.md"
+cellpy = "https://github.com/jepegit/cellpy"
 
 [project.optional-dependencies]
 # The native window. Not a core dependency: a served instance never opens one,
@@ -38,8 +70,27 @@ cellpy-simple-gui = "cellpy_simple_gui.__main__:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "src/cellpy_simple_gui/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/cellpy_simple_gui"]
+
+[tool.hatch.build.targets.sdist]
+# The sdist is what someone builds from when a wheel will not do, so it carries
+# the packaging recipes and tests as well as the source.
+include = [
+    "src/",
+    "tests/",
+    "packaging/",
+    "docs/",
+    "Dockerfile",
+    "docker-compose.yml",
+    ".dockerignore",
+    "README.md",
+    "LICENSE",
+    "CELLPY_PAINPOINTS.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
