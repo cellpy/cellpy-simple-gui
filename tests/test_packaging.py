@@ -233,6 +233,43 @@ def test_installer_needs_no_admin():
     assert "{localappdata}\\Programs" in iss
 
 
+def _smoke_test_module():
+    spec = importlib.util.spec_from_file_location(
+        "_csg_smoke", PACKAGING / "smoke_test.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    ("error", "should_skip"),
+    [
+        # What a current build reports — the app translates the driver error
+        # into advice (#143).
+        ("Reading Arbin .res needs the Microsoft Access Database Engine (64-bit)", True),
+        ("Reading Arbin .res on Linux/macOS needs mdbtools", True),
+        # What the raw driver says underneath, and what older builds emit.
+        ("(pyodbc.InterfaceError) ('IM002', '[Microsoft][ODBC Driver Manager] …')", True),
+        ("[Errno 2] No such file or directory: 'mdb-export'", True),
+        # A real defect must still fail the release.
+        ("cycle 3 has a malformed step table", False),
+        ("could not parse the file header", False),
+    ],
+)
+def test_smoke_test_skips_only_a_missing_reader(error, should_skip):
+    """The skip must track *both* vocabularies (#124, #143).
+
+    It originally matched only the raw driver text — and #143 rewrote that text
+    one PR later, silently turning the skip back into a release-blocking
+    failure. Matching on a message is fragile in exactly that way, so this pins
+    both wordings and, more importantly, pins that a genuine Arbin failure is
+    still a failure.
+    """
+    signatures = _smoke_test_module()._MISSING_ODBC
+    assert any(s in error.lower() for s in signatures) is should_skip
+
+
 def test_spec_ships_both_a_windowed_and_a_console_executable():
     """The console twin is how a user sees a startup error, and how the smoke
     test reads the URL — a windowed exe has no stdout."""
