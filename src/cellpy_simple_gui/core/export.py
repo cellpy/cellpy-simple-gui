@@ -31,8 +31,19 @@ _CELL_MEDIA = {
 _SAFE_STEM = re.compile(r"[^\w.\-]+", re.UNICODE)
 
 
+_MISSING_KALEIDO = (
+    "Static figure export needs kaleido. Install with: uv sync --extra export. "
+    "Meanwhile the chart toolbar's camera button still saves a PNG."
+)
+_MISSING_BROWSER = (
+    "Static figure export needs a Chrome or Chromium binary — kaleido is "
+    "installed but renders by driving a browser, and none was found. "
+    "Meanwhile the chart toolbar's camera button still saves a PNG."
+)
+
+
 class FigureExportError(RuntimeError):
-    """Static figure export failed (often missing kaleido)."""
+    """Static figure export failed (often missing kaleido or its browser)."""
 
     def __init__(self, message: str, *, missing_kaleido: bool = False):
         super().__init__(message)
@@ -145,19 +156,18 @@ def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:
     try:
         data = cellpy_figures.write_image(fig, fmt, scale=2)
     except OptionalDependencyError as exc:
-        raise FigureExportError(
-            "Static figure export needs kaleido. "
-            "Install with: uv sync --extra export",
-            missing_kaleido=True,
-        ) from exc
+        raise FigureExportError(_MISSING_KALEIDO, missing_kaleido=True) from exc
     except Exception as exc:  # noqa: BLE001
         msg = str(exc).lower()
-        if any(k in msg for k in ("kaleido", "orca", "chromium", "image export")):
-            raise FigureExportError(
-                "Static figure export needs kaleido. "
-                "Install with: uv sync --extra export",
-                missing_kaleido=True,
-            ) from exc
+        # kaleido 1.x renders by driving a *separate* Chrome, so "kaleido is
+        # installed" and "figure export works" are different facts. Telling
+        # someone to install kaleido when kaleido is already there and the
+        # browser is what is missing sends them the wrong way — which is
+        # exactly what happens in a container (#121).
+        if any(k in msg for k in ("chrome", "chromium", "browser")):
+            raise FigureExportError(_MISSING_BROWSER, missing_kaleido=True) from exc
+        if any(k in msg for k in ("kaleido", "orca", "image export")):
+            raise FigureExportError(_MISSING_KALEIDO, missing_kaleido=True) from exc
         raise FigureExportError(f"Figure export failed ({exc}).") from exc
 
     if not data:

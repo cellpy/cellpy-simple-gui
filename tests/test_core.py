@@ -1217,6 +1217,36 @@ def test_figure_export_unknown_format_raises():
         export.figure_bytes("{}", "gif")
 
 
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [
+        # kaleido 1.x renders by driving a separate Chrome, so these are two
+        # different problems with two different fixes. Telling a container user
+        # to install kaleido when kaleido is already there sends them the wrong
+        # way (#121).
+        (RuntimeError("Kaleido requires Google Chrome to be installed."), "Chrome"),
+        (RuntimeError("The browser seemed to close immediately"), "Chrome"),
+        (RuntimeError("kaleido is required for image export"), "uv sync --extra export"),
+    ],
+)
+def test_figure_export_names_the_actual_missing_piece(monkeypatch, raised, expected):
+    import plotly.graph_objects as go
+
+    from cellpy_simple_gui.core import export as export_mod
+
+    def boom(*_args, **_kwargs):
+        raise raised
+
+    monkeypatch.setattr(export_mod.cellpy_figures, "write_image", boom)
+
+    figure_json = go.Figure(go.Scatter(x=[1], y=[1])).to_json()
+    with pytest.raises(export.FigureExportError) as exc_info:
+        export.figure_bytes(figure_json, "png")
+
+    assert expected in str(exc_info.value)
+    assert exc_info.value.missing_kaleido is True
+
+
 def _rate_library():
     from cellpy_simple_gui.core import cellpy_adapter
     from cellpy_simple_gui.core.library import Library

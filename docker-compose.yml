@@ -1,0 +1,41 @@
+# cellpy simple GUI — a starting point, not a finished deployment.
+#
+# One container serves ONE person. The app keeps its library, job manager and
+# cellpy config session in process-global state, so two users sharing an
+# instance would see each other's cells. Run one per user.
+#
+#   docker compose up --build       then open the URL printed in the log
+#
+# The URL carries a token. That token stops other processes on the box from
+# driving the API; it is NOT authentication and there is no user model behind
+# it. Anyone who can reach the port and read the token is the user. Before this
+# leaves a trusted network, put it behind a reverse proxy that terminates TLS
+# and does real authentication — see docs/deployment.md.
+
+services:
+  cellpy-simple-gui:
+    build:
+      context: .
+    image: ghcr.io/cellpy/cellpy-simple-gui:latest
+    # Published on loopback only. Change to "8577:8577" once something in front
+    # of it is doing TLS and auth.
+    ports:
+      - "127.0.0.1:8577:8577"
+    environment:
+      # Fixed so the URL survives a restart. Generate your own:
+      #   python -c "import secrets; print(secrets.token_urlsafe(16))"
+      # Omit it entirely and each start prints a fresh one in the log instead.
+      CSG_TOKEN: "${CSG_TOKEN:?set CSG_TOKEN in .env or the environment}"
+      CSG_DATA_DIR: /data
+    volumes:
+      # A named volume avoids the usual bind-mount ownership trap: the image
+      # runs as uid 10001, and a host directory owned by anyone else is not
+      # writable from in here. For a bind mount, chown it to 10001 first —
+      # the entrypoint says so rather than failing mid-save.
+      - cellpy-data:/data
+    # Reap zombies and pass SIGTERM/SIGINT through to a PID-1 Python process.
+    init: true
+    restart: unless-stopped
+
+volumes:
+  cellpy-data:

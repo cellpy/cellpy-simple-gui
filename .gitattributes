@@ -1,0 +1,8 @@
+# This repo is developed on Windows with core.autocrlf=true, which would rewrite
+# these to CRLF on checkout. A shell script with CRLF endings fails inside a
+# Linux container with `exec format error` / "no such file or directory" — an
+# error that names the interpreter, not the line endings, so it is a genuinely
+# nasty half-hour. Pin them.
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf

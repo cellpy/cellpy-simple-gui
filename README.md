@@ -89,6 +89,19 @@ native window both work. Equivalent without them:
 `uv run --extra export --extra desktop cellpy-simple-gui` (same flags).
 Then click **Load demo cells** and explore.
 
+### Run it as a server
+
+```bash
+docker compose up --build      # or: docker build -t cellpy-simple-gui .
+```
+
+One container serves **one person** — the library, the job manager and cellpy's
+config session are process-global, by design. The per-launch token is **not**
+authentication: put it behind a reverse proxy with TLS and real auth, or keep it
+on a network you already trust. [`docs/deployment.md`](docs/deployment.md) has
+the full story, including the things that bite (volume ownership, cellpy's own
+directories, and why server-side figure export is not in the image).
+
 ### Developer mode
 
 ```bash

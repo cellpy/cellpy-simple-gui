@@ -1,11 +1,18 @@
 # Packaging
 
-Build a frozen Windows app and prove it actually works.
+Two shipping routes: a frozen Windows app (#117, #122) and a server container
+(#121). Both are proved the same way — by driving what ships over HTTP.
 
 ```bash
+# frozen Windows app
 uv sync --extra build --extra desktop --extra export
 uv run pyinstaller packaging/cellpy-simple-gui.spec --noconfirm
 uv run python packaging/smoke_test.py dist/cellpy-simple-gui/cellpy-simple-gui.exe
+
+# container
+docker build -t cellpy-simple-gui .
+docker run -d --name csg -p 127.0.0.1:8577:8577 -e CSG_TOKEN=t -v csg-data:/data cellpy-simple-gui
+uv run python packaging/smoke_test.py --url http://127.0.0.1:8577 --token t
 ```
 
 `--extra desktop` is not optional for a shipped build: since #118 the native
@@ -61,6 +68,87 @@ hung. Worth either a progress cue or a note in the installer.
 ~6 s warm is tolerable for a desktop app but not good. Most of it is importing
 pandas, polars, pytables and cellpy. If it needs to come down, that is where to
 look — not in PyInstaller settings.
+
+## What the container established (#121)
+
+**All 16 smoke checks pass** against the running image, including the ones that
+only mean anything when the app is served: the API refuses requests without a
+token, the #120 sandbox is active, and a host path outside `/data` is refused by
+name. A project saved on the volume survives `docker restart` and reopens with
+its cells.
+
+### Two silent failures the first build shipped with
+
+Both were found by *tightening the test*, not by reading the Dockerfile.
+
+**Arbin `.res` imported nothing while the smoke test said PASS.** On posix
+cellpy reads `.res` by shelling out to `mdb-export`, which `python:slim` does
+not have. The import job still finishes with `status: "done"` — the failure is
+only in the result payload:
+
+```json
+{"added": [], "errors": ["Arbin demo (.res): [Errno 2] No such file or directory: 'mdb-export'"]}
+```
+
+The check asserted on `status` alone, so it passed on an import that imported
+nothing. It now asserts on `added` and `errors`. Fixed in the image by
+installing `mdbtools`.
+
+**Two loaders vanished from the instrument list.** `arbin_sql` and `arbin_sql_7`
+raise `ImportError: libodbc.so.2` during discovery, so they were quietly absent
+— 11 instruments instead of 13, with nothing logged at a level anyone would see.
+Fixed by installing `unixodbc`. Note that actually connecting to an Arbin SQL
+Server still needs a vendor ODBC driver, which is not shipped.
+
+### Server-side figure export is not in the image
+
+Not a size decision. `kaleido>=0.1,<1.4` resolves to **1.3.0**, which does not
+bundle a renderer — it drives a separate Chrome via `choreographer`. Measured in
+this base image:
+
+- without Chrome: `RuntimeError: Kaleido requires Google Chrome to be installed.`
+- after `plotly_get_chrome`, which **exits 0**: `BrowserFailedError — the browser
+  seemed to close immediately after starting` (slim lacks Chrome's shared libs)
+
+So a `WITH_EXPORT=1` build arg would have produced a broken image. There isn't
+one; [#135](https://github.com/cellpy/cellpy-simple-gui/issues/135) tracks doing
+it properly. `core/export.py` now distinguishes "kaleido missing" from "kaleido
+present, browser missing", so the 503 stops giving container users advice that
+cannot help them.
+
+### Numbers
+
+| | |
+|---|---|
+| Image, on disk | **1.72 GB** |
+| — of which the venv | **1.18 GB** (128 packages) |
+| — of which baked demo data | 16 MB |
+| — of which `mdbtools` + `unixodbc` | ~10 MB |
+| Compressed (what a pull transfers) | **379 MB** |
+| Container start to `/healthz` | **~5 s** |
+
+For comparison the Windows venv this is built from is 780 MB; the Linux venv is
+larger mostly because `UV_COMPILE_BYTECODE=1` adds `.pyc` for everything, which
+is the right trade for a server that starts often.
+
+**Where the weight actually is** — and most of it is not ours:
+
+| package | MB | why it is here |
+|---|---|---|
+| `_polars_runtime_32` | 206 | polars |
+| `pyarrow` | 156 | parquet export |
+| `scipy` | 108 | cellpy |
+| `pandas` | 72 | core |
+| `plotly` | 67 | core |
+| `numpy` | 42 | core |
+| `matplotlib` | 35 | **`cellpy` — unused by this app, which plots with plotly** |
+| `jedi` | 34 | **`cellpy` → `ipykernel` → `ipython` → `jedi`** |
+| `debugpy` | 22 | **`cellpy` → `ipykernel` → `debugpy`** |
+
+The last three are ~90 MB of interactive-notebook tooling in a headless server
+image, pulled in as *hard* runtime dependencies of cellpy — traced with
+`importlib.metadata`, not guessed. Nothing to work around here; it is a
+pain-point to raise upstream, and it is filed as one.
 
 ## Notes for the installer (#122)
 
