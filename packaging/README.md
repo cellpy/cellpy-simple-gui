@@ -150,14 +150,77 @@ image, pulled in as *hard* runtime dependencies of cellpy — traced with
 `importlib.metadata`, not guessed. Nothing to work around here; it is a
 pain-point to raise upstream, and it is filed as one.
 
-## Notes for the installer (#122)
+## What the installer added (#122)
 
-- `console=True` here is deliberate for diagnosis. Flipping it for the shipped
-  app hides startup failures; pair it with a log file or a crash dialog.
+Full user-facing docs are in [`docs/windows-installer.md`](../docs/windows-installer.md).
+
+**Two executables, not one.** The spike's `console=True` was doing real work: it
+was the only reason a broken bundle was diagnosable. Turning it off for the
+shipped app had to be paid for, not just done. So the bundle now carries a
+windowed `cellpy-simple-gui.exe` and a `cellpy-simple-gui-console.exe` twin.
+Cost: **~41 MB** — each EXE embeds its own PYZ. (An earlier version of this note
+guessed "a few hundred KB". It was wrong by two orders of magnitude, which is
+why the number is measured here.)
+
+**A windowed build would have died in logging setup.** `sys.stderr` is `None`
+with no console, and `logger.add(None, …)` raises
+`TypeError: Cannot log to objects of type 'NoneType'` — verified, not assumed.
+That is a crash before the app can report anything at all. `setup_logging()` now
+tests the stream and falls back to a rotating file sink in
+`%LOCALAPPDATA%\cellpy-simple-gui\logs`; `packaging/entry.py` catches whatever
+escapes, writes `startup-error.log`, and shows a dialog naming it.
+
+**The app was writing into its own install directory.** Confirmed by a real
+uninstall leaving three files behind: cellpy's `example_data` resolves
+`examplesdir` at import time and falls back into its own package, which frozen
+means `{app}\_internal\cellpy\utils\data`. The first "Load demo cells" click put
+~9 MB there.
+
+The fix took three attempts, and the failures are the instructive part.
+
+1. Create the configured directory. But cellpy's default `examplesdir` is the
+   **relative** `cellpy_data\examples`, resolved against the process cwd — so
+   this created it next to wherever the app was started. The install folder then
+   looked clean *only because the test ran from the repo*, where the demo data
+   had quietly landed instead.
+2. Anchor a relative value at `Path.home()`, write it back with
+   `config.reload()`, create it before anything imports `example_data`. Correct
+   — for `examplesdir`. Running from the install directory then still left
+   `cellpy_debug.log`, `cellpy_errors.log` and `cellpy_info.log` there, because
+   `filelogdir` has the same relative default and `cellpy/log.py` resolves it
+   with `os.path.abspath`.
+3. Do it for every writable cellpy path setting, skipping anything that is not a
+   local path (`rawdatadir` can be an `scp://` URL).
+
+Raised upstream on
+[cellpy#938](https://github.com/jepegit/cellpy/issues/938).
+
+**kaleido ships.** Static figure export works in the frozen build — a 168 KB PNG
+from the installed app — but *only because Chrome is present*: kaleido 1.x
+drives a separate browser. Edge is not a substitute; pointed at `msedge.exe`
+deliberately, the render hung indefinitely rather than failing. Without Chrome
+the app returns the 503 that names the real cause, so this degrades honestly.
+
+**Still true from the spike:**
+
 - Nothing in the app needed changing to be frozen. `api/deps.py` resolves
   `WEB_DIR` as `Path(__file__).parent.parent / "web"`, which keeps working
   because the spec places the web assets at `cellpy_simple_gui/web` inside the
   bundle. Keep those two in step.
-- `pywebview` now lives in the `[desktop]` extra (#118), so the build
-  environment must include it — see the sync line above. A bundle built without
-  it loses the native window and says nothing about it.
+- `pywebview` lives in the `[desktop]` extra (#118), so the build environment
+  must include it. A bundle built without it loses the native window and says
+  nothing about it.
+
+### Numbers
+
+| | |
+|---|---|
+| Bundle | **576 MB**, 3958 files (was 535 MB before the console twin) |
+| Installer | **178 MB** |
+| Install target | `%LOCALAPPDATA%\Programs\cellpy-simple-gui`, no admin |
+
+### Not solvable in code
+
+The installer is unsigned, so SmartScreen warns on first run. That is a
+certificate purchase, not a build change; `docs/windows-installer.md` says so
+plainly and prices it.

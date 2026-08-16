@@ -89,6 +89,18 @@ native window both work. Equivalent without them:
 `uv run --extra export --extra desktop cellpy-simple-gui` (same flags).
 Then click **Load demo cells** and explore.
 
+### Install it as a Windows app
+
+```powershell
+pwsh packaging/build_installer.ps1
+```
+
+Produces a ~178 MB per-user installer: no admin, Start-menu entry, clean
+uninstall that leaves your projects alone. It is **unsigned**, so SmartScreen
+will warn on first run — [`docs/windows-installer.md`](docs/windows-installer.md)
+explains exactly what you will see, why, and what fixing it costs, along with
+where the app writes its logs when something goes wrong.
+
 ### Run it as a server
 
 ```bash

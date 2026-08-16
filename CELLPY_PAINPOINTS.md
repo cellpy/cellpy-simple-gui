@@ -839,26 +839,47 @@ nothing.
 
 **Upstream:** [#937](https://github.com/jepegit/cellpy/issues/937) — open.
 
-### 33. 🟢 `examplesdir` is resolved at import time, and falls back into site-packages
+### 33. 🟠 `examplesdir`: resolved at import time, defaults to a *relative* path, and falls back into site-packages
 
-`example_data.DATA_PATH` is computed when the module is imported: if
-`config.paths.examplesdir` is not an existing directory, it falls back to
-`site-packages/cellpy/utils/data`. In a container that path is root-owned and
-the app runs as uid 10001, so the zero-setup demo fails on a permission error at
-the moment a new user clicks the friendliest button in the product.
+One setting, three ways to lose. It cost real time in both deployment routes, so
+it is worth spelling out.
 
-Setting `CELLPY_PATHS__EXAMPLESDIR` is not enough on its own — the directory has
-to **exist** before cellpy is imported, or the override is silently discarded
-with a `warnings.warn`.
+**(a) Resolved at import.** `example_data.DATA_PATH` is computed when the module
+is imported: if `config.paths.examplesdir` is not an existing directory, it falls
+back to `site-packages/cellpy/utils/data`. Setting
+`CELLPY_PATHS__EXAMPLESDIR` is not enough on its own — the directory has to
+**exist** first, or the override is discarded with a `warnings.warn`.
 
-**Workaround (app):** the image creates the directory at build time and
-pre-downloads the demo cells into it, which also makes the demo work offline.
+**(b) The fallback target is not writable where it matters.** In a container it
+is root-owned while the app runs as uid 10001, so the zero-setup demo fails on a
+permission error at the friendliest button in the product. In a *frozen Windows
+app* it is inside the install directory: a first run wrote ~9 MB there, and the
+uninstaller left it behind, because the installer had never put it there.
 
-**Wish:** create the directory rather than falling back, or at least keep the
-override and fail at *use* time with a message naming it. A config value that is
-accepted and then ignored is hard to debug from the outside.
+**(c) The defaults are relative.** With no user config, `examplesdir` is
+`cellpy_data\examples` and `filelogdir` is `cellpy_data\logs` — both resolved
+against the **process cwd**, not `$HOME` (`cellpy/log.py` does
+`os.path.abspath(paths.filelogdir)`). For an installed app the cwd is wherever
+the shortcut happened to start it. This one bit twice: our first fix created the
+directory from the same relative path and merely moved the mess into the source
+repo, and the install folder only *looked* clean because that is where the test
+was running from. Fixing `examplesdir` alone then left `cellpy_debug.log`,
+`cellpy_errors.log` and `cellpy_info.log` in the install directory — same defect,
+different field.
 
-Not filed separately — folded into the discussion on
+**Workaround (app):** the container bakes the demo data into an image-local
+directory at build time (so the demo also works offline); the desktop app walks
+a small list of cellpy's writable path settings at startup, anchors any relative
+value at `Path.home()`, writes the absolute values back with `config.reload()`,
+and creates them — all before anything imports `example_data`. Settings that are
+not local paths (`rawdatadir` can be an `scp://` URL) are left alone.
+
+**Wish:** an absolute default, and creating the directory rather than falling
+back. A config value that is accepted and then quietly ignored is very hard to
+debug from outside the library, and a relative default means two correct-looking
+processes disagree about where the data lives.
+
+**Upstream:** raised on
 [#938](https://github.com/jepegit/cellpy/issues/938).
 
 ---

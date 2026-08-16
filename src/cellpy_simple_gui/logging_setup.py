@@ -7,8 +7,39 @@ import os
 import sys
 import threading
 from collections import deque
+from pathlib import Path
 
 from loguru import logger
+
+
+def log_dir() -> Path:
+    """Where a windowed build writes its log, resolved without app config.
+
+    Deliberately free of any dependency on :mod:`.config`: this is also the
+    place a *startup* failure gets recorded, and importing settings may be the
+    thing that failed. Plain stdlib, no imports that can raise.
+    """
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_STATE_HOME")
+    root = Path(base) if base else Path.home() / ".local" / "state"
+    return root / "cellpy-simple-gui" / "logs"
+
+
+def _stderr_usable() -> bool:
+    """False in a windowed PyInstaller build, where there is no console.
+
+    ``sys.stderr`` is ``None`` there, and handing that to ``logger.add`` raises
+    — which would kill the app during logging setup, before it can report
+    anything. That is the exact failure a windowed build is prone to, so it is
+    checked rather than assumed (#122).
+    """
+    stream = getattr(sys, "stderr", None)
+    if stream is None:
+        return False
+    try:
+        stream.write("")
+        return True
+    except Exception:  # noqa: BLE001 - a broken handle is just as unusable
+        return False
 
 #: Recent log records, for the developer-mode viewer (#97). Bounded, so a long
 #: session cannot grow it without limit; the terminal/file sinks stay the record
@@ -99,18 +130,40 @@ def setup_logging(level: str | None = None) -> None:
     resolved = (level or os.environ.get("CSG_LOG_LEVEL") or "INFO").upper()
     logger.remove()
     _RING_ID = None  # logger.remove() dropped the ring sink along with the rest
-    logger.add(
-        sys.stderr,
-        level=resolved,
-        colorize=True,
-        backtrace=False,
-        diagnose=False,
-        format=(
-            "<green>{time:HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan> - <level>{message}</level>"
-        ),
-    )
+
+    if _stderr_usable():
+        logger.add(
+            sys.stderr,
+            level=resolved,
+            colorize=True,
+            backtrace=False,
+            diagnose=False,
+            format=(
+                "<green>{time:HH:mm:ss}</green> | "
+                "<level>{level: <8}</level> | "
+                "<cyan>{name}</cyan> - <level>{message}</level>"
+            ),
+        )
+    else:
+        # A windowed build has nowhere to print. Without a file sink the app
+        # would run with logging silently discarded, and a support request
+        # would have nothing to attach.
+        try:
+            directory = log_dir()
+            directory.mkdir(parents=True, exist_ok=True)
+            logger.add(
+                directory / "app.log",
+                level=resolved,
+                rotation="2 MB",
+                retention=3,
+                backtrace=False,
+                diagnose=False,
+                encoding="utf-8",
+            )
+        except OSError:
+            # Nowhere to write is not a reason to refuse to start.
+            pass
+
     logging.basicConfig(handlers=[_InterceptHandler()], level=0, force=True)
     if _RING_WANTED:
         enable_ring_buffer()
