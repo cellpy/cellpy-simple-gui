@@ -71,6 +71,9 @@ def capabilities() -> dict:
         "file_picker": _webview_window() is not None,
         "dev_mode": settings.dev_mode,
         "max_files": settings.max_files,
+        # Upload is how a browser on another machine gets a file in at all
+        # (#133); the UI leans on it when host paths are refused.
+        "max_upload_mb": settings.max_upload_mb,
         # Whether typing a host path works here, and if not, what the boundary
         # is (#120) — so the UI can say so rather than looking broken.
         **core_paths.describe_mode(),

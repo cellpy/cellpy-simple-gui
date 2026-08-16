@@ -220,8 +220,39 @@ it is `10`, or `500` in developer mode.
 
 ---
 
-## Known gap
+## Getting files in
 
-A served instance can only read files that are **already inside** its data
-directory — mount your data there. There is no browser upload yet; that is
-[#133](https://github.com/cellpy/cellpy-simple-gui/issues/133).
+Two ways, and a served instance needs the first.
+
+**Upload from the browser.** *Add cellpy files → Upload from this computer*.
+Files are written to `CSG_DATA_DIR/uploads/` and then loaded through the same
+path as anything else, so the sandbox stays the only thing deciding what is
+readable. Up to **512 MB** per file by default:
+
+```bash
+CSG_MAX_UPLOAD_MB=2048
+```
+
+The cap exists so one request cannot fill the disk. A file over it is refused
+with a message, and the others in the same upload still land — five files with
+one oversized leaves you four and a warning, not nothing.
+
+**Mount data at the volume.** Anything already inside `CSG_DATA_DIR` can be
+loaded by path, which is the better route for a directory of existing cells.
+On a served instance the path field is demoted below upload, because it refers
+to a filesystem the browser cannot see.
+
+### Uploads are never deleted automatically
+
+They accumulate in `CSG_DATA_DIR/uploads/` until you clear them. That is
+deliberate: between uploading a file and saving a project from it, the upload is
+the only copy, and quietly deleting someone's data to reclaim disk is a worse
+failure than a folder that grows.
+
+```bash
+curl -H "X-CSG-Token: $CSG_TOKEN" localhost:8577/api/uploads          # how much
+curl -X DELETE -H "X-CSG-Token: $CSG_TOKEN" localhost:8577/api/uploads  # clear
+```
+
+Saved projects keep their own copies of the cells, so clearing uploads does not
+affect them.
