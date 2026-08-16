@@ -1,0 +1,206 @@
+# Build the Windows installer and cut the GitHub Release (#124).
+#
+# Scope: this workflow owns the two things nothing else does — the Windows
+# installer (which needs a Windows runner and Inno Setup) and the GitHub Release
+# itself. It deliberately does **not** publish to PyPI or GHCR; publish.yml and
+# container.yml already do that on the same tag, they are verified, and
+# duplicating them here would risk double-publishing for no gain.
+#
+# The rule from #117, and the reason this is not just a build: a bundle that
+# compiles and then cannot load a cell is not a passing build. The installer is
+# exercised over HTTP before it is allowed anywhere near a release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.1.0)"
+        required: true
+        type: string
+      draft:
+        description: "Create the release as a draft"
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    name: windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync build environment
+        run: uv sync --extra build --extra desktop --extra export
+
+      - name: Freeze the app
+        run: uv run pyinstaller packaging/cellpy-simple-gui.spec --noconfirm
+
+      # The console twin, because a windowed exe has no stdout for the test to
+      # read a token from. Same 15 checks the container and PyPI builds face.
+      - name: Smoke-test the frozen app
+        run: uv run python packaging/smoke_test.py dist/cellpy-simple-gui/cellpy-simple-gui-console.exe
+
+      - name: Compile the installer
+        shell: pwsh
+        run: |
+          # Inno Setup ships on windows-latest (6.7.1 at time of writing), but
+          # runner images change; look, then fall back rather than assume.
+          $iscc = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            Write-Host "Inno Setup not on the runner; installing it."
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          $version = "${{ inputs.tag || github.ref_name }}" -replace '^v', ''
+          Write-Host "ISCC: $iscc  version: $version"
+          & $iscc "/DAppVersion=$version" "packaging\installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/installer/*.exe
+          if-no-files-found: error
+
+  python-dists:
+    name: sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Build
+        run: uv build --out-dir dist
+
+      # Same assertion publish.yml makes: a wheel that lost its web assets
+      # installs perfectly and then serves a blank page.
+      - name: Check the wheel carries the web assets
+        run: |
+          python - <<'PY'
+          import glob, sys, zipfile
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          need = [
+              "cellpy_simple_gui/web/templates/index.html",
+              "cellpy_simple_gui/web/static/js/app.js",
+              "cellpy_simple_gui/web/static/js/plotly.min.js",
+              "cellpy_simple_gui/web/static/css/app.css",
+          ]
+          missing = [n for n in need if n not in names]
+          if missing:
+              sys.exit(f"wheel is missing web assets: {missing}")
+          print(f"{wheel}: {len(names)} entries, web assets present")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dists
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: github release
+    needs: [windows-installer, python-dists]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect and checksum
+        id: collect
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f \( -name '*.exe' -o -name '*.whl' -o -name '*.tar.gz' \) \
+            -exec cp {} release/ \;
+          cd release
+          sha256sum * > SHA256SUMS
+          echo "--- release payload ---"
+          ls -la
+          cat SHA256SUMS
+
+      - name: Write release notes
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          installer="$(cd release && ls *.exe)"
+          cat > notes.md <<EOF
+          ## Install
+
+          **Python (smallest, needs Python ≥ 3.13):**
+
+          \`\`\`bash
+          uv tool install "cellpy-simple-gui[desktop]"
+          cellpy-simple-gui
+          \`\`\`
+
+          **Windows, no Python needed:** download \`${installer}\` below.
+          It installs per-user — no admin prompt — and uninstalls cleanly without
+          touching your projects. It is **unsigned**, so SmartScreen will warn on
+          first run: *More info → Run anyway*. See
+          [docs/windows-installer.md](https://github.com/cellpy/cellpy-simple-gui/blob/main/docs/windows-installer.md).
+
+          **Container (one instance per user):**
+
+          \`\`\`bash
+          docker run -p 127.0.0.1:8577:8577 -v cellpy-data:/data \\
+            ghcr.io/cellpy/cellpy-simple-gui:${version}
+          \`\`\`
+
+          The per-launch token is **not** an authentication system — see
+          [docs/deployment.md](https://github.com/cellpy/cellpy-simple-gui/blob/main/docs/deployment.md).
+
+          ## Verified
+
+          Every artifact here was exercised over HTTP before release — started,
+          a demo cell loaded, a figure rendered, a project saved and reopened.
+          Checksums in \`SHA256SUMS\`.
+          EOF
+          echo "--- notes ---"; cat notes.md
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          DRAFT: ${{ inputs.draft && '--draft' || '' }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" release/* \
+              --title "cellpy simple GUI ${TAG#v}" \
+              --notes-file notes.md $DRAFT
+          fi
+          gh release view "$TAG" --json isDraft,assets \
+            -q '"draft=\(.isDraft)", (.assets[] | "  \(.name)  \(.size) bytes")'
