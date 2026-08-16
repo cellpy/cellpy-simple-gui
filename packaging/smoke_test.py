@@ -42,12 +42,38 @@ URL_RE = re.compile(r"http://[\d.]+:(\d+)/\?token=([A-Za-z0-9_-]+)")
 
 failures: list[str] = []
 passes: list[str] = []
+skips: list[str] = []
 
 
 def check(name: str, ok: bool, detail: str = "") -> bool:
     (passes if ok else failures).append(name)
     print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  — ' + detail if detail else ''}")
     return ok
+
+
+def skip(name: str, detail: str) -> None:
+    """A capability this machine genuinely lacks, as opposed to a broken build.
+
+    Deliberately not a PASS. The whole lesson of this file is that a green tick
+    which does not distinguish "it worked" from "it could not be tried" is worse
+    than a red one — so skips are printed, counted and listed at the end. They
+    just do not fail the run, because a release must not be blocked by a vendor
+    driver we do not ship.
+    """
+    skips.append(name)
+    print(f"  SKIP  {name}  — {detail}")
+
+
+#: Reading Arbin `.res` on Windows goes through the Microsoft Access ODBC
+#: driver, which is a separate Microsoft download and is *not* present on a
+#: stock Windows install — only where Office or the Access Database Engine
+#: redistributable put it. Measured on a GitHub windows-latest runner:
+#:
+#:   (pyodbc.InterfaceError) ('IM002', '[Microsoft][ODBC Driver Manager]
+#:    Data source name not found and no default driver specified')
+#:
+#: Matched narrowly: any *other* Arbin failure is still a failure.
+_MISSING_ODBC = ("im002", "odbc driver manager", "no default driver")
 
 
 class Client:
@@ -187,10 +213,18 @@ def run_checks(app: Client) -> None:
         st = app.job(app.call("/api/ingest/example", {"kind": kind}))
         result = st.get("result") or {}
         added, errors = result.get("added") or [], result.get("errors") or []
+        joined = "; ".join(errors)
+        name = f"imports a real raw file — {label}"
+
+        if kind == "arbin" and any(m in joined.lower() for m in _MISSING_ODBC):
+            skip(name, "no Access ODBC driver on this machine — see "
+                       "docs/windows-installer.md")
+            continue
+
         check(
-            f"imports a real raw file — {label}",
+            name,
             st.get("status") == "done" and bool(added) and not errors,
-            "; ".join(errors)[:160] or f"added {len(added)}",
+            joined[:160] or f"added {len(added)}",
         )
 
     # --- cells, collection, figure ------------------------------------------ #
@@ -286,9 +320,14 @@ def main(argv: list[str]) -> int:
     finally:
         app.close()
 
-    print(f"\n{len(passes)} passed, {len(failures)} failed")
+    tally = f"\n{len(passes)} passed, {len(failures)} failed"
+    if skips:
+        tally += f", {len(skips)} skipped"
+    print(tally)
     if failures:
         print("failed: " + ", ".join(failures))
+    if skips:
+        print("skipped: " + ", ".join(skips))
     return 1 if failures else 0
 
 
