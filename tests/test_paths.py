@@ -112,6 +112,28 @@ def test_served_mode_refuses_drive_and_unc_paths(served):
             paths.resolve_input(hostile)
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows path shapes")
+def test_another_volume_is_refused_without_touching_the_filesystem(served, monkeypatch):
+    """The refusal above must come from the path's shape, not from a lookup.
+
+    ``Path.resolve()`` on ``\\\\host\\share`` sends Windows off to find *host*;
+    on a machine with a DNS suffix list that is a two-minute wait before the
+    same refusal. Worse, it makes the boundary depend on what a name server
+    says. So: no filesystem call, no glob, for a path on another volume.
+    """
+    paths.sandbox_root()  # warm the settings cache, which resolves data_dir once
+
+    def no_io(*args, **kwargs):
+        raise AssertionError("another volume must be refused before any I/O")
+
+    monkeypatch.setattr(Path, "resolve", no_io)
+    monkeypatch.setattr(paths._glob, "glob", no_io)
+
+    with pytest.raises(paths.PathNotAllowed):
+        paths.resolve_input(r"\\somehost\share\file.txt")
+    assert paths.expand_glob(r"\\somehost\share\*.cellpy") == []
+
+
 def test_served_mode_refuses_a_symlink_pointing_out(served, tmp_path):
     """The case string-matching misses: the path looks inside, the target isn't."""
     outside = tmp_path / "outside.txt"

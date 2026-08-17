@@ -60,12 +60,42 @@ def _contains(root: Path, candidate: Path) -> bool:
         return False
 
 
+def _same_volume(root: Path, candidate: Path) -> bool:
+    """Do these two paths sit on the same drive letter or UNC share?
+
+    Anything answering *no* is outside the sandbox by construction — nothing on
+    ``D:\\`` or ``\\\\host\\share`` can be under a root on ``C:\\`` — and that is
+    decidable from the string alone. Deciding it first is what keeps the check
+    off the network: ``Path.resolve()`` on ``\\\\host\\share`` asks Windows to
+    find *host*, which on a domain-joined box walks the DNS suffix list and
+    NetBIOS before giving up, minutes later. A boundary that waits on a name
+    server is also a boundary a name server could answer differently, so the
+    string test is the stronger one as well as the quicker.
+
+    On POSIX both drives are ``""`` and this is always true, which is right:
+    there is one volume namespace and ``resolve()`` never leaves it.
+    """
+    return os.path.normcase(candidate.drive) == os.path.normcase(root.drive)
+
+
+def _refused(text: str, root: Path) -> PathNotAllowed:
+    """The one refusal, whichever check reached it — the caller sees no hint
+    of *how* far the path got before it was turned down."""
+    log.warning("refused path outside %s: %s", root, text)
+    return PathNotAllowed(
+        f"“{text}” is outside the data directory. This instance is served "
+        "over a network, so it only reads and writes inside its own data "
+        "directory."
+    )
+
+
 def resolve_input(raw: str | os.PathLike[str]) -> Path:
     """Resolve a user-supplied path, refusing anything outside the sandbox.
 
     Resolution happens *before* the check, and follows symlinks, so ``..``
     segments and a link pointing out of the tree are both caught by the same
-    comparison rather than by pattern-matching the string.
+    comparison rather than by pattern-matching the string. The one thing
+    settled ahead of resolution is the volume — see ``_same_volume``.
     """
     root = sandbox_root()
     text = str(raw).strip().strip('"')
@@ -77,18 +107,18 @@ def resolve_input(raw: str | os.PathLike[str]) -> Path:
         return candidate
 
     # A relative path is relative to the sandbox, not to the process cwd —
-    # which on a server is an implementation detail nobody typed.
+    # which on a server is an implementation detail nobody typed. Do this
+    # first: it gives a relative path the root's volume, so the test below
+    # only ever rejects a path that named another volume itself.
     if not candidate.is_absolute():
         candidate = root / candidate
 
+    if not _same_volume(root, candidate):
+        raise _refused(text, root)
+
     resolved = candidate.resolve()
     if not _contains(root, resolved):
-        log.warning("refused path outside %s: %s", root, text)
-        raise PathNotAllowed(
-            f"“{text}” is outside the data directory. This instance is served "
-            "over a network, so it only reads and writes inside its own data "
-            "directory."
-        )
+        raise _refused(text, root)
     return resolved
 
 
@@ -101,8 +131,15 @@ def expand_glob(pattern: str) -> list[str]:
     """
     root = sandbox_root()
     text = pattern.strip().strip('"')
-    if root is not None and not Path(text).expanduser().is_absolute():
-        text = str(root / text)
+    if root is not None:
+        expanded = Path(text).expanduser()
+        if not expanded.is_absolute():
+            text = str(root / expanded)
+        elif not _same_volume(root, expanded):
+            # Every hit would be dropped below anyway; returning now is the
+            # same answer without asking the network to enumerate a share.
+            log.warning("glob on another volume dropped: %s", text)
+            return []
 
     hits = [p for p in _glob.glob(text, recursive=True) if os.path.isfile(p)]
     if root is None:
