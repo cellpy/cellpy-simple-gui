@@ -111,8 +111,10 @@ this base image:
   seemed to close immediately after starting` (slim lacks Chrome's shared libs)
 
 So a `WITH_EXPORT=1` build arg would have produced a broken image. There isn't
-one; [#135](https://github.com/cellpy/cellpy-simple-gui/issues/135) tracks doing
-it properly. `core/export.py` now distinguishes "kaleido missing" from "kaleido
+one, and [#135](https://github.com/cellpy/cellpy-simple-gui/issues/135) is
+**wontfix** — Chrome and its shared libraries are a lot of image for something
+the Plotly toolbar already does client-side.
+`core/export.py` now distinguishes "kaleido missing" from "kaleido
 present, browser missing", so the 503 stops giving container users advice that
 cannot help them.
 
