@@ -173,6 +173,14 @@ extracting it from cellpy after the fact is not.
 The prototype is small enough to be a starting point for that package or to be
 thrown away, which is what a prototype is for.
 
+## Proposed upstream
+
+Posted to [cellpy#840](https://github.com/jepegit/cellpy/issues/840#issuecomment-5314927631)
+on 2026-08-17 — the tool surface, both findings, and the recommendation above,
+offered rather than prescribed. #840 was an empty placeholder ("MCP integration
+— any thoughts?") with a v2.3 milestone, so a concrete starting point was the
+useful thing to contribute.
+
 ## Reproducing
 
 ```bash
