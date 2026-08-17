@@ -85,6 +85,26 @@ print(curves.data.columns, "·", curves.data.height, "points")
 not have to slice the frame afterwards. `IcaOptions` carries `voltage_resolution`
 and `capacity_resolution` instead.
 
+**The differential collectors use a different column vocabulary.** Worth printing
+once rather than assuming:
+
+```python
+from cellpy.collect import collect_ica
+from cellpy.collect.options import IcaOptions
+
+ica = collect_ica(batch, options=IcaOptions(cycles=(1, 5)))
+print(ica.data.columns)
+```
+
+```text
+['cycle', 'direction', 'voltage', 'capacity', 'dqdv', 'cell', 'group', 'sub_group']
+```
+
+Note **`cycle`, not `cycle_num`** — `collect_summaries` and `collect_cycles` use
+`cycle_num`, and `collect_ica` / `collect_dva` do not. Code that filters an ICA
+frame by `cycle_num` after reading the section above will not find the column.
+The extra `direction` column carries both half-cycles.
+
 > **`collect_*` fixes a bug you would otherwise write.** The collectors isolate
 > cycles per cell, so asking for "cycles 1, 5, 10" across cells with different
 > cycle counts does not narrow every cell to the intersection. That is exactly
