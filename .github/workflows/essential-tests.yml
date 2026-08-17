@@ -73,7 +73,9 @@ jobs:
 
       - name: Sync dependencies
         if: steps.changed.outputs.code == 'true'
-        run: uv sync --extra dev
+        # --extra mcp: the #128 prototype's tests skip without it, and a test
+        # that only ever skips in CI is not a test.
+        run: uv sync --extra dev --extra mcp
 
       - name: Run essential tests
         if: steps.changed.outputs.code == 'true'
@@ -106,4 +108,4 @@ jobs:
           enable-cache: true
 
       - name: Run essential tests on the newest supported Python
-        run: uv run --python 3.14 --extra dev pytest -m essential
+        run: uv run --python 3.14 --extra dev --extra mcp pytest -m essential
