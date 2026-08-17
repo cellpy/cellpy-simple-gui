@@ -67,10 +67,20 @@ with no check behind them. Fixed by asserting the *behaviour* separately
 (`test_the_upstream_bugs_the_guides_describe_are_still_bugs`), version-aware, so
 an upstream fix now fails CI instead of quietly making the prose wrong.
 
-**3. A new cellpy bug.** A dQ/dV **film** renders only the charge half-cycle —
-6904 collected rows, 2985 plotted, exactly the charge rows — with no warning and
-no `direction` field on `IcaOptions`. The line path honours `direction`; the film
-path does not. Confirmed by measurement, recorded as §35.
+**3. A finding that turned out not to be a bug — and nearly got filed as one.**
+A said the dQ/dV film was dropping data: 2328 rows collected, 891 plotted,
+exactly the charge rows. The point count was right and the diagnosis was wrong.
+Both renderers honour `direction`; it simply defaults to `charge`, and it is an
+argument to `plot()` rather than a field on `IcaOptions` — so reading the options
+dataclass suggests there is no control. We repeated the mistake, wrote it up as
+"the film silently drops the discharge half-cycle", and only caught it by running
+the discriminating case (`direction="both"` → 2328 for the film *and* the lines)
+while preparing the upstream issue.
+
+The lesson is about the shape of the evidence: a measurement that matches your
+hypothesis is not a test of it. 891-of-2328 is equally consistent with "the film
+drops data" and "the default is charge", and only the second call separates them.
+Recorded as §35 with the correction kept visible.
 
 **4. The control found two real gaps too:** a legacy `method="film"` spelling that
 still works and that `ica_plotter`'s own docstring advertises, and `histscale`
@@ -98,5 +108,10 @@ the one that would have told it #874 was fixed.
 - Keep the control. It is what converts "it worked" into a measurement.
 - Ask for the failure report explicitly ("be blunt; this judges the docs, not
   you"). Both useful findings came from that section, not from the task.
-- Verify every claim in both reports before acting on it. Two of eleven were
-  wrong.
+- Verify every claim in both reports before acting on it. Three of eleven were
+  wrong — including one we believed, wrote into the guides, and were a few
+  minutes from filing upstream.
+- Before filing anything upstream, **re-run the repro on the latest release**.
+  §34 still reproduced on 2.1.3 and was filed
+  ([cellpy#939](https://github.com/jepegit/cellpy/issues/939)); §35 dissolved
+  under the same check.

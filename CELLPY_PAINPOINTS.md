@@ -111,8 +111,8 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | forwards `x_unit` |
 > | 18 | Summary y-labels omit units; CE / C-rate have no unit hooks | passes `y_label_mapper` |
 > | 20 | Summary facet order ignores collect column order on group-avg | passes `category_orders` |
-> | 34 | `from_cells` silently drops values that are not cells | app validates the mapping before building the batch |
-> | 35 | A dQ/dV **film** draws only the charge half-cycle, silently | documented; no workaround (the line path honours `direction`, the film path does not) |
+> | 34 | `from_cells` silently drops values that are not cells — [#939](https://github.com/jepegit/cellpy/issues/939) | app validates the mapping before building the batch |
+> | 35 | `direction` lives on `plot()`, not `IcaOptions`, and defaults to charge | documented in the guides; **not a defect** — see the correction in §35 |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -932,35 +932,48 @@ meant.
 
 **Workaround (app):** validate the mapping before building the batch.
 
-### 35. 🟠 A dQ/dV film silently draws only the charge half-cycle *(open, unfiled)*
+### 35. 🟢 `direction` is a plot argument, not a collect option — and defaults to charge *(not a bug; documentation)*
+
+> **Corrected.** This was first written up as "the film silently drops the
+> discharge half-cycle", which is **wrong**, and it was nearly filed upstream as
+> a bug on that basis. Checking the discriminating case before filing is what
+> caught it. The record of the mistake is kept because the mistake is the useful
+> part.
 
 Found by the cold-context agent test for
 [#127](https://github.com/cellpy/cellpy-simple-gui/issues/127) — an agent given
 only the documentation, asked for "dQ/dV across these cells as a density film".
-It produced the right figure and then noticed the point count did not add up.
+It produced the right figure, noticed the point count did not add up, and
+reported that the film was dropping data. So did we, until the test below.
 
-`collect_ica` returns both half-cycles in a `direction` column. The film
-renderer draws `charge` only:
+`collect_ica` keeps both half-cycles in a `direction` column, and the plotters
+draw `charge` unless told otherwise. **Both renderers honour `direction`
+identically** (cellpy 2.1.3, demo cell, cycles 1/5/10 — collected 2328 rows,
+charge 891 / discharge 1437):
 
-```
-collected rows: 6904   (charge 2985 · discharge 3919)
-plotted points: 2985   -> exactly the charge rows
-```
+| `plot(...)` | points |
+|---|---|
+| `kind="film"` (default direction) | 891 |
+| `kind="film", direction="both"` | 2328 |
+| `kind="film", direction="discharge"` | 1437 |
+| lines (default direction) | 891 |
+| `direction="both"` | 2328 |
 
-No warning, no annotation, and `IcaOptions(cycles, voltage_resolution,
-capacity_resolution, transforms)` has no `direction` field, so there is nothing
-to set and no way to discover the behaviour short of counting points.
+So there is no rendering bug. What is real is a **discoverability** problem, and
+it is small: `direction` is an argument to `plot()`, not a field on
+`IcaOptions(cycles, voltage_resolution, capacity_resolution, transforms)`.
+Someone reading the options dataclass to find out how to control direction finds
+nothing, which reads as "there is no control" rather than "look one layer up".
+Combined with a default of `charge`, a chart of "the dQ/dV collection" shows 38%
+of the collected rows without comment.
 
-The line renderer does not do this — `ica_plotter` takes a `direction` and
-`"both"` overlays them (§16 / [#821](https://github.com/jepegit/cellpy/issues/821)).
-So the same collection plots all of the data as lines and half of it as a film,
-depending on `kind=`.
+**Wish:** mention `direction` in the collect-side docs, or note the default where
+`IcaOptions` is documented. Not filed — it is a doc note, not a defect, and the
+knob it concerns already works
+([#821](https://github.com/jepegit/cellpy/issues/821)).
 
-Same family as §28, §29 and §34: the output is *plausible*. A density film of one
-half-cycle looks exactly like a density film.
-
-**Wish:** honour `direction` on the film path as the line path does, or annotate
-the figure. Failing both, document it.
+**What we changed instead:** the guides and the skill now say that `direction`
+lives on `plot()` and defaults to charge.
 
 ---
 

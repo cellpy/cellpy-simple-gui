@@ -267,35 +267,50 @@ print("film:", {t.type for t in film.data}, "· per_cell:", {t.type for t in lin
 film: {'histogram2d'} · per_cell: {'scattergl'}
 ```
 
-### A film of dQ/dV drops half your data
+### `direction` is a plot argument, and it defaults to charge
 
-Films work on an ICA collection too — and there the axes are voltage × cycle
-with dQ/dV as the density weight. But the renderer draws **only the charge
-half-cycle**, silently:
+Films work on an ICA collection too — the axes are then voltage × cycle with
+dQ/dV as the density weight. But **a dQ/dV plot shows one half-cycle by
+default**, and the knob that changes it is not where you would look for it:
 
 ```python
 from cellpy.collect import collect_ica
 from cellpy.collect.options import IcaOptions
 
 ica = collect_ica(batch, options=IcaOptions(cycles=(1, 5, 10)))
-by_direction = ica.data.group_by("direction").len().sort("direction")
-plotted = sum(
-    len(t.x) for t in ica.plot(kind="film", layout="per_cell").data if t.x is not None
-)
-print(dict(by_direction.iter_rows()), "collected ->", plotted, "plotted")
+print("collected:", dict(ica.data.group_by("direction").len().sort("direction").iter_rows()))
+
+def points(**kwargs):
+    figure = ica.plot(**kwargs)
+    return sum(len(t.x) for t in figure.data if t.x is not None)
+
+
+for direction in (None, "both", "discharge"):
+    kwargs = {"kind": "film", "layout": "per_cell"}
+    if direction:
+        kwargs["direction"] = direction
+    print(f"  direction={direction!s:<9} -> {points(**kwargs)} points")
 ```
 
 ```text
-{'charge': 891, 'discharge': 1437} collected -> 891 plotted
+collected: {'charge': 891, 'discharge': 1437}
+  direction=None      -> 891 points
+  direction=both      -> 2328 points
+  direction=discharge -> 1437 points
 ```
 
-`IcaOptions` has no `direction` field, so there is nothing to set and nothing in
-the figure says a word about it. If the discharge branch matters to your
-analysis, do not use a film for it — or filter the frame yourself and say so on
-the chart. *(Filed as §35 in [CELLPY_PAINPOINTS.md](../../CELLPY_PAINPOINTS.md).)*
+`collect_ica` keeps both half-cycles; the plotters draw `charge` unless told
+otherwise, and that holds for the line renderer as much as the film. So a chart
+of "the dQ/dV collection" is showing 38% of the rows you collected, and nothing
+on the figure says so.
 
-One knob worth knowing, findable only by reading the source: `histscale`
-(`"abs"`, `"abs-log"`, `"norm"`, `"hist-eq"`) sets the colour scaling. dQ/dV is
+The reason this is easy to miss is that **`direction` is not on `IcaOptions`** —
+it is an argument to `plot()`. Reading the options dataclass to find out how to
+control direction turns up nothing, which reads like "there is no control"
+rather than "look one layer up". Pass `direction="both"` when you mean both.
+
+One more knob, findable only by reading the source: `histscale` (`"abs"`,
+`"abs-log"`, `"norm"`, `"hist-eq"`) sets the film's colour scaling. dQ/dV is
 signed and heavy-tailed, so the unscaled default is rarely what you want.
 
 ## Spread plots lose their hover
