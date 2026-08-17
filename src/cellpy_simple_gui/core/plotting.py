@@ -107,7 +107,10 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         color_scheme=spec.color_scheme,
         x_range=spec.x_range,
         y_range=spec.y_range,
-        **collect.curve_layout_kwargs(spec.layout),
+        # Straight through: cellpy ≥2.1.3 accepts layout="film" as an alias for
+        # the film *kind* and raises on an unknown layout (#874). Before that it
+        # silently drew lines, and this line was a translation shim.
+        layout=spec.layout,
     )
     if spec.curve_kind in ("dqdv", "dvdq"):
         # Differentials come from collect_ica / collect_dva across the same

@@ -5,7 +5,7 @@
 Two audiences share these documents. Everything under `docs/guides/` is
 organised by what someone is trying to do rather than by module, and every
 Python block in those guides is executed in CI, so the code in them works
-against the cellpy version they are written for (2.1.2).
+against the cellpy version they are written for (2.1.3).
 
 If you are writing code that uses cellpy, the shortest useful path is:
 `docs/api-reference.md` for the calls, `examples/starter/app.py` for a working

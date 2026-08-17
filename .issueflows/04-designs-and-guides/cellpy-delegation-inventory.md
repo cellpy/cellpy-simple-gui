@@ -1,11 +1,12 @@
 # cellpy delegation inventory (issue #52)
 
-Against **cellpy 2.1.2** (post7 → 2.1.2a2 → a3 → a4 → 2.1.2). Goal: prefer cellpy
+Against **cellpy 2.1.3** (post7 → 2.1.2a2 → a3 → a4 → 2.1.2 → 2.1.3). Goal: prefer cellpy
 APIs; keep only app chrome that cellpy still does not own.
 
-As of 2.1.2 every issue from the first four rounds is closed. One workaround
-remains, and it is newer than the upgrade: the `film` layout translation
-([#874](https://github.com/jepegit/cellpy/issues/874)).
+As of **2.1.3** every issue from the first five rounds is closed. One workaround
+remains: the `spread_plot` hover rebuild
+([#875](https://github.com/jepegit/cellpy/issues/875)). The `film` layout
+translation went away with #874 in 2.1.3.
 
 ## Release-gating note (resolved for #816/#818/#819)
 
@@ -143,7 +144,7 @@ stride, so the label stays correct whatever downsampling cellpy uses.
 | Voltage curves | **Delegated** — `collect_cycles` + `family_kind="cycles"` |
 | dQ/dV, dV/dQ across many cells | **Delegated** — `collect_ica` / `collect_dva` take the whole record list, so the Cycles pane reuses the Cell-explorer collectors unchanged |
 | Film (density) rendering | **Delegated** — cellpy's `kind="film"` (`histogram2d`) |
-| `film` as a *layout* | **App-owned (translation)** — `curve_layout_kwargs()` maps the app's `layout="film"` to `kind="film", layout="per_cell"`. cellpy accepts an unknown `layout` silently and draws lines ([#874](https://github.com/jepegit/cellpy/issues/874)); remove this when it validates or aliases |
+| `film` as a *layout* | **Delegated (2.1.3)** — cellpy accepts `layout="film"` as an alias and raises on an unknown layout ([#874](https://github.com/jepegit/cellpy/issues/874)). `curve_layout_kwargs()` is deleted and `spec.layout` passes straight through ([#154](https://github.com/cellpy/cellpy-simple-gui/issues/154)) |
 | Differential export | **App-owned (routing)** — `cycles_export` picks the collector matching `curve_kind` so the CSV matches the chart, then reuses `select_ica_direction` |
 
 ## Hover

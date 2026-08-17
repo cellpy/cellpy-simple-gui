@@ -4,7 +4,7 @@ The calls that matter when building on cellpy, with real signatures and
 one line each of what a signature cannot tell you — so you do not have to
 grep `site-packages` to find out that `family.summary_options(hdr)` exists.
 
-Generated from the installed **cellpy 2.1.2** by
+Generated from the installed **cellpy 2.1.3** by
 [`tools/gen_api_reference.py`](../tools/gen_api_reference.py); do not edit by
 hand. The prose is curated, the signatures are introspected, and
 `tests/test_api_reference.py` fails if this file drifts from the installed
