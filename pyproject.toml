@@ -61,6 +61,7 @@ desktop = ["pywebview>=6.0"]
 export = ["kaleido>=0.1,<1.4"]        # server-side static image export (optional)
 build = ["pyinstaller>=6.10"]         # freeze a Windows app (see packaging/)
 dev = ["pytest>=8", "httpx>=0.27"]
+mcp = ["mcp>=2.0"]                    # the MCP server prototype in examples/mcp/
 e2e = ["playwright>=1.40"]            # browser GUI smoke tests (optional; see tests/test_gui_playwright.py)
 
 [project.scripts]

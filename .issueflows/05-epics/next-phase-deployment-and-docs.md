@@ -203,7 +203,7 @@ the guides. The test of this layer is empirical: give an agent a cold context
 and the docs, and see whether it can build a working plot without reading cellpy
 source.
 
-**M3.4 · MCP design + prototype for [cellpy#840](https://github.com/jepegit/cellpy/issues/840).**
+**M3.4 · MCP design + prototype for [cellpy#840](https://github.com/jepegit/cellpy/issues/840).** — *done (#128)*
 Scoped, not shipped. Design doc covering the tool surface (load, collect, plot,
 export, describe-registry), and the two hard parts: **state** — an MCP server is
 long-lived and multi-client, which walks straight into the process-global config
