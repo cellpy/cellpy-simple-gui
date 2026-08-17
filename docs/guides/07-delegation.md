@@ -9,7 +9,7 @@ cellpy already owned, or would own two releases later.
 It is distilled from
 [`cellpy-delegation-inventory.md`](../../.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md),
 which is the same document kept live for one specific app. Written against
-**cellpy 2.1.2**.
+**cellpy 2.1.3**.
 
 ## cellpy owns these — do not reimplement them
 
@@ -70,8 +70,14 @@ is the difference between a thin app and a thick one.
 
 | # | What | Workaround |
 |---|---|---|
-| [#874](https://github.com/jepegit/cellpy/issues/874) | an unknown `layout=` is accepted silently, so `layout="film"` draws a plausible line plot | translate `film` to `kind="film"`, and assert on the trace type ([guide 3](03-plotting.md)) |
 | [#875](https://github.com/jepegit/cellpy/issues/875) | `spread_plot` traces carry no `hovertemplate` at all | rebuild hover from the figure; `hoverinfo="skip"` on the band edges |
+
+One came off this list in the writing of it: [#874](https://github.com/jepegit/cellpy/issues/874)
+(an unknown `layout=` accepted silently) closed in 2.1.3, and the app's
+translation shim went with it. What did *not* change was the test — it asserted
+the resulting trace type rather than the shim's return value, so it kept meaning
+something when the responsibility moved upstream. That is the whole of habit 3
+below, and it is worth copying.
 
 Plus three unfiled frictions where the app simply forwards a knob rather than
 working around anything: summary y-labels omit units, the cycles plotter ignores

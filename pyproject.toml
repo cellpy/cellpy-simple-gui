@@ -31,7 +31,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "cellpy>=2.1.2",
+    "cellpy>=2.1.3",
     "tables",                 # read legacy .h5 cellpy files
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

@@ -101,8 +101,13 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 >
 > | # | Item | Upstream | App workaround |
 > |---|---|---|---|
-> | 29 | An unknown `layout=` is accepted silently — `layout="film"` draws a line plot that looks fine | [#874](https://github.com/jepegit/cellpy/issues/874) — **fixed in 2.1.3** | `curve_layout_kwargs()`; dead code once the pin moves off 2.1.2 |
 > | 30 | `spread_plot` traces have no hovertemplate — ticking Spread drops all hover detail | [#875](https://github.com/jepegit/cellpy/issues/875) | `_add_spread_hover()` rebuilds it from the figure |
+>
+> §29 ([#874](https://github.com/jepegit/cellpy/issues/874)) left this list in
+> 2.1.3: `layout="film"` is now an alias and unknown layouts raise, so
+> `curve_layout_kwargs()` was deleted
+> ([#154](https://github.com/cellpy/cellpy-simple-gui/issues/154)). **28 of 30
+> filed items now closed**, and one workaround remains.
 >
 > ### Open but unfiled (app forwards a knob instead)
 >
@@ -715,8 +720,11 @@ lacks these columns" is the right message, which it was not before.
 > and an unknown layout raises with the fix in the message:
 > `ValueError: Unknown layout='totally_bogus'; expected one of: per_cell,
 > per_cycle, summary (note: 'film' is a kind=, not a layout= …)`.
-> Verified in a clean 2.1.3 environment. The app's `curve_layout_kwargs()`
-> translation is now dead code once the pin moves.
+> Verified in a clean 2.1.3 environment, then again in the project's own after
+> the upgrade. The app's `curve_layout_kwargs()` translation is **deleted**
+> ([#154](https://github.com/cellpy/cellpy-simple-gui/issues/154)); the test
+> that guarded it survives unchanged, because it asserted the resulting trace
+> type rather than the shim's return value.
 >
 > Found by the cold-context agent test for
 > [#127](https://github.com/cellpy/cellpy-simple-gui/issues/127): its `uv run

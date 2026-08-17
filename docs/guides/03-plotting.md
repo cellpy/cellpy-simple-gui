@@ -210,7 +210,7 @@ print("kind='film'  ->", resolve(kind="film"))
 ```
 
 ```text
-cellpy 2.1.2
+cellpy 2.1.3
 kind='film'  -> ('per_cell', 'film', 'film')
 ```
 
@@ -244,7 +244,10 @@ summary (note: 'film' is a kind=, not a layout= — use kind='film' or layout='f
 ```
 
 If you carry a `film` → `kind="film"` translation shim for older cellpy, it is
-dead code on 2.1.3 — delete it.
+dead code on 2.1.3 — delete it. This app did
+([#154](https://github.com/cellpy/cellpy-simple-gui/issues/154)); the test that
+guarded the shim survived unchanged, because it asserted the *trace type* rather
+than the shim's return value.
 
 There is also a **legacy third spelling**, `method="film"`, which still works.
 Prefer `kind=`: `ica_plotter`'s own docstring advertises the legacy `method`

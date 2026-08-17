@@ -3,7 +3,7 @@
 Seven guides, organised by what you are trying to do rather than by module. The
 module layout is discoverable from the source; the task mapping is not.
 
-They are written against **cellpy 2.1.2** from building
+They are written against **cellpy 2.1.3** from building
 [cellpy-simple-gui](../../README.md) on it — 29 issues filed upstream, 25 closed.
 Where a guide names a trap, it is one we walked into, and the evidence is the
 measurement rather than an opinion.

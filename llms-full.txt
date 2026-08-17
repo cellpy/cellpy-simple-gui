@@ -513,7 +513,7 @@ FILE: docs/guides/README.md
 Seven guides, organised by what you are trying to do rather than by module. The
 module layout is discoverable from the source; the task mapping is not.
 
-They are written against **cellpy 2.1.2** from building
+They are written against **cellpy 2.1.3** from building
 [cellpy-simple-gui](../../README.md) on it — 29 issues filed upstream, 25 closed.
 Where a guide names a trap, it is one we walked into, and the evidence is the
 measurement rather than an opinion.
@@ -1371,7 +1371,7 @@ print("kind='film'  ->", resolve(kind="film"))
 ```
 
 ```text
-cellpy 2.1.2
+cellpy 2.1.3
 kind='film'  -> ('per_cell', 'film', 'film')
 ```
 
@@ -1405,7 +1405,10 @@ summary (note: 'film' is a kind=, not a layout= — use kind='film' or layout='f
 ```
 
 If you carry a `film` → `kind="film"` translation shim for older cellpy, it is
-dead code on 2.1.3 — delete it.
+dead code on 2.1.3 — delete it. This app did
+([#154](https://github.com/cellpy/cellpy-simple-gui/issues/154)); the test that
+guarded the shim survived unchanged, because it asserted the *trace type* rather
+than the shim's return value.
 
 There is also a **legacy third spelling**, `method="film"`, which still works.
 Prefer `kind=`: `ica_plotter`'s own docstring advertises the legacy `method`
@@ -2283,7 +2286,7 @@ cellpy already owned, or would own two releases later.
 It is distilled from
 [`cellpy-delegation-inventory.md`](../../.issueflows/04-designs-and-guides/cellpy-delegation-inventory.md),
 which is the same document kept live for one specific app. Written against
-**cellpy 2.1.2**.
+**cellpy 2.1.3**.
 
 ## cellpy owns these — do not reimplement them
 
@@ -2344,8 +2347,14 @@ is the difference between a thin app and a thick one.
 
 | # | What | Workaround |
 |---|---|---|
-| [#874](https://github.com/jepegit/cellpy/issues/874) | an unknown `layout=` is accepted silently, so `layout="film"` draws a plausible line plot | translate `film` to `kind="film"`, and assert on the trace type ([guide 3](03-plotting.md)) |
 | [#875](https://github.com/jepegit/cellpy/issues/875) | `spread_plot` traces carry no `hovertemplate` at all | rebuild hover from the figure; `hoverinfo="skip"` on the band edges |
+
+One came off this list in the writing of it: [#874](https://github.com/jepegit/cellpy/issues/874)
+(an unknown `layout=` accepted silently) closed in 2.1.3, and the app's
+translation shim went with it. What did *not* change was the test — it asserted
+the resulting trace type rather than the shim's return value, so it kept meaning
+something when the responsibility moved upstream. That is the whole of habit 3
+below, and it is worth copying.
 
 Plus three unfiled frictions where the app simply forwards a knob rather than
 working around anything: summary y-labels omit units, the cycles plotter ignores
@@ -2436,7 +2445,7 @@ The calls that matter when building on cellpy, with real signatures and
 one line each of what a signature cannot tell you — so you do not have to
 grep `site-packages` to find out that `family.summary_options(hdr)` exists.
 
-Generated from the installed **cellpy 2.1.2** by
+Generated from the installed **cellpy 2.1.3** by
 [`tools/gen_api_reference.py`](../tools/gen_api_reference.py); do not edit by
 hand. The prose is curated, the signatures are introspected, and
 `tests/test_api_reference.py` fails if this file drifts from the installed
@@ -2852,7 +2861,7 @@ FILE: examples/starter/app.py
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "cellpy>=2.1.2",
+#     "cellpy>=2.1.3",
 #     "fastapi>=0.115",
 #     "uvicorn>=0.30",
 #     "plotly>=5.22",

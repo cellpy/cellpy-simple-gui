@@ -1,7 +1,7 @@
 ---
 name: cellpy-app
 description: >-
-  Write Python that uses cellpy (>= 2.1.2) to load battery cell files, build
+  Write Python that uses cellpy (>= 2.1.3) to load battery cell files, build
   Collections, plot them and export data or figures. Use when the task involves
   cellpy, CellpyCell, cellpy.get, collect_summaries / collect_cycles /
   collect_ica / collect_dva, the cellpy plot family registry, battery cycling

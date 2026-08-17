@@ -211,12 +211,20 @@ def test_cycles_pane_plots_differentials(loaded_library):
 
 
 def test_cycles_film_layout_is_a_density_plot(loaded_library):
-    """``film`` is a cellpy *kind*, not a layout — passing it through as a
-    layout silently drew lines (CELLPY_PAINPOINTS §29)."""
-    recs = loaded_library.selected()
-    assert collect.curve_layout_kwargs("film") == {"kind": "film", "layout": "per_cell"}
-    assert collect.curve_layout_kwargs("per_cell") == {"layout": "per_cell"}
+    """``layout="film"`` must draw a density plot, whoever is responsible.
 
+    This used to guard an app-side translation shim: cellpy ≤2.1.2 had no
+    ``film`` layout, so passing one fell through to the line renderer and
+    silently drew a plausible line plot (§29 / cellpy#874). 2.1.3 accepts it as
+    an alias and the shim is gone.
+
+    The assertion did not change with it, and that is the point — it was written
+    against the *outcome* rather than the workaround, so it kept meaning
+    something when the responsibility moved upstream. A test asserting
+    ``curve_layout_kwargs(...) == {...}`` would have had to be deleted, and with
+    it the only thing standing between us and a silent regression.
+    """
+    recs = loaded_library.selected()
     for curve_kind in ("voltage", "dqdv", "dvdq"):
         fig = json.loads(
             plotting.cycles_figure(
@@ -225,6 +233,14 @@ def test_cycles_film_layout_is_a_density_plot(loaded_library):
         )
         types = {t.get("type") for t in fig["data"]}
         assert types == {"histogram2d"}, (curve_kind, types)
+
+    # And the other half of #874: an unknown layout is no longer accepted in
+    # silence. The app never sends one (the spec is a Literal), so this is here
+    # to notice if cellpy ever goes back to guessing.
+    from cellpy.plotting.collected import resolve_collected_layout_kind
+
+    with pytest.raises(ValueError):
+        resolve_collected_layout_kind(layout="totally_bogus")
 
 
 def test_cycles_export_follows_curve_kind(loaded_library):

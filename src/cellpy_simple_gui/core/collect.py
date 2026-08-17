@@ -671,19 +671,6 @@ def _apply_xy_ranges(fig, *, x_range=None, y_range=None) -> None:
             log.warning("could not apply y_range=%r", y_range, exc_info=True)
 
 
-def curve_layout_kwargs(layout: str) -> dict:
-    """Translate the app's curve *layout* into what cellpy actually expects.
-
-    cellpy models the film view as a ``kind`` (a ``histogram2d``), not a layout;
-    ``_LAYOUT_TO_METHOD`` has no ``"film"`` entry, so passing it as ``layout=``
-    falls through to the line renderer and silently draws lines. Verified: same
-    six ``scattergl`` traces as ``per_cell``, no error (CELLPY_PAINPOINTS §29).
-    """
-    if layout == "film":
-        return {"kind": "film", "layout": "per_cell"}
-    return {"layout": layout}
-
-
 #: cellpy names the band edges of a spread plot; the mean line keeps the group.
 _SPREAD_BOUND_PREFIXES = ("upper bound", "lower bound")
 

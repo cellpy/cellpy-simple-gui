@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "cellpy>=2.1.2",
+#     "cellpy>=2.1.3",
 #     "fastapi>=0.115",
 #     "uvicorn>=0.30",
 #     "plotly>=5.22",

@@ -12,11 +12,11 @@ Direction = Literal["charge", "discharge"]
 CycleMethod = Literal["forth-and-forth", "back-and-forth", "forth"]
 # cellpy collected cycles layouts (legacy fig_pr_cell / fig_pr_cycle).
 #
-# "film" is presented here as a third layout because that is how it reads in the
-# UI, but cellpy models it as a *kind* (``kind="film"`` + ``layout="per_cell"``,
-# a histogram2d rather than lines). The translation happens in
-# ``collect.curve_layout_kwargs`` — passing ``layout="film"`` straight to cellpy
-# silently draws a line plot instead (see CELLPY_PAINPOINTS §29).
+# "film" reads as a third layout in the UI, and cellpy models it as a *kind* (a
+# histogram2d rather than lines) — but since 2.1.3 it accepts ``layout="film"``
+# as an alias, so these values now pass straight through. On 2.1.2 and earlier
+# they could not: an unknown layout silently drew lines, and the app carried a
+# translation shim (see CELLPY_PAINPOINTS §29 / cellpy#874).
 CyclesLayout = Literal["per_cell", "per_cycle", "film"]
 # What the Cycles pane draws: voltage curves, or the differentials (#95).
 CurveKind = Literal["voltage", "dqdv", "dvdq"]
