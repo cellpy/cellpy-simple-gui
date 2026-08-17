@@ -64,10 +64,17 @@ now an alias and unknown layouts raise. A legacy `method="film"` spelling also
 works; prefer `kind=`. Assert on the trace type either way — "it drew something"
 is not a test.
 
-**A film of dQ/dV silently drops the discharge half-cycle.** `collect_ica`
-returns both directions, the film renders only `charge`, and nothing says so.
-`IcaOptions` has no `direction` field. If discharge matters, do not use a film
-for it. (`histscale="abs-log"` is worth setting for dQ/dV films; the unscaled
+**dQ/dV plots show one half-cycle by default.** `collect_ica` keeps both
+directions; the plotters draw `charge` unless told otherwise — lines and film
+alike — so the chart shows a fraction of the rows you collected and says
+nothing. `direction` is an argument to `plot()`, **not a field on `IcaOptions`**,
+which is why looking at the options dataclass suggests there is no control:
+
+```python
+collection.plot(kind="film", layout="per_cell", direction="both")
+```
+
+(`histscale="abs-log"` is also worth setting for dQ/dV films; the unscaled
 default is rarely right.)
 
 **Availability is judged on `summary_options().columns`, not `columns()`.**
