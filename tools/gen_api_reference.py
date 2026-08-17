@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import inspect
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -157,6 +158,25 @@ def resolve(path: str):
     raise ImportError(path)
 
 
+#: Renderings that differ between Python versions rather than between cellpy
+#: versions. Left alone, they make the file interpreter-dependent: CI runs the
+#: tests on two Pythons, and the same cellpy would produce two different
+#: references — a diff that says nothing about cellpy and fails anyway.
+#: Normalising to the modern spelling also removes `pathlib._local`, which is
+#: private and has no business in a reference.
+_NORMALISE = (
+    (re.compile(r"\bpathlib\._local\."), "pathlib."),
+    (re.compile(r"\bOptional\[([^\[\]]+)\]"), r"\1 | None"),
+    (re.compile(r"\bUnion\[([^\[\]]+?), ([^\[\]]+?)\]"), r"\1 | \2"),
+)
+
+
+def normalise(text: str) -> str:
+    for pattern, replacement in _NORMALISE:
+        text = pattern.sub(replacement, text)
+    return text
+
+
 def display_name(path: str) -> str:
     """How you would write the call: `cellpy.get`, `CellpyCell.get_cap`.
 
@@ -189,8 +209,8 @@ def describe(path: str) -> str:
             signature = "(" + signature[len("(self, ") :]
         elif signature == "(self)":
             signature = "()"
-        return f"{name}{signature}"
-    return f"{name}  ->  {type(obj).__name__}"
+        return normalise(f"{name}{signature}")
+    return normalise(f"{name}  ->  {type(obj).__name__}")
 
 
 def render() -> str:

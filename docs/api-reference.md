@@ -18,7 +18,7 @@ app in one file see [`examples/starter/`](../examples/starter/).
 Getting cells into memory — [guide 1](guides/01-loading-cells.md).
 
 ```python
-cellpy.get(filename=None, instrument=None, instrument_file=None, cellpy_file=None, cycle_mode=None, mass: Union[str, numbers.Number] = None, nominal_capacity: Union[str, numbers.Number] = None, nom_cap_specifics=None, loading=None, area: Union[str, numbers.Number] = None, estimate_area=True, logging_mode=None, custom_log_dir=None, custom_log_config_path=None, auto_pick_cellpy_format=True, auto_summary=True, units=None, step_kwargs=None, summary_kwargs=None, selector=None, testing=False, refuse_copying=False, initialize=False, debug=False, **kwargs)
+cellpy.get(filename=None, instrument=None, instrument_file=None, cellpy_file=None, cycle_mode=None, mass: str | numbers.Number = None, nominal_capacity: str | numbers.Number = None, nom_cap_specifics=None, loading=None, area: str | numbers.Number = None, estimate_area=True, logging_mode=None, custom_log_dir=None, custom_log_config_path=None, auto_pick_cellpy_format=True, auto_summary=True, units=None, step_kwargs=None, summary_kwargs=None, selector=None, testing=False, refuse_copying=False, initialize=False, debug=False, **kwargs)
 ```
 The one entry point. Only `filename` is required; `mass` / `area` / `nominal_capacity` accept unit strings such as `"0.47 mg"`.
 
@@ -33,7 +33,7 @@ cellpy.read_meta(path)
 Metadata without loading the data — **cellpy files only**; a raw file gives an HDF5 traceback.
 
 ```python
-cellpy.instrument_meta_schema(instrument: Optional[str] = None) -> Dict[str, Any]
+cellpy.instrument_meta_schema(instrument: str | None = None) -> Dict[str, Any]
 ```
 Fields an instrument wants (`name`, `required`, `type`, `unit`, `maps_to`, `help`) — enough to generate an ingestion form.
 
@@ -43,7 +43,7 @@ cellpy.utils.example_data.cellpy_file(testing: bool = False) -> cellpy.readers.c
 A loaded demo cell (304 cycles). Downloads once, then caches.
 
 ```python
-cellpy.utils.example_data.cellpy_file_path() -> pathlib._local.Path
+cellpy.utils.example_data.cellpy_file_path() -> pathlib.Path
 ```
 Path to the same file, for when you want to call `cellpy.get` yourself.
 
@@ -53,12 +53,12 @@ cellpy.utils.example_data.rate_file()
 **A path, not a cell** — unlike `cellpy_file()`. Passing it where a cell is expected fails silently.
 
 ```python
-cellpy.utils.example_data.neware_file_path() -> pathlib._local.Path
+cellpy.utils.example_data.neware_file_path() -> pathlib.Path
 ```
 A raw Neware export (`.csv`) that loads with no external tooling.
 
 ```python
-cellpy.utils.example_data.arbin_file_path() -> pathlib._local.Path
+cellpy.utils.example_data.arbin_file_path() -> pathlib.Path
 ```
 A raw Arbin `.res` — needs mdbtools or the Access driver to load.
 
@@ -183,7 +183,7 @@ Whether these are averaged series. Decides which schema `.data` has, and whether
 Build a menu instead of maintaining one — [guide 3](guides/03-plotting.md).
 
 ```python
-cellpy.plotting.registry.families(*, entry_point: 'Optional[str]' = None) -> 'list[tuple[str, str]]'
+cellpy.plotting.registry.families(*, entry_point: 'str | None' = None) -> 'list[tuple[str, str]]'
 ```
 `[(name, description)]`. **Pass `entry_point="summary_plot"`** or you list families that can never work in a summary menu.
 
@@ -193,7 +193,7 @@ cellpy.plotting.registry.get(name: 'str') -> 'PlotFamily'
 One `PlotFamily` by name.
 
 ```python
-PlotFamily.summary_options(hdr: 'Any', *, norm_factor: 'Optional[float]' = None) -> 'Any'
+PlotFamily.summary_options(hdr: 'Any', *, norm_factor: 'float | None' = None) -> 'Any'
 ```
 **The accessor that matters.** A ready `SummaryOptions` — columns, CV flag, transforms. Judge availability on `.columns` of *this*.
 
@@ -207,17 +207,17 @@ The columns the family *draws*, including ones collect manufactures. Not an avai
 Outside the collect path; these take a cell.
 
 ```python
-cellpy.utils.plotutils.raw_plot(cell, y=None, y_label=None, x=None, x_label=None, title=None, backend: Optional[str] = None, plot_type='voltage-current', double_y=True, cycles=None, max_points: Optional[int] = None, **kwargs)
+cellpy.utils.plotutils.raw_plot(cell, y=None, y_label=None, x=None, x_label=None, title=None, backend: str | None = None, plot_type='voltage-current', double_y=True, cycles=None, max_points: int | None = None, **kwargs)
 ```
 Raw traces. **Set `max_points`** — one demo cell is 7.35 MiB of figure JSON without it, 0.18 MiB with.
 
 ```python
-cellpy.utils.plotutils.cycle_info_plot(cell, cycle=None, get_axes=False, backend: Optional[str] = None, t_unit='hours', v_unit='V', i_unit='mA', **kwargs)
+cellpy.utils.plotutils.cycle_info_plot(cell, cycle=None, get_axes=False, backend: str | None = None, t_unit='hours', v_unit='V', i_unit='mA', **kwargs)
 ```
 Raw traces annotated with step/cycle info. **Needs `get_axes=True`** or it returns `None` on the plotly backend.
 
 ```python
-cellpy.utils.plotutils.dva_plot(cell, cycles=None, direction='both', options=None, *, backend: Optional[str] = None, title=None, colormap='viridis', width=800, height=600, figsize=(6, 4), x_range=None, y_range=None, plotly_template=None, return_data=False, **kwargs)
+cellpy.utils.plotutils.dva_plot(cell, cycles=None, direction='both', options=None, *, backend: str | None = None, title=None, colormap='viridis', width=800, height=600, figsize=(6, 4), x_range=None, y_range=None, plotly_template=None, return_data=False, **kwargs)
 ```
 Single-cell dV/dQ. Prefer `collect_dva` unless you specifically want one cell.
 
