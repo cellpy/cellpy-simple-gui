@@ -132,9 +132,10 @@ alone changes nothing at runtime except the error you get.
 Measured rather than assumed, in this base image: `plotly_get_chrome` exits `0`,
 and `to_image` then dies with `BrowserFailedError` because slim does not carry
 the shared libraries Chrome needs. Shipping a build flag that produced a broken
-image would have been worse than not offering one, so there isn't one —
-[#135](https://github.com/cellpy/cellpy-simple-gui/issues/135) tracks doing it
-properly.
+image would have been worse than not offering one, so there isn't one, and
+[#135](https://github.com/cellpy/cellpy-simple-gui/issues/135) is closed
+**wontfix**: Chrome plus its shared libraries is a large addition to an image
+for a feature the browser already covers.
 
 Everything else is unaffected: CSV, Excel, Parquet and JSON export all work, and
 the Plotly toolbar's camera button still saves a PNG client-side, which is what
