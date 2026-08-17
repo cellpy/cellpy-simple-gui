@@ -195,7 +195,7 @@ which is a decent argument for writing documentation with a test runner attached
 The "here first, then upstream" decision is recorded with a concrete extraction
 list in `.issueflows/04-designs-and-guides/guides-upstream-candidates.md`.
 
-**M3.3 · Machine-readable layer.**
+**M3.3 · Machine-readable layer.** — *done (#127)*
 `llms.txt` + a distilled API-surface reference: the ~40 calls that matter, with
 signatures and one-line semantics, so an agent does not have to grep
 `site-packages` to find `family.summary_options`. Plus a Claude Skill packaging

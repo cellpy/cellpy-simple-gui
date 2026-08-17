@@ -21,6 +21,10 @@ measurement rather than an opinion.
 New to this? [`examples/starter/`](../../examples/starter/) is a running app in
 one file that does 1 → 4. Read it first; these guides are what is behind it.
 
+Looking for a signature rather than an explanation?
+[`docs/api-reference.md`](../api-reference.md) lists the 44 calls that matter,
+generated from the installed cellpy. Agents: [`llms.txt`](../../llms.txt).
+
 ## Every Python block here runs
 
 Blocks fenced as ` ```python ` are executed, in document order, by

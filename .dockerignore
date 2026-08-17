@@ -31,7 +31,11 @@ run.cmd
 tests/
 docs/
 examples/
+tools/
+skills/
 assets/
+llms.txt
+llms-full.txt
 *.md
 !README.md
 

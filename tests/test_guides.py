@@ -24,6 +24,9 @@ pytestmark = pytest.mark.essential
 
 GUIDES = sorted((Path(__file__).resolve().parents[1] / "docs" / "guides").glob("*.md"))
 
+#: cellpy release that fixed the `layout="film"` trap (cellpy#874).
+FILM_FIXED_IN = (2, 1, 3)
+
 #: Opening fence, its info string, the body. Only ``python`` is executed — the
 #: language is the contract, so a block that cannot run is marked by fencing it
 #: as ``pycon`` rather than by a comment the runner would have to parse.
@@ -41,6 +44,40 @@ def python_blocks(markdown: str) -> list[str]:
 def test_there_are_guides_to_run():
     """A glob that silently matches nothing is the classic way to pass by doing nothing."""
     assert len(GUIDES) >= 8, [g.name for g in GUIDES]  # seven guides + the index
+
+
+def test_the_upstream_bugs_the_guides_describe_are_still_bugs():
+    """Claims about broken upstream behaviour need checking too.
+
+    This was found the hard way. The guides' ```pycon blocks are transcripts of
+    things going *wrong*, which is exactly why they are not executed — and that
+    made them the one place a claim could quietly go stale. cellpy 2.1.3 fixed
+    the `layout="film"` trap while guide 3 still presented it as open, and no
+    test noticed, because the stale claim was in the block type CI skips.
+
+    So the *behaviour* is asserted here even though the transcript is not run: if
+    an upstream fix lands, this fails and the prose gets corrected rather than
+    quietly misleading someone.
+    """
+    from importlib.metadata import version
+
+    from cellpy.plotting.collected import resolve_collected_layout_kind as resolve
+
+    installed = tuple(int(p) for p in version("cellpy").split(".")[:3] if p.isdigit())
+    guide = (GUIDES[0].parent / "03-plotting.md").read_text(encoding="utf-8")
+
+    # True on every version, which is why the guides tell you to write this.
+    assert resolve(kind="film")[1] == "film"
+
+    if installed >= FILM_FIXED_IN:
+        assert resolve(layout="film")[1] == "film", "guide 3 says 2.1.3+ accepts it"
+        with pytest.raises(ValueError):
+            resolve(layout="totally_bogus")
+    else:
+        # Still broken here, so the guide is right to warn about it.
+        assert resolve(layout="film")[1] == "line"
+        assert resolve(layout="totally_bogus")[1] == "line"
+        assert "On 2.1.2 and earlier" in guide
 
 
 @pytest.mark.parametrize("guide", GUIDES, ids=lambda p: p.stem)

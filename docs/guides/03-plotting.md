@@ -194,52 +194,109 @@ False True · gravimetric
 `None`), not the entry point. The basis is baked into the family name, so a
 family and a "which basis?" control are the same choice made twice.
 
-## Layouts and kinds are different things
+## Films: `kind=`, and what version you are on
 
-Here is the trap, and it is the worst kind: the wrong call produces a perfectly
-plausible figure.
-
-```pycon
->>> from cellpy.plotting.collected import resolve_collected_layout_kind as resolve
->>> resolve(layout="film")
-('film', 'line', 'fig_pr_cell')            # kind='line' — it draws lines
->>> resolve(layout="totally_bogus")
-('totally_bogus', 'line', 'fig_pr_cell')   # no error, no warning
->>> resolve(kind="film")
-('per_cell', 'film', 'film')               # the intended histogram2d
-```
-
-`film` reads like a layout — it sits next to `fig_pr_cell` and `fig_pr_cycle`,
-and `Collection.plot`'s docstring mentions only `layout=`. It is a **kind**.
-Passing it as a layout falls through to the line renderer and gives you the same
-`scattergl` traces as `per_cell`, with nothing to suggest anything is wrong. So
-it ships.
-
-An unknown `layout=` is not validated either, so a typo behaves the same way.
-Until that is fixed
-([cellpy#874](https://github.com/jepegit/cellpy/issues/874), open), translate at
-your boundary and *assert on the trace type*, because "it drew something" is not
-a test:
+A density film is a **kind**, not a layout — and which of those sentences is true
+depends on your cellpy version, so check before copying anything:
 
 ```python
-def curve_plot_kwargs(layout: str) -> dict:
-    if layout == "film":
-        return {"kind": "film", "layout": "per_cell"}
-    return {"layout": layout}
+from importlib.metadata import version
 
+from cellpy.plotting.collected import resolve_collected_layout_kind as resolve
 
+installed = version("cellpy")
+print("cellpy", installed)
+print("kind='film'  ->", resolve(kind="film"))
+```
+
+```text
+cellpy 2.1.2
+kind='film'  -> ('per_cell', 'film', 'film')
+```
+
+**`kind="film"` is correct on every version**, so write that and you never have
+to care. What changed is what happens when you get it wrong.
+
+**On 2.1.2 and earlier**, `layout="film"` silently drew lines — and so did
+`layout="totally_bogus"`:
+
+```pycon
+>>> resolve(layout="film")                 # cellpy 2.1.2
+('film', 'line', 'fig_pr_cell')            # kind='line' — it draws lines
+>>> resolve(layout="totally_bogus")        # cellpy 2.1.2
+('totally_bogus', 'line', 'fig_pr_cell')   # no error, no warning
+```
+
+That is the worst kind of bug: the wrong call produced a perfectly plausible
+figure, identical `scattergl` traces to `per_cell`, with nothing to suggest
+anything was wrong. So it shipped.
+
+**On 2.1.3 and later** ([cellpy#874](https://github.com/jepegit/cellpy/issues/874),
+closed) `layout="film"` is accepted as an alias, and an unknown layout raises
+with the fix in the message:
+
+```pycon
+>>> resolve(layout="film")                 # cellpy 2.1.3
+('per_cell', 'film', 'film')
+>>> resolve(layout="totally_bogus")        # cellpy 2.1.3
+ValueError: Unknown layout='totally_bogus'; expected one of: per_cell, per_cycle,
+summary (note: 'film' is a kind=, not a layout= — use kind='film' or layout='film')
+```
+
+If you carry a `film` → `kind="film"` translation shim for older cellpy, it is
+dead code on 2.1.3 — delete it.
+
+There is also a **legacy third spelling**, `method="film"`, which still works.
+Prefer `kind=`: `ica_plotter`'s own docstring advertises the legacy `method`
+form, so a reader who lands there first writes the old call.
+
+Whichever version you are on, **assert on the trace type** — "it drew something"
+is not a test:
+
+```python
 from cellpy.collect import collect_cycles
 from cellpy.collect.options import CurveOptions
 
 curves = collect_cycles(batch, options=CurveOptions(cycles=(1, 5, 10)))
-film = curves.plot(**curve_plot_kwargs("film"))
-lines = curves.plot(**curve_plot_kwargs("per_cell"))
+film = curves.plot(kind="film", layout="per_cell")
+lines = curves.plot(layout="per_cell")
 print("film:", {t.type for t in film.data}, "· per_cell:", {t.type for t in lines.data})
 ```
 
 ```text
 film: {'histogram2d'} · per_cell: {'scattergl'}
 ```
+
+### A film of dQ/dV drops half your data
+
+Films work on an ICA collection too — and there the axes are voltage × cycle
+with dQ/dV as the density weight. But the renderer draws **only the charge
+half-cycle**, silently:
+
+```python
+from cellpy.collect import collect_ica
+from cellpy.collect.options import IcaOptions
+
+ica = collect_ica(batch, options=IcaOptions(cycles=(1, 5, 10)))
+by_direction = ica.data.group_by("direction").len().sort("direction")
+plotted = sum(
+    len(t.x) for t in ica.plot(kind="film", layout="per_cell").data if t.x is not None
+)
+print(dict(by_direction.iter_rows()), "collected ->", plotted, "plotted")
+```
+
+```text
+{'charge': 891, 'discharge': 1437} collected -> 891 plotted
+```
+
+`IcaOptions` has no `direction` field, so there is nothing to set and nothing in
+the figure says a word about it. If the discharge branch matters to your
+analysis, do not use a film for it — or filter the frame yourself and say so on
+the chart. *(Filed as §35 in [CELLPY_PAINPOINTS.md](../../CELLPY_PAINPOINTS.md).)*
+
+One knob worth knowing, findable only by reading the source: `histscale`
+(`"abs"`, `"abs-log"`, `"norm"`, `"hist-eq"`) sets the colour scaling. dQ/dV is
+signed and heavy-tailed, so the unscaled default is rarely what you want.
 
 ## Spread plots lose their hover
 

@@ -1,0 +1,48 @@
+# cellpy-simple-gui
+
+> A desktop and self-hosted GUI for exploring battery cell data with cellpy, plus the documentation for building your own cellpy application.
+
+Two audiences share these documents. Everything under `docs/guides/` is
+organised by what someone is trying to do rather than by module, and every
+Python block in those guides is executed in CI, so the code in them works
+against the cellpy version they are written for (2.1.2).
+
+If you are writing code that uses cellpy, the shortest useful path is:
+`docs/api-reference.md` for the calls, `examples/starter/app.py` for a working
+program to imitate, and the relevant guide for the traps. The traps are the
+point — most of what goes wrong with cellpy produces plausible output rather
+than an error.
+
+## Start here
+
+- [docs/api-reference.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/api-reference.md): The 44 cellpy calls that matter, with real signatures introspected from the installed package and one line each of what the signature cannot tell you.
+- [examples/starter/app.py](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/examples/starter/app.py): A complete cellpy application in one file: load cells, build a Collection, plot, export. ~340 lines, PEP 723 header, runs with `uv run --script`.
+- [examples/starter/README.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/examples/starter/README.md): What the starter does and does not do, and how to add a plot type.
+
+## Guides
+
+Task-shaped. Every Python block in these is executed by CI.
+
+- [1. Getting cells into memory](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/01-loading-cells.md): You have files. You want `CellpyCell` objects.
+- [2. Cells into a Collection](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/02-collections.md): You have `CellpyCell` objects. You want one frame you can plot and export.
+- [3. Plotting a collection](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/03-plotting.md): You have a `Collection`. You want a figure — and a plot menu you do not have to maintain by hand.
+- [4. Exporting data and figures](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/04-exporting.md): You want files: the numbers behind a chart, the chart itself, or a whole cell.
+- [5. Configuration](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/05-configuration.md): You want to know where cellpy is reading from — and change it without breaking the machine it is running on.
+- [6. Process state and threading](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/06-state-and-threading.md): You want to load a 200 MB file without freezing the UI, and you want to know what that costs you.
+- [7. What cellpy will and will not do for you](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/guides/07-delegation.md): You are about to write some code. Should you?
+
+## Project documentation
+
+- [README.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/README.md): What the application is, how to install and run it, and how it is built.
+- [docs/deployment.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/deployment.md): Running it as a server: container image, the token, what to put in front of it.
+- [docs/windows-installer.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/windows-installer.md): Building and shipping the Windows installer.
+- [docs/releasing.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/releasing.md): The release pipeline: PyPI, GHCR, GitHub Releases.
+
+## Optional
+
+- [CELLPY_PAINPOINTS.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/CELLPY_PAINPOINTS.md): Every rough edge found while building on cellpy, with the upstream issue that closed it. Read this before working around something — it may already be fixed.
+- [docs/issue-workflow.md](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/docs/issue-workflow.md): How work is tracked in this repository.
+
+## Everything at once
+
+- [llms-full.txt](https://raw.githubusercontent.com/cellpy/cellpy-simple-gui/main/llms-full.txt): the guides, the API reference and the starter app concatenated, for a single fetch.

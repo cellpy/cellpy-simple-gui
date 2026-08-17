@@ -405,6 +405,25 @@ Every Python block in those guides is executed by
 [`tests/test_guides.py`](tests/test_guides.py), so a guide whose code stops
 working against a new cellpy breaks CI rather than the reader.
 
+### If you are a coding agent
+
+Same knowledge, different shape:
+
+| | |
+|---|---|
+| [`llms.txt`](llms.txt) | index of everything here, per the [llms.txt](https://llmstxt.org) convention |
+| [`llms-full.txt`](llms-full.txt) | the guides, the API reference and the starter app in one file (~120 KB) |
+| [`docs/api-reference.md`](docs/api-reference.md) | the 44 cellpy calls that matter, with signatures **introspected from the installed cellpy** and one line each of what a signature cannot tell you |
+| [`skills/cellpy-app/`](skills/cellpy-app/) | a Claude Skill packaging the guides — copy it into `.claude/skills/` |
+
+All four are generated ([`tools/`](tools/)) and checked in CI, so they cannot
+drift from the guides or from the installed cellpy. Regenerate after a cellpy
+upgrade:
+
+```bash
+uv run tools/gen_api_reference.py && uv run tools/gen_llms_txt.py
+```
+
 
 ## Development
 
