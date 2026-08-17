@@ -388,6 +388,42 @@ also works once you have copied it somewhere else — which is what it is for. S
 calls it is built from, how to add a plot, and where in this repository to look
 when you outgrow it.
 
+Then [`docs/guides/`](docs/guides/) — seven guides organised by what you are
+trying to do rather than by module:
+
+| | Guide | You are trying to |
+|---|---|---|
+| 1 | [Getting cells into memory](docs/guides/01-loading-cells.md) | open a file, and find out why one will not open |
+| 2 | [Cells into a Collection](docs/guides/02-collections.md) | get many cells into one frame you can plot and export |
+| 3 | [Plotting a collection](docs/guides/03-plotting.md) | draw it, and build a plot menu that is not a hard-coded list |
+| 4 | [Exporting data and figures](docs/guides/04-exporting.md) | get numbers and images out, in memory |
+| 5 | [Configuration](docs/guides/05-configuration.md) | find out where cellpy is reading from, and change it safely |
+| 6 | [Process state and threading](docs/guides/06-state-and-threading.md) | call cellpy from a worker thread without cross-talk |
+| 7 | [What cellpy will and will not do for you](docs/guides/07-delegation.md) | decide whether to write the code or let cellpy do it |
+
+Every Python block in those guides is executed by
+[`tests/test_guides.py`](tests/test_guides.py), so a guide whose code stops
+working against a new cellpy breaks CI rather than the reader.
+
+### If you are a coding agent
+
+Same knowledge, different shape:
+
+| | |
+|---|---|
+| [`llms.txt`](llms.txt) | index of everything here, per the [llms.txt](https://llmstxt.org) convention |
+| [`llms-full.txt`](llms-full.txt) | the guides, the API reference and the starter app in one file (~120 KB) |
+| [`docs/api-reference.md`](docs/api-reference.md) | the 44 cellpy calls that matter, with signatures **introspected from the installed cellpy** and one line each of what a signature cannot tell you |
+| [`skills/cellpy-app/`](skills/cellpy-app/) | a Claude Skill packaging the guides — copy it into `.claude/skills/` |
+
+All four are generated ([`tools/`](tools/)) and checked in CI, so they cannot
+drift from the guides or from the installed cellpy. Regenerate after a cellpy
+upgrade:
+
+```bash
+uv run tools/gen_api_reference.py && uv run tools/gen_llms_txt.py
+```
+
 
 ## Development
 

@@ -168,7 +168,7 @@ production-shaped teaches the wrong lesson; and `SUMMARY_PLOTS` is the single
 extension point, pinned by a test that runs the README's own worked example, so
 "adding a plot is one line" cannot quietly stop being true.
 
-**M3.2 · Task-shaped guides.**
+**M3.2 · Task-shaped guides.** — *done (#126)*
 Organised by what someone is trying to do, not by module:
 
 - getting cells into memory (`get`, files, journals, raw ingestion)
@@ -184,7 +184,18 @@ Organised by what someone is trying to do, not by module:
   `cellpy-delegation-inventory.md`, which is already exactly this document for
   our own app
 
-**M3.3 · Machine-readable layer.**
+*How it landed:* `docs/guides/`, seven guides plus an index, and the decision
+that turned out to matter most was making them **executable**: every ```python
+block runs in CI (`tests/test_guides.py`), in document order, in one namespace
+per guide. That is what stops these ageing the way the docs they replace did, and
+it paid for itself immediately — the first pass had four wrong quoted outputs and
+one wrong import, all caught by running rather than by reading. It also found a
+new cellpy bug (§34: `from_cells` silently drops values that are not cells),
+which is a decent argument for writing documentation with a test runner attached.
+The "here first, then upstream" decision is recorded with a concrete extraction
+list in `.issueflows/04-designs-and-guides/guides-upstream-candidates.md`.
+
+**M3.3 · Machine-readable layer.** — *done (#127)*
 `llms.txt` + a distilled API-surface reference: the ~40 calls that matter, with
 signatures and one-line semantics, so an agent does not have to grep
 `site-packages` to find `family.summary_options`. Plus a Claude Skill packaging

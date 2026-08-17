@@ -101,7 +101,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 >
 > | # | Item | Upstream | App workaround |
 > |---|---|---|---|
-> | 29 | An unknown `layout=` is accepted silently — `layout="film"` draws a line plot that looks fine | [#874](https://github.com/jepegit/cellpy/issues/874) | `curve_layout_kwargs()` translates `film` → `kind="film"` |
+> | 29 | An unknown `layout=` is accepted silently — `layout="film"` draws a line plot that looks fine | [#874](https://github.com/jepegit/cellpy/issues/874) — **fixed in 2.1.3** | `curve_layout_kwargs()`; dead code once the pin moves off 2.1.2 |
 > | 30 | `spread_plot` traces have no hovertemplate — ticking Spread drops all hover detail | [#875](https://github.com/jepegit/cellpy/issues/875) | `_add_spread_hover()` rebuilds it from the figure |
 >
 > ### Open but unfiled (app forwards a knob instead)
@@ -111,6 +111,8 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | forwards `x_unit` |
 > | 18 | Summary y-labels omit units; CE / C-rate have no unit hooks | passes `y_label_mapper` |
 > | 20 | Summary facet order ignores collect column order on group-avg | passes `category_orders` |
+> | 34 | `from_cells` silently drops values that are not cells | app validates the mapping before building the batch |
+> | 35 | A dQ/dV **film** draws only the charge half-cycle, silently | documented; no workaround (the line path honours `direction`, the film path does not) |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -707,7 +709,20 @@ lacks these columns" is the right message, which it was not before.
 
 ---
 
-### 29. 🟠 An unknown `layout=` is accepted silently *(open)*
+### 29. 🟠 An unknown `layout=` is accepted silently *(fixed in 2.1.3)*
+
+> **Update — fixed in cellpy 2.1.3.** `layout="film"` is now accepted as an alias
+> and an unknown layout raises with the fix in the message:
+> `ValueError: Unknown layout='totally_bogus'; expected one of: per_cell,
+> per_cycle, summary (note: 'film' is a kind=, not a layout= …)`.
+> Verified in a clean 2.1.3 environment. The app's `curve_layout_kwargs()`
+> translation is now dead code once the pin moves.
+>
+> Found by the cold-context agent test for
+> [#127](https://github.com/cellpy/cellpy-simple-gui/issues/127): its `uv run
+> --script` env resolved to 2.1.3 while this repo is pinned to 2.1.2, so the
+> agent read a guide describing a bug it could not reproduce and said so. The
+> original note follows.
 
 Found while adding dQ/dV and dV/dQ to the multi-cell Cycles pane (#95).
 
@@ -881,6 +896,71 @@ processes disagree about where the data lives.
 
 **Upstream:** raised on
 [#938](https://github.com/jepegit/cellpy/issues/938).
+
+---
+
+## Round 7 — writing it all down
+
+Found while writing the task-shaped guides
+([#126](https://github.com/cellpy/cellpy-simple-gui/issues/126)), which is a good
+argument for writing documentation with a test runner attached: this had been
+sitting in working code for months without anyone tripping over it.
+
+### 34. 🟠 `from_cells` silently drops values that are not cells *(open, unfiled)*
+
+The mapping is not validated, and a non-cell simply does not appear downstream —
+no exception, no warning, not even a log line:
+
+```pycon
+>>> batch = from_cells({"good": cell, "oops": example_data.rate_file(), "worse": 42})
+>>> collect_summaries(batch, columns=("discharge_capacity_gravimetric",)).data["cell"].unique().to_list()
+['good']
+```
+
+Three in, one out. `example_data.rate_file()` returning a *path* while its
+sibling `example_data.cellpy_file()` returns a *cell* makes this an easy mistake
+to make, and the result is a chart with fewer lines than you have cells — which
+reads as a data problem, not a type error.
+
+Same family as §28 and §29: the failure produces plausible output. An app
+building the mapping from anything dynamic cannot tell the difference between
+"this cell had no data" and "this was never a cell".
+
+**Wish:** raise on a value that is not a `CellpyCell`, or at minimum warn with
+the offending keys. Silently narrowing a collection is never what the caller
+meant.
+
+**Workaround (app):** validate the mapping before building the batch.
+
+### 35. 🟠 A dQ/dV film silently draws only the charge half-cycle *(open, unfiled)*
+
+Found by the cold-context agent test for
+[#127](https://github.com/cellpy/cellpy-simple-gui/issues/127) — an agent given
+only the documentation, asked for "dQ/dV across these cells as a density film".
+It produced the right figure and then noticed the point count did not add up.
+
+`collect_ica` returns both half-cycles in a `direction` column. The film
+renderer draws `charge` only:
+
+```
+collected rows: 6904   (charge 2985 · discharge 3919)
+plotted points: 2985   -> exactly the charge rows
+```
+
+No warning, no annotation, and `IcaOptions(cycles, voltage_resolution,
+capacity_resolution, transforms)` has no `direction` field, so there is nothing
+to set and no way to discover the behaviour short of counting points.
+
+The line renderer does not do this — `ica_plotter` takes a `direction` and
+`"both"` overlays them (§16 / [#821](https://github.com/jepegit/cellpy/issues/821)).
+So the same collection plots all of the data as lines and half of it as a film,
+depending on `kind=`.
+
+Same family as §28, §29 and §34: the output is *plausible*. A density film of one
+half-cycle looks exactly like a density film.
+
+**Wish:** honour `direction` on the film path as the line path does, or annotate
+the figure. Failing both, document it.
 
 ---
 
