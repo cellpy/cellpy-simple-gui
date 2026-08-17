@@ -111,6 +111,7 @@ Legend: 🔴 blocker / had to work around · 🟠 friction · 🟢 nice-to-have.
 > | 17 | Cycles plotter ignores collect `mode` for `x_unit` | forwards `x_unit` |
 > | 18 | Summary y-labels omit units; CE / C-rate have no unit hooks | passes `y_label_mapper` |
 > | 20 | Summary facet order ignores collect column order on group-avg | passes `category_orders` |
+> | 34 | `from_cells` silently drops values that are not cells | app validates the mapping before building the batch |
 >
 > The notes below are kept as originally written (against 2.1.0) for context.
 
@@ -881,6 +882,41 @@ processes disagree about where the data lives.
 
 **Upstream:** raised on
 [#938](https://github.com/jepegit/cellpy/issues/938).
+
+---
+
+## Round 7 — writing it all down
+
+Found while writing the task-shaped guides
+([#126](https://github.com/cellpy/cellpy-simple-gui/issues/126)), which is a good
+argument for writing documentation with a test runner attached: this had been
+sitting in working code for months without anyone tripping over it.
+
+### 34. 🟠 `from_cells` silently drops values that are not cells *(open, unfiled)*
+
+The mapping is not validated, and a non-cell simply does not appear downstream —
+no exception, no warning, not even a log line:
+
+```pycon
+>>> batch = from_cells({"good": cell, "oops": example_data.rate_file(), "worse": 42})
+>>> collect_summaries(batch, columns=("discharge_capacity_gravimetric",)).data["cell"].unique().to_list()
+['good']
+```
+
+Three in, one out. `example_data.rate_file()` returning a *path* while its
+sibling `example_data.cellpy_file()` returns a *cell* makes this an easy mistake
+to make, and the result is a chart with fewer lines than you have cells — which
+reads as a data problem, not a type error.
+
+Same family as §28 and §29: the failure produces plausible output. An app
+building the mapping from anything dynamic cannot tell the difference between
+"this cell had no data" and "this was never a cell".
+
+**Wish:** raise on a value that is not a `CellpyCell`, or at minimum warn with
+the offending keys. Silently narrowing a collection is never what the caller
+meant.
+
+**Workaround (app):** validate the mapping before building the batch.
 
 ---
 

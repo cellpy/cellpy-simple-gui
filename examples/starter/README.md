@@ -90,6 +90,10 @@ shape of options.
 
 ## What to add next, and where to look
 
+[`docs/guides/`](../../docs/guides/) goes deeper on each step above — loading,
+collections, plotting, export, configuration, threading — organised by task, with
+every code block executed by CI.
+
 When you outgrow this, the reference implementation has each piece in one place:
 
 | You want | Look at |
