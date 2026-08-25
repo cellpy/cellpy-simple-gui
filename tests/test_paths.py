@@ -205,3 +205,35 @@ def test_expand_paths_is_unchanged_locally(local, tmp_path):
     target.write_bytes(b"x")
     exp = files.expand_paths([str(target)])
     assert exp.paths == [str(target)] and not exp.errors
+
+
+# --- remote OtherPath URIs (#160) ------------------------------------------ #
+
+
+def test_is_remote_uri_schemes():
+    assert paths.is_remote_uri("sftp://user@host/a.res")
+    assert paths.is_remote_uri("SSH://user@host/a.res")
+    assert paths.is_remote_uri("  scp://user@host/a.res ")
+    assert not paths.is_remote_uri(r"C:\data\a.res")
+    assert not paths.is_remote_uri("/tmp/a.res")
+
+
+def test_expand_paths_keeps_remote_uri_on_desktop(local):
+    uri = "sftp://user@lab.example/home/user/a.res"
+    exp = files.expand_paths([uri])
+    assert exp.paths == [uri]
+    assert not exp.errors
+
+
+def test_expand_paths_refuses_remote_when_served(served):
+    uri = "sftp://user@lab.example/home/user/a.res"
+    exp = files.expand_paths([uri])
+    assert exp.paths == []
+    assert exp.errors and "Remote path refused" in exp.errors[0]
+
+
+def test_expand_paths_refuses_remote_glob(local):
+    uri = "sftp://user@lab.example/home/user/*.res"
+    exp = files.expand_paths([uri])
+    assert exp.paths == []
+    assert exp.errors and "Remote globs are not supported" in exp.errors[0]
