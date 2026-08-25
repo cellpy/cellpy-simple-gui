@@ -127,38 +127,54 @@ minimal UI (dir + filter + extension) → tests with mocked filefinder.
 
 ## Files to touch
 
+### Phase 1 (this PR)
+
 | Path | Change |
 | --- | --- |
 | `src/cellpy_simple_gui/core/cellpy_adapter.py` | Remote-aware `load_file` / `load_raw` (skip local `Path.is_file`; pass URI to `cellpy.get`) |
-| `src/cellpy_simple_gui/core/files.py` | Detect remote URIs; skip local expand; optional desktop-only gate via `paths` |
+| `src/cellpy_simple_gui/core/files.py` | Detect remote URIs; skip local expand; desktop-only gate via `paths` |
 | `src/cellpy_simple_gui/core/paths.py` | Small helper e.g. `is_remote_uri` / `assert_remote_allowed` (or keep URI helpers in `files.py` if thinner) |
 | `src/cellpy_simple_gui/web/templates/index.html` (+ maybe `app.js`) | Placeholder / hint for sftp URIs |
-| `tests/test_files.py`, `tests/test_paths.py`, adapter/unit tests | Mock OtherPath / monkeypatch `cellpy.get`; assert served mode refuses remotes; desktop accepts URI passthrough |
+| `tests/test_files.py`, `tests/test_paths.py`, adapter/unit tests | Mock OtherPath / monkeypatch `cellpy.get`; served refuses remotes; desktop URI passthrough |
 | `docs/` or `README.md` | User-facing remote-load note |
-| `.issueflows/04-designs-and-guides/otherpath-remote-loading.md` | Decision record |
+| `.issueflows/04-designs-and-guides/otherpath-remote-loading.md` | Decision record (incl. phase 2 filefinder) |
+
+### Phase 2 (follow-up issue)
+
+| Path | Change |
+| --- | --- |
+| `src/cellpy_simple_gui/core/cellpy_adapter.py` | `find_remote_files(...)` wrapping `cellpy.filefinder` |
+| API router + models | Endpoint or job to list remote matches (dir + filter + extension) |
+| UI | Minimal “Find on remote” controls; feed URIs into existing load/ingest |
+| Tests | Monkeypatch filefinder; assert caps / policy / URI prefix |
 
 ## Test strategy
 
 - Command: `uv run pytest`
-- New/updated unit tests (no live SFTP in CI):
+- Phase 1 unit tests (no live SFTP in CI):
   - `is_remote_uri` / expand_paths leaves `sftp://…` intact under host-paths-allowed
   - expand_paths errors clearly under served sandbox
   - adapter `load_file`/`load_raw` call `cellpy.get` with the URI string when remote (monkeypatch)
   - local paths unchanged (existing `tests/test_files.py` / `tests/test_paths.py` still pass)
+- Phase 2 (later): mocked filefinder returns prefixed URIs; `max_files` truncation notes;
+  served mode still refuses.
 - Do **not** require Docker SFTP property tests in this app’s CI (that lives upstream in cellpy).
 
 ## Open questions
 
-1. **Deliverable for this PR:** MVP code + design doc (recommended), or
+1. **Deliverable for this PR:** Phase 1 MVP code + design doc (recommended), or
    **design doc / epic split only** with implementation filed as follow-ups?
 2. **Served mode:** hard-refuse remote URIs (recommended), or allow with an
    explicit env opt-in (e.g. `CSG_ALLOW_REMOTE_PATHS=1`)?
-3. **Globs on remote in MVP?** Recommend **no** — single-file URI only for v1.
+3. **Remote “glob”:** **Decided** — Phase 1 = single-file URI only; Phase 2 =
+   filefinder-based find (dir + extension + optional `glob_txt` / run name),
+   not local-style globs on remote URIs. File as a follow-up issue after phase 1.
 4. **Credential UX:** document + existing diagnostics only (recommended), or add
    a Settings affordance to set `CELLPY_KEY_FILENAME` for the process?
 
 ## Scope check
 
-Full “browse remote lab share like a folder” is epic-sized. The MVP above is one
-coherent PR. If Q1 is “plan only”, convert this file into the design doc and
-open follow-up issues instead of coding in `/iflow-build`.
+Full remote folder browser is still later than phase 2. Phase 1 is one coherent
+PR; phase 2 is one follow-up issue. If Q1 is “plan only”, convert this file into
+the design doc and open both implementation issues instead of coding in
+`/iflow-build`.
