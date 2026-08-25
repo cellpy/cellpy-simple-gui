@@ -294,6 +294,32 @@ you can confirm which rules an instance is running under.
 > directory — mount your data there. Browser upload is
 > [#133](https://github.com/cellpy/cellpy-simple-gui/issues/133).
 
+### Remote files (SSH / SFTP)
+
+On a **desktop** (local) instance you can paste a single remote file URI into
+**Load cells** or **Import raw**:
+
+```text
+sftp://user@hostname/home/user/lab/raw/20160805_test001_45_cc_01.res
+```
+
+Supported schemes: `ssh://`, `sftp://`, `scp://` (cellpy’s `OtherPath`). cellpy
+copies the file to a local temp dir, then opens it. Served instances refuse
+remote URIs — use upload or a volume mount instead.
+
+Credentials come from cellpy’s own env / `~/.env_cellpy` (the app already loads
+them with cellpy’s config stack):
+
+| Variable | Purpose |
+| --- | --- |
+| `CELLPY_KEY_FILENAME` | Path to an SSH private key (preferred) |
+| `CELLPY_PASSWORD` | Password fallback |
+
+Use a **fully resolvable hostname** (or IP) in the URI — OpenSSH `Host` aliases
+often fail with Paramiko (cellpy #687). Remote directory find / “approx glob”
+via `filefinder` is planned as a follow-up (#160 phase 2). See cellpy’s
+[remote paths](https://cellpy.readthedocs.io/) docs for more.
+
 ### Per-project cellpy settings
 
 Drop a `cellpy.toml` next to `project.json` and the app activates it as cellpy's
