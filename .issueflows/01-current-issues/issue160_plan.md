@@ -51,6 +51,11 @@ resolve that way. Broader browse/credential UX can follow in separate issues.
   `_SECRET_ENV_VARS` already lists `CELLPY_*` credential env presence.
 - [`__main__.py`](../../src/cellpy_simple_gui/__main__.py) `_anchor_cellpy_paths`
   — already leaves `rawdatadir` alone when it contains `://`.
+- **`cellpy.filefinder`** (`find_in_raw_file_directory`, `list_raw_file_directory`,
+  `search_for_files`) — remote-aware discovery via `OtherPath.rglob(...,
+  files_only=True)` / optional remote `find -L`; takes `raw_file_dir`,
+  `project_dir`, `extension`, `glob_txt` / `run_name`. Prefer this over teaching
+  app `expand_paths` to speak SFTP.
 - Browser upload path ([`docs/deployment.md`](../../docs/deployment.md)) —
   alternative for served mode (bring files to the instance); not a substitute
   for SSH-only lab shares on the user’s desktop.
@@ -60,18 +65,18 @@ resolve that way. Broader browse/credential UX can follow in separate issues.
 
 ## Approach
 
-### MVP (recommended for this issue after Accept)
+### Phase 1 — MVP (this issue after Accept)
+
+Single-file remote URI only (no remote glob in `expand_paths`).
 
 1. **Detect remote URI** in `core/files.py` (scheme in
    `ssh://` / `sftp://` / `scp://`). Do not run local `glob` / `Path.resolve`
    on them.
 2. **Policy gate:** if `sandbox_root()` is set (served), append a clear error
    and skip; if host paths allowed (desktop / loopback), keep the URI string.
-3. **Existence check via OtherPath** inside the adapter (or a thin
-   `core/remote_paths.py` that wraps `OtherPath` without leaking cellpy types
-   upward — prefer keeping OtherPath import only in the adapter and passing
-   strings through). Refuse missing remotes with the same “Not found” style
-   errors as local.
+3. **Existence check via OtherPath** inside the adapter (keep OtherPath import
+   only in the adapter; pass strings upward). Refuse missing remotes with the
+   same “Not found” style errors as local.
 4. **Adapter:** `load_file` / `load_raw` accept a path string; if remote, pass
    it through to `cellpy.get(filename=...)` **without** `Path(...).is_file()`.
    Local paths keep today’s check.
@@ -83,11 +88,30 @@ resolve that way. Broader browse/credential UX can follow in separate issues.
    vars and the Host-alias workaround.
 7. **Durable design note** under
    `.issueflows/04-designs-and-guides/otherpath-remote-loading.md` recording
-   decisions (desktop-only MVP, env credentials, no remote save, follow-ups).
+   decisions (desktop-only MVP, env credentials, filefinder as phase 2, no
+   remote save).
 
-### Explicitly deferred (follow-up issues)
+### Phase 2 — filefinder “approx glob” (follow-up issue; decided)
 
-- Remote **directory browse / glob** (`OtherPath.glob` / `rglob`) and listing UI.
+Not free-form `sftp://…/**/*.res` through local `glob`. Instead a small remote
+find UX that wraps cellpy’s filefinder behind `cellpy_adapter`:
+
+- Inputs: remote **directory** URI (or config `rawdatadir`) + optional
+  `project_dir` / name filter (`glob_txt` or `run_name`) + **extension** from
+  the Import instrument (or `.cellpy` for Load cells).
+- Call `filefinder.find_in_raw_file_directory(...)` (or `search_for_files` when
+  the user has a run id); return `sftp://…` URI strings with `with_prefix`.
+- Enforce existing `max_files`; if the dump is huge, surface a clear “narrow
+  the folder / filter” note (cellpy already warns that dumping a shared
+  `rawdatadir` over SFTP is expensive — prefer project-scoped dirs).
+- Feed matches into the same load/ingest jobs as pasted URIs from phase 1.
+- Same desktop-only policy gate as phase 1.
+
+Phase 2 is a separate issue/PR so phase 1 stays shippable without browse UI.
+
+### Explicitly deferred (later than phase 2)
+
+- Full folder-browser UI (tree / picker over SFTP).
 - Setting / editing cellpy `Paths.rawdatadir` to a remote URI from the GUI.
 - Connection self-test button (`cellpy.internals.connections.check_connection`).
 - Served-mode allow-list of hosts or “SSH jump from container” packaging.
@@ -95,8 +119,11 @@ resolve that way. Broader browse/credential UX can follow in separate issues.
 
 ### Ordering
 
-Adapter + `expand_paths` policy first (unblocks paste-URI load) → tests → tiny
-UI/help copy → design doc + README → stop.
+**This PR:** adapter + `expand_paths` policy → tests → tiny UI/help → design doc
++ README → stop.
+
+**Next issue:** adapter `find_remote_files(...)` via filefinder → API/job →
+minimal UI (dir + filter + extension) → tests with mocked filefinder.
 
 ## Files to touch
 
