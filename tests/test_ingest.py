@@ -66,6 +66,69 @@ def test_load_raw_passes_instrument(tmp_path, monkeypatch):
     assert captured["mass"] == 1.0
 
 
+def test_load_file_passes_remote_uri(monkeypatch):
+    """Remote URIs skip pathlib and go to cellpy.get as strings (#160)."""
+    uri = "sftp://user@lab.example/home/user/a.cellpy"
+    captured: dict = {}
+
+    class FakeRemote:
+        def is_file(self):
+            return True
+
+    monkeypatch.setattr(
+        "cellpy.internals.otherpath.OtherPath",
+        lambda text, **kw: FakeRemote(),
+    )
+
+    def fake_get(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(cellpy_adapter, "_get", fake_get)
+    cellpy_adapter.load_file(uri, mass=1.5)
+    assert captured["filename"] == uri
+    assert captured["mass"] == 1.5
+
+
+def test_load_raw_passes_remote_uri(monkeypatch):
+    uri = "sftp://user@lab.example/home/user/a.res"
+    captured: dict = {}
+
+    class FakeRemote:
+        def is_file(self):
+            return True
+
+    monkeypatch.setattr(
+        "cellpy.internals.otherpath.OtherPath",
+        lambda text, **kw: FakeRemote(),
+    )
+
+    def fake_get(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(cellpy_adapter, "_get", fake_get)
+    cellpy_adapter.load_raw(uri, "maccor_txt", model="three", mass=1.0)
+    assert captured["filename"] == uri
+    assert captured["instrument"] == "maccor_txt"
+    assert captured["model"] == "three"
+
+
+def test_load_file_remote_missing_raises(monkeypatch):
+    uri = "sftp://user@lab.example/home/user/missing.cellpy"
+
+    class FakeRemote:
+        def is_file(self):
+            return False
+
+    monkeypatch.setattr(
+        "cellpy.internals.otherpath.OtherPath",
+        lambda text, **kw: FakeRemote(),
+    )
+    with pytest.raises(FileNotFoundError, match="No such file"):
+        cellpy_adapter.load_file(uri)
+
+
 def test_load_raw_rewrites_data_df_error(tmp_path, monkeypatch):
     fake = tmp_path / "sample.h5"
     fake.write_bytes(b"x")
