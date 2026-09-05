@@ -256,12 +256,13 @@ def load_raw(
     A set ``instrument=`` now wins over ``.h5`` / ``.hdf5`` suffix auto-pick in
     cellpy ≥2.1.2 (#819), so raw HDF5 loaders (e.g. Arbin SQL HDF5) route to the
     right reader without disabling ``auto_pick_cellpy_format``.
+
+    Remote ``ssh://`` / ``sftp://`` / ``scp://`` URIs (#160) are passed to
+    ``cellpy.get`` as strings; cellpy copies them locally before opening.
     """
-    p = Path(path)
-    if not p.is_file():
-        raise FileNotFoundError(f"No such file: {p}")
+    filename = _filename_for_get(path)
     kwargs: dict[str, Any] = {
-        "filename": str(p),
+        "filename": filename,
         "instrument": instrument,
     }
     if model:
@@ -279,13 +280,13 @@ def load_raw(
     try:
         return _get(**kwargs)
     except Exception as exc:  # noqa: BLE001 - rephrase loader mismatch only
-        rewritten = _rewrite_loader_error(exc, path=p, instrument=instrument)
+        rewritten = _rewrite_loader_error(exc, path=filename, instrument=instrument)
         if rewritten is exc:
             raise
         raise rewritten from exc
 
 
-def _rewrite_loader_error(exc: Exception, *, path: Path, instrument: str) -> Exception:
+def _rewrite_loader_error(exc: Exception, *, path: str | Path, instrument: str) -> Exception:
     """Hint when the cellpy-native HDF5 reader ran instead of a raw loader."""
     if "data_df" not in str(exc):
         return exc
@@ -315,12 +316,29 @@ def example_raw_path(kind: str) -> Path:
     raise ValueError(f"Unknown raw example: {kind!r}")
 
 
-def load_file(path: str | Path, mass: float | None = None) -> Any:
-    """Load a cellpy file (``.cellpy`` / legacy ``.h5``) from disk."""
-    p = Path(path)
+def _filename_for_get(path: str | Path) -> str:
+    """Local path string or remote URI suitable for ``cellpy.get`` (#160)."""
+    from . import paths as _paths
+
+    text = str(path).strip().strip('"')
+    if _paths.is_remote_uri(text):
+        from cellpy.internals.otherpath import OtherPath
+
+        remote = OtherPath(text)
+        if not remote.is_file():
+            raise FileNotFoundError(f"No such file: {text}")
+        return text
+
+    p = Path(text)
     if not p.is_file():
         raise FileNotFoundError(f"No such file: {p}")
-    kwargs: dict[str, Any] = {"filename": str(p)}
+    return str(p)
+
+
+def load_file(path: str | Path, mass: float | None = None) -> Any:
+    """Load a cellpy file (``.cellpy`` / legacy ``.h5``) from disk or remote URI."""
+    filename = _filename_for_get(path)
+    kwargs: dict[str, Any] = {"filename": filename}
     if mass is not None:
         kwargs["mass"] = mass
     return _get(**kwargs)

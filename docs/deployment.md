@@ -36,6 +36,11 @@ the damage to the instance's own data — it is not a sandbox against someone yo
 have handed a shell-equivalent to. Uploading arbitrary instrument files means
 handing them to cellpy's parsers.
 
+**SSH remotes are desktop-only.** `sftp://` / `ssh://` / `scp://` URIs are
+refused in served mode for the same reason host paths are: opening an SSH
+session to an arbitrary host is outside the data-directory sandbox. Paste remote
+URIs in the desktop app instead (see *Remote files* in the README).
+
 ---
 
 ## Container

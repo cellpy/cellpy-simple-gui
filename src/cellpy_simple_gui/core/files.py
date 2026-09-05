@@ -48,6 +48,26 @@ def expand_paths(patterns: list[str], max_files: int = DEFAULT_MAX_FILES) -> Exp
         pat = raw.strip().strip('"')
         if not pat:
             continue
+        # Remote SSH/SFTP URIs (#160): never run through local glob / resolve.
+        # Desktop only; single-file URI in this phase (filefinder find = later).
+        if _paths.is_remote_uri(pat):
+            if not _paths.remote_paths_allowed():
+                exp.errors.append(
+                    f"Remote path refused: {pat}. This instance is served over "
+                    "a network, so it only reads inside its own data directory "
+                    "(SSH/SFTP remotes are desktop-only)."
+                )
+                continue
+            if is_glob(pat):
+                exp.errors.append(
+                    f"Remote globs are not supported yet: {pat}. "
+                    "Paste a single file URI (e.g. sftp://user@host/path/file.res)."
+                )
+                continue
+            if pat not in seen:
+                seen.add(pat)
+                exp.paths.append(pat)
+            continue
         # Both branches go through core.paths, so a served instance can only
         # ever reach inside its data directory (#120). On a desktop instance
         # these are pass-throughs.

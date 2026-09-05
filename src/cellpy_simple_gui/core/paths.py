@@ -32,9 +32,27 @@ log = logging.getLogger(__name__)
 #: Bind addresses that mean "only this machine can reach me".
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "::ffff:127.0.0.1"})
 
+#: cellpy ``OtherPath`` schemes for SSH/SFTP remotes (#160).
+REMOTE_URI_SCHEMES = ("ssh://", "sftp://", "scp://")
+
 
 class PathNotAllowed(ValueError):
     """A supplied path resolves outside what this instance may touch."""
+
+
+def is_remote_uri(raw: str | os.PathLike[str]) -> bool:
+    """True when ``raw`` is an ssh/sftp/scp URI (cellpy OtherPath)."""
+    text = str(raw).strip().strip('"').lower()
+    return text.startswith(REMOTE_URI_SCHEMES)
+
+
+def remote_paths_allowed() -> bool:
+    """True when this instance may open SSH/SFTP remotes (#160).
+
+    Same gate as host filesystem paths: desktop / loopback only. A served
+    instance must not open arbitrary SSH sessions on the user's behalf.
+    """
+    return host_paths_allowed()
 
 
 def host_paths_allowed() -> bool:

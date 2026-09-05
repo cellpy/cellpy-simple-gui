@@ -115,7 +115,8 @@
           <div class="field">
             <label x-show="!hostPathsAllowed" x-cloak>Or a path on the server</label>
             <div class="input-row">
-              <input type="text" x-model="filesPath" placeholder="path or glob, e.g. C:\data\*.cellpy"
+              <input type="text" x-model="filesPath"
+                     placeholder="path, glob, or sftp://user@host/path/file.cellpy"
                      @keydown.enter="loadFiles()" />
               <button class="btn btn-ghost pick" x-show="canPick" @click="pickCellpy()" title="Browse…">📁</button>
             </div>
@@ -130,7 +131,11 @@
             </div>
             <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.
               Native cellpy files only (<code>.cellpy</code> / cellpy <code>.h5</code>) —
-              Arbin SQL HDF5 belongs under Import raw below.</p>
+              Arbin SQL HDF5 belongs under Import raw below.
+              On the desktop you can paste a single remote URI
+              (<code>sftp://</code> / <code>ssh://</code> / <code>scp://</code>);
+              credentials come from cellpy’s <code>.env_cellpy</code>
+              (<code>CELLPY_KEY_FILENAME</code> / <code>CELLPY_PASSWORD</code>).</p>
           </div>
         </div>
 
@@ -188,13 +193,19 @@
           <div class="field">
             <label>Raw file paths</label>
             <div class="input-row">
-              <input type="text" x-model="ingest.paths" placeholder="path or glob, e.g. C:\data\*.res" @keydown.enter="ingestRaw()" />
+              <input type="text" x-model="ingest.paths"
+                     placeholder="path, glob, or sftp://user@host/path/file.res"
+                     @keydown.enter="ingestRaw()" />
               <button class="btn btn-ghost pick" x-show="canPick" @click="pickRaw()" title="Browse…">📁</button>
             </div>
             <label class="maxlbl" style="margin-top:7px" title="Max files a glob may load">max
               <input type="number" class="num-mini" x-model="ingest.maxFiles" min="1" :max="maxFilesCeiling"
                      :title="`server caps this at ${maxFilesCeiling}`" />
             </label>
+            <p class="hint" style="margin-top:7px">Remote single-file URIs work on the desktop
+              (<code>sftp://user@host/…</code>); set <code>CELLPY_KEY_FILENAME</code>
+              in <code>~/.env_cellpy</code>. Use a real hostname, not an OpenSSH
+              <code>Host</code> alias.</p>
           </div>
           <button class="btn btn-primary block" @click="ingestRaw()" :disabled="job.active || !ingest.paths.trim()">
             ⚙ Import &amp; process
