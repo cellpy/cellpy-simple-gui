@@ -318,7 +318,11 @@ def test_new_project_refuses_before_it_writes_anything(prototype):
         return (
             await call("new_project", project="../escape", experiment="e1"),
             await call("new_project", project="ok", experiment=""),
-            await call("new_project", project="ok", experiment="e1", directory="C:/Windows"),
+            # `..`, not `C:/Windows`: on posix a drive-lettered path is
+            # *relative*, so it lands inside the sandbox and is refused for
+            # not existing — which passes for the wrong reason and only on
+            # Windows. `..` is outside the root on both platforms.
+            await call("new_project", project="ok", experiment="e1", directory=".."),
         )
 
     escape, empty, outside = drive(prototype, steps)
