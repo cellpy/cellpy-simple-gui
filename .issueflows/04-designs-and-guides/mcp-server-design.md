@@ -8,6 +8,12 @@ The prototype is [`examples/mcp/server.py`](../../examples/mcp/server.py) —
 eight tools, driven end to end over the real MCP protocol. Everything below that
 sounds like an opinion was measured.
 
+**This document has two rounds.** Everything down to *Reproducing* is the
+original pass. [Round two](#round-two-four-user-groups-not-one) — written
+2026-09-05 against cellpy 2.1.3, after #840 came back asking for three more
+audiences, a local launcher, and help with the API docs — adds four tools, three
+prompts, two findings, and supersedes the closing sections.
+
 ## Why an MCP server at all
 
 The other artifacts from this phase hand an agent *documentation* and let it
@@ -190,3 +196,231 @@ CELLPY_MCP_ROOT=/some/data uv run --script examples/mcp/server.py
 `tests/test_mcp_prototype.py` drives it over the protocol with an in-process
 client. It skips when `mcp` is not installed — install with
 `uv sync --extra mcp`.
+
+## Round two: four user groups, not one
+
+The first pass built for one caller — someone with an agent, automating cell
+handling or building on cellpy. #840 came back with three more, and they change
+the design more than the tool list suggests:
+
+| Who | What they want | What it needs |
+|---|---|---|
+| **Builders** | a GUI, a batch script | the eight data tools, plus real signatures |
+| **Chat users** | "plot these cells for me" | prompts, and an install that is not a JSON edit |
+| **Terminal-avoiders** | `cellpy new` without a terminal | templating as a tool |
+| **Everyone** | "what does this argument do?" | the API, introspected from the installed package |
+
+The fourth is the one worth taking seriously, because it is not a feature
+request. It is the observation that **people do not read API documentation** —
+which no amount of writing fixes, because the cost was never the reading. It is
+knowing a page exists, finding it, and trusting that it describes the version
+installed. A tool call removes all three.
+
+Four tools and three prompts were added to the prototype, all driven over the
+protocol by `tests/test_mcp_prototype.py` (17 tests).
+
+## The API family — and what it measured
+
+`search_api(query)` finds calls by name or by their first docstring line;
+`describe_api(name, include_source=False)` returns the signature, per-argument
+types and defaults, the docstring, and `undocumented_parameters`.
+
+That last field exists because the obvious version of this tool does not work.
+Measured over the 44 calls in `docs/api-reference.md` against **cellpy 2.1.3**:
+
+```
+no docstring at all                                3
+one-line docstring                                13
+has an Args:/Parameters: section            14 of 44
+parameters named in their own docstring   100 of 195   (51%)
+```
+
+`CellpyCell.get_cap` takes 23 arguments and documents none of them. A tool that
+returned the docstring and stopped would answer half the questions put to it
+with a sentence and a shrug — and, worse, would let a model fill the silence.
+
+### Finding 3 — the documentation is usually there, one hop away
+
+`get_cap`'s entire docstring is *"Gets the capacity for the run. See
+:func:`cellpy.readers.capacity_curves.get_cap`."* The delegate documents **22 of
+its 24 arguments** in a full `Args:` block.
+
+So the text exists. It sits behind a Sphinx cross-reference, which is a marker
+only a **docs site** resolves. Everywhere a docstring is actually met — an IDE
+tooltip, `help()`, a chat window, an agent — the reader gets the pointer and not
+the prose. This is a concrete, mechanical part of why the API docs go unread:
+for the thinnest calls, the rendered site is the only place the words appear.
+
+`describe_api` follows the reference. Across the same 44 calls:
+
+```
+docstring only          100/195   (51%)
+following references    140/195   (72%)
+```
+
+Nine calls delegate; five gain arguments. `get_cap` goes from 23 undocumented to
+1. That is a 21-point gain from about thirty lines of code, and it costs cellpy
+nothing — no docstring has to be rewritten for it to land.
+
+Two things still follow for cellpy itself, and they are cheap:
+
+- **The 28% that remains is a ranked worklist**, not an opinion. `to_csv` (9
+  arguments), `CurveOptions` (8), `LoadOptions` (7) and `collect_cycles` /
+  `collect_ica` / `collect_dva` (3 each) are the calls where an assistant will
+  be guessing.
+- **An MCP server changes what a docstring is worth.** Prose on a page nobody
+  opens has one reader a month; the same prose in a docstring is read on every
+  question anyone asks about that call. It is the strongest argument for writing
+  docstrings that cellpy has had.
+
+`include_source=True` is the honest fallback for the rest: a model reads Python
+well, and reading `site-packages` is exactly what a chat user cannot do.
+
+### Two smaller traps, both fixed and both tested
+
+- **Re-exports.** `utils.helpers` re-exports `CellpyCell`, so the first index
+  answered `get_cap` with `cellpy.utils.helpers.CellpyCell.get_cap` — a true
+  path that sends the reader to the wrong file. The index now dedupes by object
+  identity and keeps the shortest path, breaking ties toward the defining
+  module. (It also shrank the index from 367 entries to 276.)
+- **`self` in a rendered signature** invites a model to pass it. Stripped.
+
+### And a boundary
+
+`describe_api("os.system")` must not be a way to import arbitrary modules —
+resolving a dotted path *is* importing it, and the caller is a model acting on
+text it may have read in a file. Resolution is confined to `cellpy` and
+`cellpycore`, and the refusal names that reason rather than falling through to
+"no such cellpy call", which is true of `os.system` and teaches the caller that
+a different spelling might work.
+
+## Finding 4 — `cellpy new` cannot currently be automated
+
+`list_templates` and `new_project` wrap the batch templating for people who will
+not open a terminal. `new_project` works — six notebooks and a `data/` tree,
+verified over the protocol — but only because of a workaround.
+
+`create_project(..., no_input=True)` is **not** non-interactive. When the project
+directory does not exist, `cli_api.py:1601` calls
+
+```python
+cookiecutter.prompt.read_user_yes_no(f"{project_dir} does not exist. Create?", "yes")
+```
+
+unconditionally, outside the `no_input` guard. A server has no stdin to answer
+with, and under stdio it does not even hang usefully — it raises `ValueError:
+I/O operation on closed file`.
+
+`new_project` therefore creates the directory itself before calling in, which
+skips the branch entirely. **The upstream fix is one line** — honour `no_input`
+at that call — and it is worth making regardless of MCP: it is the difference
+between `cellpy new` being scriptable and not.
+
+A second, smaller ask: `cellpy new --list` prints its templates through the UI
+and returns nothing, so `list_templates` reads `template_registry` and two
+private helpers directly. A `cli_api.list_templates()` returning a dict would
+be the honest seam.
+
+## Prompts — the part aimed at people who are not asking for tools
+
+Tools serve someone who already knows what they want. Someone who opens a chat
+window and asks it to "do the cell processing" does not, and the gap is not
+knowledge of cellpy — it is not knowing that any of this is there.
+
+MCP prompts are the piece of the protocol that addresses exactly this: a client
+renders them as named, pickable starting points, so the capability advertises
+itself. Three, deliberately few:
+
+- `analyse_cell(path, mass_mg)` — load, check families, render the standard
+  plots. When no mass is given it instructs the assistant to *ask* before
+  reporting any gravimetric number, because the default of 1.0 mg produces
+  numbers that are plausible and wrong.
+- `start_batch_project(project, experiment)` — the `cellpy new` walkthrough,
+  ending with the one command that opens the notebooks.
+- `explain_call(name)` — the API question, with instructions to read source
+  rather than guess when `undocumented_parameters` bears on the answer, and to
+  say which parts of the answer came from source.
+
+They are also the cheapest place to put the traps that documentation is bad at
+preventing, because they are the words the model starts from.
+
+## Starting it locally
+
+There is no deployment budget, and this turns out to matter less than expected:
+**stdio needs no server**. The client spawns the process, one per client, which
+is also what made the session problem disappear (Finding 1). Nothing has to be
+hosted for any of the four groups above to work today.
+
+What it does need is a JSON block in a client config file — a worse ask than the
+terminal we were trying to avoid. So the prototype grew `--install`, which
+merges a `cellpy` entry into Claude Desktop's config (per-platform path, other
+keys preserved, refuses rather than overwrites an unparseable file) and prints
+only the block it would add. Verified with `--dry-run`.
+
+### Proposed: `cellpy mcp`, not `cellpy server mcp`
+
+#840 suggests `cellpy server mcp`. Worth reconsidering the spelling: `cellpy
+serve` already exists and starts Jupyter, so `cellpy server` would sit one
+letter from it — for an audience defined by not being comfortable in a terminal,
+that is a real hazard. `cellpy mcp <verb>` collides with nothing:
+
+```
+cellpy mcp serve      # run over stdio — what a client spawns
+cellpy mcp install    # write the client config block
+cellpy mcp status     # registered? which root? which cellpy?
+```
+
+**This is compatible with keeping the server out of cellpy.** The subcommand is
+a thin shim that imports `cellpy_mcp` and, when it is absent, prints
+`pip install cellpy-mcp`. Perhaps forty lines. cellpy gains a *command*, not a
+dependency — which is the whole point, given that mcp 2.0 renamed `FastMCP` to
+`MCPServer` and ships two `Context` classes with different attributes. The SDK's
+churn stays outside cellpy's release cadence, and the discoverable entry point
+still lives where people look for it.
+
+One step cannot be removed: somebody types `cellpy mcp install` once. The way to
+make that disappear for the chat audience is to fold it into `cellpy setup`,
+which they already run — one question, "register cellpy with your chat client?".
+
+### The sandbox default should be cellpy's own paths
+
+`CELLPY_MCP_ROOT` defaults to `~/cellpy_mcp`, which is safe and empty — fine for
+a prototype, useless for someone whose cells are already somewhere. But cellpy
+was *told* where the data is, during the setup those users have already done:
+`config.paths.rawdatadir`, `cellpydatadir`, `outdatadir`, `notebookdir`.
+
+Defaulting the sandbox to that set — a list of roots rather than one — makes the
+chat story work with no configuration at all while keeping the boundary meaning
+something. It is the difference between "safe and empty" and "safe and useful".
+
+One wrinkle, found while checking: `rawdatadir` can be an **`OtherPath` with a
+scheme** (on this machine it is `scp://d1-odin-01…`). The containment check is
+`pathlib`-based and cannot express that, so the first version should take the
+local roots and say plainly that remote roots are not covered — related to
+cellpy-simple-gui#162.
+
+## What is still open
+
+Unchanged from round one, and the first item gets worse now that chat users are
+in scope:
+
+- **Long loads block.** `cellpy.get` offers no progress and no cancellation, so
+  a client may time out with no signal. A chat user reads that as "it broke".
+  This is still the gap most worth closing.
+- **No quota, no eviction.** An agent can fill the sandbox; cells live until the
+  process exits.
+- **Concurrency** is untested, and moot under stdio.
+- `new_project` downloads a cookiecutter from GitHub, so CI tests its refusals
+  (reached before any network call) and the happy path is verified by hand.
+
+## Recommendation, restated
+
+Unchanged in shape, sharper in the parts #840 asked about:
+
+1. The server lives in a separate **`cellpy-mcp`** package.
+2. cellpy grows a thin **`cellpy mcp`** command group and no MCP dependency.
+3. Two upstream fixes are worth making on their own merits, MCP or not: honour
+   `no_input` in `cellpy new` (one line), and a `cli_api.list_templates()` that
+   returns data.
+4. The docstring worklist above is the highest-leverage documentation work
+   available, because an MCP server is the first reader that actually shows up.
