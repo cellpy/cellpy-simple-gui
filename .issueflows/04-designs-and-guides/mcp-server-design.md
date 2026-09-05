@@ -441,3 +441,39 @@ whether or not an MCP server ever ships:
 - [cellpy#991](https://github.com/jepegit/cellpy/issues/991) — a
   `cli_api.list_templates()` that returns data, so a caller need not read
   `template_registry` and two private helpers to offer the same choice.
+
+## Decided (2026-09-05)
+
+Both open questions were settled by the maintainer on cellpy#840:
+
+1. **`cellpy-mcp` is a separate package** that depends on cellpy. It moves at
+   the SDK's pace rather than cellpy's release cadence, and the long-lived
+   network-facing process — with its security surface — stays out of the
+   library. Absorbing it later is easy; extracting it after the fact is not.
+2. **The command group is `cellpy mcp <verb>`**, not `cellpy server mcp`.
+   `cellpy serve` already starts Jupyter, and one letter is too close for an
+   audience defined by not being comfortable in a terminal.
+
+The two are compatible because the subcommand carries no MCP dependency: it
+imports `cellpy_mcp` and, when that is absent, says how to install it. **cellpy
+gains a command, not a dependency.**
+
+What follows from the decision, in the order it should be built:
+
+- `cellpy mcp serve | install | status` in cellpy, as a thin shim (~40 lines).
+  `serve` execs the installed server over stdio; `install` writes the client
+  config block; `status` reports whether it is registered, against which root
+  and which cellpy.
+- The `cellpy-mcp` package itself, seeded from
+  [`examples/mcp/server.py`](../../examples/mcp/server.py) — which is a
+  prototype, so the seeding is a rewrite with tests, not a copy.
+- The sandbox default moves from `~/cellpy_mcp` to cellpy's own configured
+  paths (`config.paths.rawdatadir`, `cellpydatadir`, `outdatadir`,
+  `notebookdir`) as a list of roots — local ones only, since `rawdatadir` can
+  carry a scheme (`scp://…`).
+- Folding `cellpy mcp install` into `cellpy setup` as one question, so the
+  chat audience never types a command at all.
+
+The prototype in this repo stays where it is: it is the thing the decision was
+made from, and it will keep answering questions that the package should not
+have to be rebuilt to test.
