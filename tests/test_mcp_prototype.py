@@ -59,8 +59,11 @@ def drive(prototype, steps):
 
     async def main():
         async with Client(module.server) as client:
-            async def call(name, **arguments):
-                result = await client.call_tool(name, arguments)
+            # `tool`, not `name`: `describe_api` takes an argument called
+            # `name`, and a positional parameter of the same name here makes
+            # `call("describe_api", name=...)` a TypeError rather than a call.
+            async def call(tool, **arguments):
+                result = await client.call_tool(tool, arguments)
                 text = "".join(getattr(b, "text", "") for b in (result.content or []))
                 if getattr(result, "is_error", False):
                     return {"refused": text}
@@ -204,15 +207,20 @@ def test_unknown_handles_and_kinds_are_told_what_to_do(prototype):
 
 
 def test_the_tool_surface_is_small_and_named_as_documented(prototype):
-    """The design doc lists eight tools; drift makes the doc wrong, not the code."""
+    """The design doc lists these; drift makes the doc wrong, not the code."""
     module, _root = prototype
     from mcp import Client
 
     async def main():
         async with Client(module.server) as client:
-            return {t.name for t in (await client.list_tools()).tools}
+            return (
+                {t.name for t in (await client.list_tools()).tools},
+                {p.name for p in (await client.list_prompts()).prompts},
+            )
 
-    assert asyncio.run(main()) == {
+    tools, prompts = asyncio.run(main())
+    assert tools == {
+        # cells and figures
         "list_instruments",
         "load_cell",
         "list_cells",
@@ -221,4 +229,106 @@ def test_the_tool_surface_is_small_and_named_as_documented(prototype):
         "preview_collection",
         "render",
         "export_collection",
+        # the API surface, for "how does this call work"
+        "search_api",
+        "describe_api",
+        # batch templating, for people who will not open a terminal
+        "list_templates",
+        "new_project",
     }
+    assert prompts == {"analyse_cell", "start_batch_project", "explain_call"}
+
+
+def test_describe_api_follows_the_reference_the_docstring_points_at(prototype):
+    """The finding this family turns on.
+
+    `CellpyCell.get_cap` takes 23 arguments, documents none of them, and spends
+    its one-line docstring on ``See :func:`cellpy.readers.capacity_curves.get_cap```.
+    The delegate documents 22 of 24 in a full ``Args:`` block. Following the
+    reference is the difference between an unanswerable call and a documented
+    one, so it is asserted rather than left to be noticed.
+    """
+
+    async def steps(call):
+        return await call("describe_api", name="get_cap")
+
+    result = drive(prototype, steps)
+    assert result["path"] == "cellpy.readers.cellreader.CellpyCell.get_cap"
+    assert result["delegates_to"] == "cellpy.readers.capacity_curves.get_cap"
+    assert "Args:" in result["delegate_doc"]
+    assert len(result["parameters"]) > 20
+    # One stray argument is fine; twenty-three would mean the hop was not made.
+    assert len(result["undocumented_parameters"]) <= 2
+
+
+def test_describe_api_renders_a_method_the_way_you_would_call_it(prototype):
+    """`self` in a rendered signature invites a model to pass it."""
+
+    async def steps(call):
+        return await call("describe_api", name="get_cap")
+
+    signature = drive(prototype, steps)["signature"]
+    assert signature.startswith("get_cap(cycle=")
+    assert "self" not in signature
+    assert not any(p["name"] in ("self", "cls") for p in drive(prototype, steps)["parameters"])
+
+
+def test_describe_api_will_not_import_outside_cellpy(prototype):
+    """Resolving a dotted path is importing it, and the caller is a model.
+
+    The refusal has to name the actual reason. Falling through to "no such
+    cellpy call" would be true of `os.system` and would teach the caller that
+    some other spelling might work.
+    """
+
+    async def steps(call):
+        return (
+            await call("describe_api", name="os.system"),
+            await call("describe_api", name="subprocess.run"),
+            await call("describe_api", name="nonsense_call"),
+        )
+
+    system, subprocess_run, missing = drive(prototype, steps)
+    assert "not part of cellpy" in system["refused"]
+    assert "not part of cellpy" in subprocess_run["refused"]
+    assert "No cellpy call" in missing["refused"]
+
+
+def test_search_api_points_at_the_module_that_defines_the_call(prototype):
+    """`utils.helpers` re-exports `CellpyCell`; a path through it sends the
+    reader to the wrong file. Identity-deduping the index is what fixes it."""
+
+    async def steps(call):
+        return await call("search_api", query="get_mass")
+
+    result = drive(prototype, steps)
+    paths = [m["path"] for m in result["matches"]]
+    assert "cellpy.readers.cellreader.CellpyCell.get_mass" in paths
+    assert not any("utils.helpers" in p for p in paths)
+    assert result["indexed"] > 100
+
+
+def test_new_project_refuses_before_it_writes_anything(prototype):
+    """The happy path downloads a cookiecutter from GitHub, so CI tests the
+    boundary — which is reached before any network call — and the design doc
+    records the verified happy path."""
+    _module, root = prototype
+
+    async def steps(call):
+        return (
+            await call("new_project", project="../escape", experiment="e1"),
+            await call("new_project", project="ok", experiment=""),
+            # `..`, not `C:/Windows`: on posix a drive-lettered path is
+            # *relative*, so it lands inside the sandbox and is refused for
+            # not existing — which passes for the wrong reason and only on
+            # Windows. `..` is outside the root on both platforms.
+            await call("new_project", project="ok", experiment="e1", directory=".."),
+        )
+
+    escape, empty, outside = drive(prototype, steps)
+    assert "not a folder name" in escape["refused"]
+    assert "needed" in empty["refused"]
+    assert "outside the data directory" in outside["refused"]
+    # Nothing was created on the way to refusing.
+    assert not (root / "ok").exists()
+    assert not (root / "escape").exists()
