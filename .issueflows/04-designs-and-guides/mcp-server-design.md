@@ -424,3 +424,20 @@ Unchanged in shape, sharper in the parts #840 asked about:
    returns data.
 4. The docstring worklist above is the highest-leverage documentation work
    available, because an MCP server is the first reader that actually shows up.
+
+## Proposed upstream — round two
+
+Posted to [cellpy#840](https://github.com/jepegit/cellpy/issues/840#issuecomment-5552632071)
+on 2026-09-05: the API-docs measurements, the `cellpy new` finding, the prompts,
+and the `cellpy mcp` spelling — again offered rather than prescribed, since the
+question of where the server lives is the maintainer's.
+
+Two narrow upstream fixes were filed separately, because both are worth making
+whether or not an MCP server ever ships:
+
+- [cellpy#990](https://github.com/jepegit/cellpy/issues/990) — honour `no_input`
+  in `cellpy new` (one line at `cli_api.py:1601`); without it `cellpy new`
+  cannot be driven from a script, a GUI or a tool.
+- [cellpy#991](https://github.com/jepegit/cellpy/issues/991) — a
+  `cli_api.list_templates()` that returns data, so a caller need not read
+  `template_registry` and two private helpers to offer the same choice.
