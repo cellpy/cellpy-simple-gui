@@ -38,8 +38,10 @@ handing them to cellpy's parsers.
 
 **SSH remotes are desktop-only.** `sftp://` / `ssh://` / `scp://` URIs are
 refused in served mode for the same reason host paths are: opening an SSH
-session to an arbitrary host is outside the data-directory sandbox. Paste remote
-URIs in the desktop app instead (see *Remote files* in the README).
+session to an arbitrary host is outside the data-directory sandbox. That covers
+both single-file URIs and the *Find in a remote folder* listing
+(`/api/remote/find`). Paste remote URIs in the desktop app instead (see *Remote
+files* in the README).
 
 ---
 

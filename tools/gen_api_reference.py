@@ -44,6 +44,7 @@ SECTIONS: list[tuple[str, str, list[tuple[str, str]]]] = [
             ("cellpy.utils.example_data.rate_file", "**A path, not a cell** — unlike `cellpy_file()`. Passing it where a cell is expected fails silently."),
             ("cellpy.utils.example_data.neware_file_path", "A raw Neware export (`.csv`) that loads with no external tooling."),
             ("cellpy.utils.example_data.arbin_file_path", "A raw Arbin `.res` — needs mdbtools or the Access driver to load."),
+            ("cellpy.filefinder.find_in_raw_file_directory", "Recursive file listing of a local **or remote** (`sftp://`) folder — the remote-aware stand-in for a glob. `extension` is given without the dot; `glob_txt` narrows by name; pass `allow_error_level=1` so SSH failures raise instead of returning an empty list."),
         ],
     ),
     (

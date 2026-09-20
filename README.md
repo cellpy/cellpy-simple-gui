@@ -304,9 +304,21 @@ them with cellpy’s config stack):
 | `CELLPY_PASSWORD` | Password fallback |
 
 Use a **fully resolvable hostname** (or IP) in the URI — OpenSSH `Host` aliases
-often fail with Paramiko (cellpy #687). Remote directory find / “approx glob”
-via `filefinder` is planned as a follow-up (#160 phase 2). See cellpy’s
+often fail with Paramiko (cellpy #687). See cellpy’s
 [remote paths](https://cellpy.readthedocs.io/) docs for more.
+
+#### Find files in a remote folder
+
+Globs (`*.res`) do not work on remote URIs. Instead, open **Find in a remote
+folder…** under *Add cellpy files* or *Import raw*, paste a remote **directory**
+URI (`sftp://user@hostname/home/user/lab/raw/my_project/`) and, optionally, a
+name filter (`cc_01` means *contains*; `2016*_cc_*` is used as a glob). The app
+walks the folder recursively with cellpy’s `filefinder` — for *Import raw* it
+looks for the selected instrument’s extension(s), for *Add cellpy files* for
+`.cellpy` / `.h5` — and puts the matching URIs into the path field, capped at
+“max”, so you can review them before pressing **Load files** / **Import &
+process**. Prefer a project-scoped folder: listing a whole shared raw-data tree
+over SFTP is slow. Served instances refuse remote find like any other remote URI.
 
 ### Per-project cellpy settings
 
