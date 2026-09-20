@@ -262,6 +262,15 @@ class LoadFilesRequest(BaseModel):
     max_files: int = 10
 
 
+class RemoteFindRequest(BaseModel):
+    """List files under a remote ``sftp://`` folder via cellpy's filefinder (#162)."""
+
+    directory: str
+    extensions: list[str] = Field(default_factory=list)  # e.g. [".res"]; empty = all
+    filter: Optional[str] = None  # bare text = contains; globs pass through
+    max_files: int = 10
+
+
 class IngestRequest(BaseModel):
     """Import one or more raw instrument files with shared metadata."""
 
