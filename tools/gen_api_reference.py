@@ -168,7 +168,13 @@ def resolve(path: str):
 _NORMALISE = (
     (re.compile(r"\bpathlib\._local\."), "pathlib."),
     (re.compile(r"\bOptional\[([^\[\]]+)\]"), r"\1 | None"),
-    (re.compile(r"\bUnion\[([^\[\]]+?), ([^\[\]]+?)\]"), r"\1 | \2"),
+    # Any number of members (filefinder has four); 3.14 spells the same
+    # annotation `A | B | None` and writes `None`, not `NoneType`.
+    (
+        re.compile(r"\bUnion\[([^\[\]]+)\]"),
+        lambda m: " | ".join(part.strip() for part in m.group(1).split(",")),
+    ),
+    (re.compile(r"\bNoneType\b"), "None"),
 )
 
 

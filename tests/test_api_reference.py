@@ -88,7 +88,9 @@ def test_the_reference_does_not_depend_on_which_python_generated_it():
     `pathlib._local` is private besides, and had no business in a reference.
     """
     text = REFERENCE.read_text(encoding="utf-8")
-    for interpreter_artifact in ("pathlib._local", "Optional[", "Union["):
+    # `NoneType` is what 3.13 leaks from a multi-member `Union[..., None]`
+    # (filefinder, #162); 3.14 writes `None`.
+    for interpreter_artifact in ("pathlib._local", "Optional[", "Union[", "NoneType"):
         assert interpreter_artifact not in text, interpreter_artifact
 
 
