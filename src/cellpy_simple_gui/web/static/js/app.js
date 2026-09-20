@@ -69,6 +69,13 @@ function app() {
       instrument: "", model: "", mass: "", area: "",
       nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", paths: "", maxFiles: 10,
     },
+    // Remote folder find (#162): one block per form, so extensions can follow
+    // the instrument for Import and stay .cellpy/.h5 for Load.
+    remoteFind: {
+      load: { open: false, dir: "", filter: "" },
+      ingest: { open: false, dir: "", filter: "" },
+    },
+    _remoteFindTarget: null, // which form the running find job fills in
     job: { active: false, id: "", progress: 0, message: "", error: "" },
     _jobEs: null,
     plotBusy: { summary: false, cycles: false, cell: false },
@@ -469,6 +476,46 @@ function app() {
     async ingestExample(kind) {
       await this.runJob("/api/ingest/example", { kind, mass: this._num(this.ingest.mass) });
     },
+    // ---- remote folder find (#162) ----
+    remoteFindExtensions(target) {
+      if (target === "load") return [".cellpy", ".h5"];
+      const ins = this.currentInstrument();
+      return ins && ins.suffixes ? ins.suffixes : [];
+    },
+    async findRemote(target) {
+      const form = this.remoteFind[target];
+      const directory = (form.dir || "").trim();
+      if (!directory) return;
+      const max = target === "load" ? this._num(this.filesMax) : this._num(this.ingest.maxFiles);
+      this._remoteFindTarget = target;
+      await this.runJob("/api/remote/find", {
+        directory,
+        extensions: this.remoteFindExtensions(target),
+        filter: (form.filter || "").trim() || null,
+        max_files: max || 10,
+      });
+      this._remoteFindTarget = null; // cleared already on success; also on error/cancel
+    },
+    _applyRemoteFind(r) {
+      const target = this._remoteFindTarget;
+      this._remoteFindTarget = null;
+      const paths = r.paths || [];
+      const errs = r.errors || [];
+      const notes = r.notes || [];
+      if (paths.length) {
+        const joined = paths.join("; ");
+        if (target === "ingest") this.ingest.paths = joined;
+        else this.filesPath = joined;
+        const shown = r.total > paths.length ? `Found ${r.total}, showing ${paths.length}` : `Found ${paths.length}`;
+        this.notify("ok", `${shown} file${r.total === 1 ? "" : "s"} — review the path field, then load.`);
+      } else if (errs.length) {
+        this.notify("error", errs.join(" · "));
+      } else {
+        this.notify("warn", "No files found.");
+      }
+      if (errs.length && paths.length) this.notify("warn", errs.join(" · "));
+      if (notes.length) this.notify("warn", notes.join(" · "));
+    },
     async runJob(url, body) {
       this._closeJobStream();
       this.job = { active: true, id: "", progress: 0, message: "Starting…", error: "" };
@@ -545,6 +592,11 @@ function app() {
     },
     reportJobResult(r) {
       if (!r || typeof r !== "object") return;
+      // remote find (#162) reports {paths:[...], total, errors:[...], notes:[...]}
+      if ("paths" in r && "total" in r) {
+        this._applyRemoteFind(r);
+        return;
+      }
       // load / ingest jobs report {added:[...], errors:[...], matched?, note?}
       if ("added" in r) {
         const n = (r.added || []).length;

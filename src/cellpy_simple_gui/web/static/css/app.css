@@ -175,6 +175,13 @@ input:focus, select:focus { border-color: var(--accent); }
   display: flex; flex-direction: column; gap: 2px;
 }
 .import-form .field { margin-top: 8px; }
+/* Remote folder find (#162): a nested disclosure inside the import forms. */
+.disclosure.sub { margin-top: 10px; font-size: 12px; font-weight: 500; }
+.remote-find {
+  margin-top: 4px; padding: 8px 10px 10px; border-left: 2px solid var(--line);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.remote-find .field { margin-top: 6px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .demo-chips { margin-top: 12px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
