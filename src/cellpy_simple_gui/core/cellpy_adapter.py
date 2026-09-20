@@ -11,6 +11,7 @@ API pinned against cellpy 2.1:
     * ``cell.get_cycle_numbers()``                      -> cycle numbers
     * ``cell.cell_name / mass / active_electrode_area / nominal_capacity``
     * ``cellpy.utils.example_data``                     -> bundled demo cells
+    * ``cellpy.filefinder.find_in_raw_file_directory`` -> remote folder find (#162)
 """
 
 from __future__ import annotations
@@ -18,7 +19,8 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -350,6 +352,137 @@ def _get(**kwargs: Any) -> Any:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return cellpy.get(**kwargs)
+
+
+# --------------------------------------------------------------------------- #
+# Remote file discovery (cellpy.filefinder, #162)
+# --------------------------------------------------------------------------- #
+
+#: Above this many matches, walking a shared ``rawdatadir`` over SFTP is the
+#: bottleneck, so the note tells the user to scope the folder (same threshold
+#: cellpy's filefinder warns at).
+LARGE_REMOTE_FIND = 5000
+
+_GLOB_CHARS = ("*", "?", "[")
+
+
+@dataclass
+class RemoteFind:
+    """Result of :func:`find_remote_files`.
+
+    ``paths`` is the capped, de-duplicated list of prefixed remote URIs ready
+    for ``load_file`` / ``load_raw``; ``total`` is how many matched before the
+    cap so the UI can say "found 40, keeping 10".
+    """
+
+    paths: list[str] = field(default_factory=list)
+    total: int = 0
+    errors: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+def _find_in_raw_file_directory(**kwargs: Any) -> list[str]:
+    """Seam around ``cellpy.filefinder.find_in_raw_file_directory``."""
+    from cellpy import filefinder
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return list(filefinder.find_in_raw_file_directory(**kwargs))
+
+
+def _find_glob(filter_text: str | None) -> str | None:
+    """Turn the UI's name filter into filefinder's ``glob_txt``.
+
+    Bare text means "contains" (``*text*``); anything that already carries
+    glob characters is passed through verbatim.
+    """
+    text = (filter_text or "").strip()
+    if not text:
+        return None
+    if any(ch in text for ch in _GLOB_CHARS):
+        return text
+    return f"*{text}*"
+
+
+def find_remote_files(
+    directory: str,
+    *,
+    extensions: Sequence[str] = (),
+    filter_text: str | None = None,
+    max_files: int,
+) -> RemoteFind:
+    """Approximate a remote "glob": list files under an ``sftp://`` folder.
+
+    Wraps ``cellpy.filefinder.find_in_raw_file_directory`` (recursive,
+    ``files_only``) once per extension and returns cellpy's prefixed URI
+    strings, so the matches feed straight into the phase-1 single-URI path
+    (#160). Desktop-only: served instances are refused with the same message
+    ``expand_paths`` uses. Local directories are refused too — local globs and
+    the #120 sandbox already cover them.
+    """
+    from . import paths as _paths
+
+    result = RemoteFind()
+    text = str(directory or "").strip().strip('"')
+    if not text:
+        result.errors.append("Remote folder is empty.")
+        return result
+    if not _paths.is_remote_uri(text):
+        result.errors.append(
+            f"Not a remote folder: {text}. Remote find needs an "
+            "sftp:// / ssh:// / scp:// directory URI; for local folders use a "
+            "glob in the path field instead."
+        )
+        return result
+    if not _paths.remote_paths_allowed():
+        result.errors.append(
+            f"Remote path refused: {text}. This instance is served over "
+            "a network, so it only reads inside its own data directory "
+            "(SSH/SFTP remotes are desktop-only)."
+        )
+        return result
+
+    glob_txt = _find_glob(filter_text)
+    # ``extension=None`` lists everything; otherwise one walk per distinct suffix.
+    suffixes = list(dict.fromkeys(s.strip().lstrip(".") for s in extensions if s and s.strip()))
+    ext_args: list[str | None] = [s for s in suffixes if s] or [None]
+
+    found: list[str] = []
+    for ext in ext_args:
+        try:
+            found.extend(
+                _find_in_raw_file_directory(
+                    raw_file_dir=text,
+                    extension=ext,
+                    glob_txt=glob_txt,
+                    # Raise on SSH / auth / listing failures instead of quietly
+                    # returning an empty list the user would misread as "no files".
+                    allow_error_level=1,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - surfaced to the user as text
+            what = f"*.{ext}" if ext else "all files"
+            result.errors.append(f"Search for {what} in {text} failed: {explain_load_error(exc)}")
+
+    unique = sorted(set(str(p) for p in found))
+    result.total = len(unique)
+    limit = max_files if max_files and max_files > 0 else len(unique)
+    result.paths = unique[:limit]
+    if result.total > limit:
+        result.notes.append(
+            f"Found {result.total} files; keeping the first {limit} "
+            f"(raise “max” or narrow the folder / filter)."
+        )
+    if result.total >= LARGE_REMOTE_FIND:
+        result.notes.append(
+            "That is a very large remote listing — walking a shared raw-data "
+            "folder over SFTP is slow; prefer a project-scoped folder."
+        )
+    if not result.total and not result.errors:
+        wanted = ", ".join(f"*.{e}" for e in ext_args if e) or "any file"
+        narrowed = f" matching {glob_txt}" if glob_txt else ""
+        result.errors.append(f"No files found in {text} ({wanted}{narrowed}).")
+    return result
 
 
 # --------------------------------------------------------------------------- #

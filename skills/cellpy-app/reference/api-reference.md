@@ -62,6 +62,11 @@ cellpy.utils.example_data.arbin_file_path() -> pathlib.Path
 ```
 A raw Arbin `.res` — needs mdbtools or the Access driver to load.
 
+```python
+cellpy.filefinder.find_in_raw_file_directory(raw_file_dir: cellpy.internals.otherpath.OtherPath | pathlib.Path | str | None = None, project_dir: cellpy.internals.otherpath.OtherPath | pathlib.Path | str | None = None, extension: str | None = None, glob_txt: str | None = None, allow_error_level: int | None = 3)
+```
+Recursive file listing of a local **or remote** (`sftp://`) folder — the remote-aware stand-in for a glob. `extension` is given without the dot; `glob_txt` narrows by name; pass `allow_error_level=1` so SSH failures raise instead of returning an empty list.
+
 ## One cell
 
 `CellpyCell` — what you get back from `cellpy.get`.

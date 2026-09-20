@@ -137,6 +137,38 @@
               credentials come from cellpy’s <code>.env_cellpy</code>
               (<code>CELLPY_KEY_FILENAME</code> / <code>CELLPY_PASSWORD</code>).</p>
           </div>
+
+          <!-- Remote folder find (#162): the "approx glob" for sftp:// —
+               cellpy's filefinder walks the folder and the matches land in the
+               path field above for review before Load. Desktop only, like
+               single remote URIs. -->
+          <div x-show="hostPathsAllowed" x-cloak>
+            <button class="disclosure sub" @click="remoteFind.load.open = !remoteFind.load.open">
+              <span x-text="remoteFind.load.open ? '▾' : '▸'"></span> Find in a remote folder…
+            </button>
+            <div class="remote-find" x-show="remoteFind.load.open" x-cloak>
+              <div class="field">
+                <label>Remote folder</label>
+                <input type="text" x-model="remoteFind.load.dir"
+                       placeholder="sftp://user@host/home/user/lab/cellpy_files/"
+                       @keydown.enter="findRemote('load')" />
+              </div>
+              <div class="field">
+                <label>Name filter <span class="hint" style="display:inline">(optional)</span></label>
+                <div class="input-row">
+                  <input type="text" x-model="remoteFind.load.filter"
+                         placeholder="contains… or a glob like 2016*_cc_*"
+                         @keydown.enter="findRemote('load')" />
+                  <button class="btn btn-ghost" @click="findRemote('load')"
+                          :disabled="job.active || !remoteFind.load.dir.trim()">🔍 Find</button>
+                </div>
+              </div>
+              <p class="hint">Looks for <code>.cellpy</code> / <code>.h5</code> files, recursively,
+                up to “max” — the matches are put into the path field above so you can
+                review them before <em>Load files</em>. Prefer a project-scoped folder;
+                walking a whole shared raw-data tree over SFTP is slow.</p>
+            </div>
+          </div>
         </div>
 
         <button class="disclosure" @click="showImport = !showImport">
@@ -206,6 +238,35 @@
               (<code>sftp://user@host/…</code>); set <code>CELLPY_KEY_FILENAME</code>
               in <code>~/.env_cellpy</code>. Use a real hostname, not an OpenSSH
               <code>Host</code> alias.</p>
+          </div>
+
+          <!-- Remote folder find (#162), extensions follow the chosen instrument. -->
+          <div x-show="hostPathsAllowed" x-cloak>
+            <button class="disclosure sub" @click="remoteFind.ingest.open = !remoteFind.ingest.open">
+              <span x-text="remoteFind.ingest.open ? '▾' : '▸'"></span> Find in a remote folder…
+            </button>
+            <div class="remote-find" x-show="remoteFind.ingest.open" x-cloak>
+              <div class="field">
+                <label>Remote folder</label>
+                <input type="text" x-model="remoteFind.ingest.dir"
+                       placeholder="sftp://user@host/home/user/lab/raw/my_project/"
+                       @keydown.enter="findRemote('ingest')" />
+              </div>
+              <div class="field">
+                <label>Name filter <span class="hint" style="display:inline">(optional)</span></label>
+                <div class="input-row">
+                  <input type="text" x-model="remoteFind.ingest.filter"
+                         placeholder="contains… or a glob like 2016*_cc_*"
+                         @keydown.enter="findRemote('ingest')" />
+                  <button class="btn btn-ghost" @click="findRemote('ingest')"
+                          :disabled="job.active || !remoteFind.ingest.dir.trim()">🔍 Find</button>
+                </div>
+              </div>
+              <p class="hint">Looks for
+                <span x-text="remoteFindExtensions('ingest').length ? remoteFindExtensions('ingest').map((e) => '*' + e).join(' ') : 'any file'"></span>
+                (from the selected instrument), recursively, up to “max”. Matches are put
+                into the path field above so you can review them before <em>Import</em>.</p>
+            </div>
           </div>
           <button class="btn btn-primary block" @click="ingestRaw()" :disabled="job.active || !ingest.paths.trim()">
             ⚙ Import &amp; process
