@@ -1,4 +1,4 @@
-# cellpy simple gui
+# <img src="cellpy-icon-bw.svg" height="40" alt="cellpy-icon"> cellpy simple gui
 
 A small **desktop app** for exploring battery cell data with
 [**cellpy**](https://github.com/jepegit/cellpy) (**≥ 2.1**).
