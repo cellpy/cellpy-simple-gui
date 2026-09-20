@@ -13,7 +13,7 @@ folders under `.issueflows/`.
 
 Unlike `/iflow-status` (read-only overview), `/iflow-doctor` can **move issue
 groups** when the user confirms repair — using the same safe sweep rules as
-`/iflow-init` and `/iflow-build`.
+`/iflow-capture` and `/iflow-build`.
 
 Do **not** auto-dispatch from `/iflow`, `/iflow-build`, or `/iflow-close`.
 
@@ -91,8 +91,11 @@ When `.issueflows/04-designs-and-guides/multi-repo-workspaces.md` exists, read i
      list the paths, propose
      `chore: doctor housekeeping — archive/sweep .issueflows groups`,
      and ask for **one confirm** with **yes as the recommended default**.
-     On yes: `git add` **only** those paths and commit (no push). On no: leave
-     dirty and note that `/iflow-pick` will offer the same commit again.
+     On yes: `git add` **only** those paths and commit (no push). If the
+     current branch is the **default**, commit on a chore branch (or a tiny
+     PR) instead — do not leave housekeeping unpushed on home default
+     (issue #303). On no: leave dirty and note that `/iflow-pick` will
+     offer the same commit again.
    - If dirty with any path **outside** `.issueflows/` — report mixed
      dirt; do **not** offer the housekeeping default (user must sort code
      changes separately).

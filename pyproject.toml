@@ -108,5 +108,5 @@ markers = [
 
 [dependency-groups]
 dev = [
-    "issue-flow>=0.4.9.post1",
+    "issue-flow>=0.5.6.post2",
 ]

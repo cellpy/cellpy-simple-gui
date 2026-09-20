@@ -9,7 +9,7 @@ issue-flow-version: 0.4.2a4
 
 # issue-flow — epic planning (`/iflow-epic`)
 
-Follow this skill to plan a change that is **too large for one issue**: divide it into sequential **stages**, each stage into **manageable issues** that flow through the normal lifecycle (`/iflow-init` → `/iflow-plan` → `/iflow-build` → `/iflow-close`).
+Follow this skill to plan a change that is **too large for one issue**: divide it into sequential **stages**, each stage into **manageable issues** that flow through the normal lifecycle (`/iflow-capture` → `/iflow-plan` → `/iflow-build` → `/iflow-close`).
 
 The surface has two actions. **Drafting** (the default) is write-free on GitHub: its deliverable is `.issueflows/05-epics/epic<N>_plan.md`, and it never creates GitHub issues, labels, or milestones. **`publish`** is the single exception — it turns a *confirmed* plan into real GitHub issues, stage by stage, behind one consolidated confirm.
 
@@ -131,7 +131,8 @@ Turn one stage of a **confirmed** plan into real GitHub issues. Requires `Status
 3. **Consolidated confirm** (destructive-ish — outward-facing writes; normal prose, never shortened). One prompt covering exactly: which issues get created, with which labels, and that the anchor issue's task list will be updated. Do not proceed without a clear yes.
 4. **Create, in dependency order within the stage.** For each spec: `gh issue create --repo <owner/repo>` with the self-contained body (context, scope, acceptance criteria, **Goal:** and **Model:** lines when present in the plan, resolved `Depends on: #<M>` lines, and a closing `Part of epic #<N>.` line). Immediately record the new number in the plan file as `- Published: #<M>` under that spec.
 5. **Update the anchor issue's task list** (append/patch only — never rewrite the user's own body text): fetch the body, append a `## Stage <k> — <title>` section (or extend it) with one `- [ ] #<M>` line per created issue, and write it back via `gh issue edit <N> --body-file`.
-6. **Report.** Created issues (numbers + titles + labels), skipped already-published specs, unresolved placeholders, and the reminder that the next stage publishes only after this one's issues close.
+6. **Commit `Published:` lines off default.** The plan-file edits in step 4 must not sit as unpushed commits on home default. If you are on default (or would commit there), use a chore/issue branch (or a tiny dedicated PR). Never leave `Published: #<M>` unpushed on home default — that is what later makes `git pull --ff-only` diverge after a squash (issue #303).
+7. **Report.** Created issues (numbers + titles + labels), skipped already-published specs, unresolved placeholders, and the reminder that the next stage publishes only after this one's issues close.
 
 ## Constraints
 
