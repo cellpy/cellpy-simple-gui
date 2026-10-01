@@ -621,6 +621,54 @@ def test_served_instance_refuses_host_globs(served_client, tmp_path):
     assert [Path(p).name for p in exp.paths] == ["mine.cellpy"]
 
 
+# --------------------------------------------------------------------------- #
+# #136 — staged-list preview: expand without loading
+# --------------------------------------------------------------------------- #
+
+
+def test_files_preview_literal_missing_and_glob(client, tmp_path):
+    """What the staged list shows is exactly what Load would take."""
+    for i in range(4):
+        (tmp_path / f"c{i}.cellpy").write_bytes(b"x")
+    literal = tmp_path / "c0.cellpy"
+
+    r = client.post(
+        "/api/files/preview",
+        json={"patterns": [str(literal), str(tmp_path / "nope.cellpy")], "max_files": 10},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["paths"] == [str(literal)]
+    assert body["total"] == 1
+    assert any("Not found" in e for e in body["errors"])
+
+    r = client.post(
+        "/api/files/preview", json={"patterns": [str(tmp_path / "*.cellpy")], "max_files": 2}
+    )
+    body = r.json()
+    assert len(body["paths"]) == 2
+    assert body["total"] == 4
+    assert body["notes"] and "first 2" in body["notes"][0]
+
+
+def test_files_preview_rejects_empty(client):
+    r = client.post("/api/files/preview", json={"patterns": ["", "  "]})
+    assert r.status_code == 400
+
+
+def test_files_preview_honours_served_sandbox(served_client, tmp_path):
+    """A served instance previews only inside its data directory (#120)."""
+    client, root = served_client
+    (tmp_path / "leak.cellpy").write_bytes(b"x")
+    (root / "mine.cellpy").write_bytes(b"x")
+
+    body = client.post(
+        "/api/files/preview", json={"patterns": [str(tmp_path / "leak.cellpy"), "mine.cellpy"]}
+    ).json()
+    assert [Path(p).name for p in body["paths"]] == ["mine.cellpy"]
+    assert any("outside the data directory" in e for e in body["errors"])
+
+
 def test_local_instance_keeps_its_freedom(client, tmp_path):
     """The desktop app takes host paths on purpose — that must not regress."""
     from cellpy_simple_gui.core import files

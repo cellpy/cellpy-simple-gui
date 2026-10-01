@@ -13,6 +13,7 @@ from ...core.models import (
     JournalRowUpdate,
     LoadExampleRequest,
     LoadFilesRequest,
+    PreviewRequest,
 )
 from ..jobs import Progress, get_job_manager
 
@@ -89,6 +90,27 @@ def load_example(req: LoadExampleRequest) -> dict:
     log.info("Load demo cells: %s", ", ".join(req.kinds) or "(none)")
     job = get_job_manager().submit("load-example", _load_examples_job, req.kinds)
     return {"job_id": job.id}
+
+
+@router.post("/files/preview")
+def preview_files(req: PreviewRequest) -> dict:
+    """Expand paths / globs for the staged list, loading nothing (#136).
+
+    Same policy as the load job (sandbox, remote gate, ``max_files`` ceiling),
+    so what the user reviews is exactly what Load would take.
+    """
+    from ...core.files import effective_max_files, expand_paths
+
+    patterns = [p for p in req.patterns if p and p.strip()]
+    if not patterns:
+        raise HTTPException(400, "No paths provided")
+    exp = expand_paths(patterns, max_files=effective_max_files(req.max_files))
+    return {
+        "paths": exp.paths,
+        "errors": exp.errors,
+        "notes": exp.notes,
+        "total": exp.total,
+    }
 
 
 @router.post("/load/files")
