@@ -27,10 +27,14 @@ cellpy-simple-gui. cellpy already supports `ssh://` / `sftp://` / `scp://` via
      already-prefixed `sftp://…` strings.
    - `POST /api/remote/find` runs it as a **job** (an SFTP walk has no progress
      hook and can take minutes; cancel is cooperative only).
-   - **UX: Find populates the existing path field** (`uri1; uri2; …`) rather
-     than loading immediately, so the user reviews the list and then presses
-     the unchanged Load / Import button. The controls live inline in each form
-     so extensions follow the selected instrument (`.cellpy`/`.h5` for Load).
+   - **UX: Find populates the staged list** rather than loading immediately,
+     so the user reviews (and can remove) each match and then presses the
+     unchanged Load / Import button. Originally Find wrote a `uri1; uri2; …`
+     string into the path field; the loading-UI redesign (local issue 136,
+     see [`loading-ui.md`](loading-ui.md)) replaced that with one row per
+     file, status *remote*. The controls live inside each tab's source zone so
+     extensions follow the selected instrument (`.cellpy`/`.h5` on the cellpy
+     tab).
    - Name filter: bare text means *contains* (`*text*`); glob characters pass
      through verbatim.
    - Local directories are refused by the finder (local globs + #120 sandbox
