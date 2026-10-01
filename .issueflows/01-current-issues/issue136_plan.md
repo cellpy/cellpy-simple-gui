@@ -1,9 +1,8 @@
-# Plan — Redesign the loading surface (files, projects, journals, raw import)
+# Issue #136 — Plan: redesign the loading surface (files, projects, journals, raw import)
 
-> Companion to [`loading-ui-redesign-issue-draft.md`](loading-ui-redesign-issue-draft.md).
-> Once the GitHub issue exists as `#<N>`, move this file to
-> `.issueflows/01-current-issues/issue<N>_plan.md` and continue with
-> `iflow build`. Written against `main` @ `e056abe`.
+> Written against `main` @ `e056abe`; accepted by the owner 2026-10-01 ("all
+> can be combined into one issue", local number 136 — see
+> [`issue136_original.md`](issue136_original.md) for the GitHub caveat).
 
 ## Goal
 
@@ -224,8 +223,8 @@ adds the one endpoint; 4–6 are JS/CSS; 7 is docs.
   modal + staged list + adaptive zone; alternatives: sidebar segmented
   control, keep the `;` string, drawer) and update
   `otherpath-remote-loading.md` §UX ("Find populates the staged list").
-- Delete `loading-ui-redesign-issue-draft.md` (superseded by the GitHub
-  issue) and this plan once captured as `issue<N>_plan.md`.
+- Issue files already live under `01-current-issues/issue136_*` (captured
+  2026-10-01); `iflow close` moves them to `03-solved-issues/`.
 
 ## Files to touch
 

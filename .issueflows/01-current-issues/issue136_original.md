@@ -1,17 +1,15 @@
-# Issue draft — Redesign the loading surface (files, projects, journals, raw import)
+# Issue #136: Redesign the loading surface: one "Add cells" flow, staged file list, contextual help
 
-> **Status: draft, not yet on GitHub.** `gh` is read-only in the cloud agent
-> session, so this body is ready to paste into `gh issue create` / the GitHub
-> UI, or to feed `iflow issue`. Once the number `<N>` exists: run
-> `iflow capture <N>`, move
-> [`loading-ui-redesign-plan.md`](loading-ui-redesign-plan.md) to
-> `.issueflows/01-current-issues/issue<N>_plan.md`, and delete this file.
+Source: local number chosen by the owner (2026-10-01). **Not a GitHub issue:**
+[cellpy/cellpy-simple-gui#136](https://github.com/cellpy/cellpy-simple-gui/pull/136)
+is the merged container-image PR. No GitHub issue for this work existed when
+the build started (`gh` is read-only for the cloud agent); the body below is
+ready to paste when one is created, and `iflow close` should reference that
+number in the PR instead of `#136`.
 
-**Proposed title:** `Redesign the loading surface: one "Add cells" flow, staged file list, contextual help`
+## Original issue text
 
----
-
-## Problem / context
+### Problem / context
 
 Loading data is spread over two sidebar panels and five different entry points
 that evolved issue by issue (#75 projects/journals, #133 upload, #160/#162
@@ -46,7 +44,7 @@ inputs**. Concretely:
 6. After a load the Data panel keeps its full height while the Cells list is
    floored at 220 px, although loading is a start-of-session activity.
 
-## Spec
+### Spec
 
 One coherent redesign (single PR), staged so each stage is independently
 shippable and testable:
@@ -86,7 +84,7 @@ No new cellpy calls; no change to load/ingest/project job semantics or to the
 read-only endpoint for glob preview is acceptable if it reuses
 `core/files.expand_paths`.
 
-## Acceptance criteria
+### Acceptance criteria
 
 - [ ] Default sidebar (no cells) fits in a 900 px-high viewport without
       scrolling; no disclosure stacks remain in the Data panel.
@@ -113,7 +111,7 @@ read-only endpoint for glob preview is acceptable if it reuses
       `docs/deployment.md` *Upload from the browser* updated to the new
       labels; design note added under `.issueflows/04-designs-and-guides/`.
 
-## Out of scope
+### Out of scope
 
 - New data sources, new instruments, or changes to cellpy loading semantics.
 - SFTP folder browser, served-mode remote allow-list, GUI credential editor
