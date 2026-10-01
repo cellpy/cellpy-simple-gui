@@ -56,45 +56,53 @@
                   :title="`This project's cellpy settings are active (${projectCellpyConfig}) — click for details`"
           >cellpy.toml</button>
         </div>
-        <div class="proj-open">
-          <select x-model="openTarget">
-            <option value="" disabled>Open a project…</option>
-            <template x-for="p in projects" :key="p.slug">
-              <option :value="p.slug" x-text="`${p.name} · ${p.n_cells} cells`"></option>
-            </template>
-          </select>
-          <button class="btn btn-ghost" @click="openProject()" :disabled="job.active || !openTarget" title="Open">↥</button>
-          <button class="btn btn-ghost" @click="refreshProjects()" :disabled="job.active" title="Refresh project list">↻</button>
+        <div class="proj-row">
+          <span class="proj-lbl">Open</span>
+          <div class="proj-ctl">
+            <select x-model="openTarget" aria-label="Saved projects">
+              <option value="" disabled>Saved project…</option>
+              <template x-for="p in projects" :key="p.slug">
+                <option :value="p.slug" x-text="`${p.name} · ${p.n_cells} cells`"></option>
+              </template>
+            </select>
+            <button class="btn btn-ghost sm" @click="openProject()" :disabled="job.active || !openTarget">Open</button>
+            <button class="btn btn-ghost sm icon" @click="refreshProjects()" :disabled="job.active"
+                    title="Refresh project list" aria-label="Refresh project list">↻</button>
+          </div>
+          <div class="proj-ctl">
+            <input type="text" x-model="journalPath" aria-label="Project or journal path"
+                   placeholder="project.json, folder, or batch journal path" @keydown.enter="loadImportPath()" />
+            <button class="btn btn-ghost sm icon" x-show="canPick" @click="pickImportFile()" :disabled="job.active"
+                    title="Browse…" aria-label="Browse for a project.json or batch journal">📁</button>
+            <button class="btn btn-ghost sm" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()">Open path</button>
+          </div>
         </div>
-        <div class="proj-save">
-          <input type="text" x-model="saveName" placeholder="Project name" @keydown.enter="saveProject()" />
-          <button class="btn btn-ghost" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length" title="Save project">⤓</button>
-          <button class="btn btn-ghost" @click="closeProject()"
-                  :disabled="job.active || (!cells.length && !project)"
-                  title="Close project">✕</button>
+        <div class="proj-row">
+          <span class="proj-lbl">Save</span>
+          <div class="proj-ctl">
+            <input type="text" x-model="saveName" aria-label="Project name" placeholder="Project name" @keydown.enter="saveProject()" />
+            <button class="btn btn-ghost sm" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length">Save</button>
+            <button class="btn btn-ghost sm" @click="closeProject()"
+                    :disabled="job.active || (!cells.length && !project)">Close</button>
+          </div>
         </div>
-        <p class="hint">Click <b>Save</b> to write every loaded cell into a portable project folder. Use <b>↻</b> to refresh the project list.</p>
-
-        <div class="proj-save" style="margin-top:10px">
-          <input type="text" x-model="journalPath" placeholder="project.json, batch journal, or project folder path" @keydown.enter="loadImportPath()" />
-          <button class="btn btn-ghost" @click="pickImportFile()" :disabled="!canPick || job.active"
-                  :title="canPick ? 'Browse JSON…' : 'Browse is desktop-only — paste a path in the field'">📁</button>
-          <button class="btn btn-ghost" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()" title="Load project or journal">↧</button>
-        </div>
-        <p class="hint">Open <b>app project</b> (<code>project.json</code> or paste a folder path) or a native cellpy <b>batch journal</b></p>
+        <p class="hint">Save writes every loaded cell into a portable project folder. Open takes a saved
+          project, a <code>project.json</code> / folder path, or a cellpy batch journal.</p>
       </section>
 
-      <section class="panel">
-        <h2 class="panel-title">Data</h2>
-        <button class="disclosure" style="margin-top:0" @click="showDemo = !showDemo">
-          <span x-text="showDemo ? '▾' : '▸'"></span> Load demo cells
-        </button>
-        <div class="import-form" x-show="showDemo" x-cloak>
-          <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
-            <span>✦</span> Load demo cells
-          </button>
-          <p class="hint">Three bundled example cells.</p>
+      <section class="panel" :class="{collapsed: dataCollapsed}">
+        <div class="panel-head">
+          <h2 class="panel-title">Data</h2>
+          <!-- Loading is a start-of-session activity: once cells exist the
+               panel folds to one line so the Cells list gets the height. -->
+          <button class="mini" type="button" x-show="cells.length" x-cloak
+                  @click="dataCollapsed = !dataCollapsed"
+                  x-text="dataCollapsed ? 'show' : 'hide'"></button>
         </div>
+        <div x-show="!dataCollapsed">
+        <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
+          <span>✦</span> Load demo cells
+        </button>
 
         <button class="disclosure" @click="showLoadFiles = !showLoadFiles">
           <span x-text="showLoadFiles ? '▾' : '▸'"></span> Add cellpy files
@@ -280,6 +288,11 @@
             </div>
           </div>
         </div>
+        </div>
+        <p class="hint collapsed-hint" x-show="dataCollapsed" x-cloak>
+          <span x-text="cells.length + (cells.length === 1 ? ' cell loaded' : ' cells loaded')"></span>
+          — <a href="#" @click.prevent="dataCollapsed = false">add more…</a>
+        </p>
       </section>
 
       <!-- progress -->

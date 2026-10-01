@@ -158,13 +158,25 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 .proj-tag.saved { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
 .proj-tag.dirty { color: var(--warn, #e0a24a); border-color: color-mix(in srgb, var(--warn, #e0a24a) 45%, var(--line)); }
-.proj-open, .proj-save { display: flex; gap: 6px; margin-top: 10px; }
-.proj-open select, .proj-save input { flex: 1; min-width: 0; }
-.proj-open .btn, .proj-save .btn { padding: 8px 11px; font-size: 15px; flex: none; }
+/* One labelled row per verb (Open / Save); each row may hold several controls. */
+.proj-row { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.proj-lbl {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .6px; font-weight: 700;
+  color: var(--text-faint);
+}
+.proj-ctl { display: flex; gap: 6px; align-items: center; }
+.proj-ctl select, .proj-ctl input[type="text"] { flex: 1; min-width: 0; }
+.btn.sm { padding: 8px 10px; font-size: 12.5px; flex: none; white-space: nowrap; }
+.btn.sm.icon { padding: 8px 9px; font-size: 14px; }
+/* Data panel folded after a load: one line, Cells gets the height. */
+.panel.collapsed .panel-title { margin-bottom: 0; }
+.collapsed-hint { margin-top: 8px; }
+.collapsed-hint a { color: var(--accent); text-decoration: none; }
+.collapsed-hint a:hover { text-decoration: underline; }
 
 /* ---------- import raw ---------- */
 .disclosure {
-  margin-top: 14px; width: 100%; text-align: left; background: transparent; border: none;
+  margin-top: 12px; width: 100%; text-align: left; background: transparent; border: none;
   color: var(--text-dim); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 4px 0;
   display: flex; align-items: center; gap: 6px;
 }

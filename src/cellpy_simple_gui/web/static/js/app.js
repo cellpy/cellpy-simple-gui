@@ -60,9 +60,9 @@ function app() {
     openTarget: "",
     saveName: "",
     dirty: false,
-    showDemo: false,
     showLoadFiles: false,
     showImport: false,
+    dataCollapsed: false, // folds the Data panel once cells are loaded
     instruments: [],
     rawExamples: [],
     ingest: {
@@ -342,6 +342,9 @@ function app() {
       this.cells = s.cells;
       this.project = s.project;
       if (this.project && !this.saveName) this.saveName = this.project;
+      // Every load job ends here, so a successful load folds the Data panel
+      // and an emptied library unfolds it again.
+      this.dataCollapsed = this.cells.length > 0;
       // Dev mode marks each cellpy family against the *loaded* cells, so the
       // list goes stale whenever the library changes (it is first built at
       // startup, when nothing is loaded yet).
@@ -760,12 +763,14 @@ function app() {
       this.cells = s.cells;
       this.markDirty();
       if (this.cell.cell_id === id) this.cell.cell_id = "";
+      if (!this.cells.length) this.dataCollapsed = false;
       this.replotCurrent();
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
       this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
       this.dirty = false;
+      this.dataCollapsed = false;
       this.cellsManagerOpen = false;
       Plotly.purge("summaryChart"); Plotly.purge("cyclesChart"); Plotly.purge("cellChart");
       this.replotCurrent();
