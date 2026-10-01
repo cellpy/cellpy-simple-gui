@@ -262,6 +262,13 @@ class LoadFilesRequest(BaseModel):
     max_files: int = 10
 
 
+class PreviewRequest(BaseModel):
+    """Expand typed paths / globs without loading anything (#136 staged list)."""
+
+    patterns: list[str]
+    max_files: int = 10
+
+
 class RemoteFindRequest(BaseModel):
     """List files under a remote ``sftp://`` folder via cellpy's filefinder (#162)."""
 

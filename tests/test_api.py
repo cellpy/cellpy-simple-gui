@@ -496,6 +496,165 @@ def test_index_alpine_state_is_defined():
 
 
 # --------------------------------------------------------------------------- #
+# #136 — loading UI: template / component drift and hint budget
+# --------------------------------------------------------------------------- #
+
+_JS_RESERVED = {
+    "true", "false", "null", "undefined", "if", "else", "return", "new", "typeof",
+    "in", "of", "this", "window", "document", "console", "Math", "Number", "String",
+    "Array", "Object", "Date", "JSON", "localStorage", "event", "parseInt", "parseFloat",
+}
+
+
+def _template_html() -> str:
+    from cellpy_simple_gui.api.deps import WEB_DIR
+
+    return (WEB_DIR / "templates" / "index.html").read_text(encoding="utf-8")
+
+
+def _component_names() -> set[str]:
+    """Every state key, getter and method declared at the top level of app()."""
+    import re
+
+    from cellpy_simple_gui.api.deps import WEB_DIR
+
+    js = (WEB_DIR / "static" / "js" / "app.js").read_text(encoding="utf-8")
+    body = js[js.index("function app()"):]
+    names = set()
+    # Component members sit at the 4-space indent: ``key: value``,
+    # ``async method(`` / ``method(`` and ``get name(``.
+    for m in re.finditer(r"^ {4}(?:async\s+)?(?:get\s+)?([A-Za-z_$][\w$]*)\s*[:(]", body, re.M):
+        names.add(m.group(1))
+    return names
+
+
+def _free_identifiers(expr: str) -> set[str]:
+    """Identifiers an Alpine expression reads from the component scope.
+
+    Property accesses (``job.active`` → ``job``), string / template literals
+    and Alpine magics (``$event``, ``$refs``) are not component members.
+    """
+    import re
+
+    expr = re.sub(r"'[^']*'|\"[^\"]*\"|`[^`]*`", "''", expr)
+    # Object-literal keys (``{label: v}``) and arrow parameters (``x => …``)
+    # are declared by the expression itself.
+    expr = re.sub(r"(?<=[{,])\s*[A-Za-z_$][\w$]*\s*:", " ", expr)
+    local = set(re.findall(r"\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>", expr))
+    found = set()
+    for m in re.finditer(r"(?<![\w$.])([A-Za-z_$][\w$]*)", expr):
+        name = m.group(1)
+        if name.startswith("$") or name in _JS_RESERVED or name in local:
+            continue
+        found.add(name)
+    return found
+
+
+def test_index_click_and_show_targets_exist():
+    """Every ``@click`` / ``x-show`` in the template resolves in the component.
+
+    The Add cells modal (#136) wires dozens of handlers and visibility flags;
+    a typo in any of them is a silent dead button, not a Python failure.
+    """
+    import re
+
+    html = _template_html()
+    names = _component_names()
+    # Alpine ``x-for`` aliases are in scope for their subtree, so accept them.
+    loop_vars = set()
+    for m in re.finditer(r'x-for="\(?\s*([A-Za-z_$][\w$]*)(?:\s*,\s*([A-Za-z_$][\w$]*))?\)?\s+in\s', html):
+        loop_vars.update(v for v in m.groups() if v)
+
+    unresolved = {}
+    for attr in ("@click", "@click.prevent", "@click.self", "x-show", "@change", "@keydown.enter"):
+        for expr in re.findall(rf'{re.escape(attr)}="([^"]+)"', html):
+            bad = _free_identifiers(expr) - names - loop_vars
+            if bad:
+                unresolved.setdefault(attr, set()).update(bad)
+    assert not unresolved, f"template references the component never defines: {unresolved}"
+
+
+def _add_cells_modal_html() -> str:
+    html = _template_html()
+    start = html.index("Add cells modal (#136)")
+    end = html.index("Manage cells modal", start)
+    return html[start:end]
+
+
+def test_add_cells_modal_has_one_primary_action():
+    """One primary button per modal, whatever tab is showing (#136)."""
+    import re
+
+    modal = _add_cells_modal_html()
+    primaries = re.findall(r'class="[^"]*\bbtn-primary\b[^"]*"', modal)
+    assert len(primaries) == 1, primaries
+    # ...and it is the footer button driven by the label / reason getters.
+    assert 'x-text="addCellsPrimaryLabel"' in modal
+    assert ':disabled="!!addCellsDisabledReason"' in modal
+
+
+def _default_visible_hints(fragment: str) -> list[str]:
+    """``.hint`` elements shown without any ``x-show`` guard on them or an ancestor.
+
+    Each ``role="tabpanel"`` is treated as its own root (one tab is always
+    showing), so hints inside collapsed disclosures and conditional blocks
+    do not count — only what the user sees before touching anything.
+    """
+    from html.parser import HTMLParser
+
+    void = {"input", "br", "img", "hr", "meta", "link", "source", "option"}
+
+    class Walker(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.stack: list[bool] = []  # per open element: guarded by x-show?
+            self.hits: list[str] = []
+            self.pending: list[int] = []  # stack depth at which a counted hint opened
+
+        def handle_starttag(self, tag, attrs):
+            if tag in void:
+                return
+            a = dict(attrs)
+            guarded = "x-show" in a
+            is_root = a.get("role") == "tabpanel"
+            if is_root:
+                self.stack = []  # tab panels are their own roots
+                guarded = False
+            classes = (a.get("class") or "").split()
+            if "hint" in classes and not guarded and not any(self.stack):
+                self.hits.append(a.get("class", ""))
+            self.stack.append(guarded)
+
+        def handle_endtag(self, tag):
+            if tag in void or not self.stack:
+                return
+            self.stack.pop()
+
+    w = Walker()
+    w.feed(fragment)
+    return w.hits
+
+
+def test_default_visible_hint_budget():
+    """At most four help lines are visible before the user touches anything (#136).
+
+    Thirteen hints used to be on screen at once; the rest are now conditional
+    on state (served mode, a staged .h5, a remote URI, a collapsed disclosure).
+    """
+    html = _template_html()
+    start = html.index("<aside")
+    end = html.index("</aside>", start)
+    sidebar = html[start:end]
+    sidebar_hints = _default_visible_hints(sidebar)
+    modal_hints = _default_visible_hints(_add_cells_modal_html())
+    # The sidebar's collapsed-state line is an alternative to the Data hint,
+    # never shown with it, so it does not count against the budget.
+    sidebar_hints = [h for h in sidebar_hints if "collapsed-hint" not in h]
+    total = sidebar_hints + modal_hints
+    assert len(total) <= 4, total
+
+
+# --------------------------------------------------------------------------- #
 # #118 — pywebview is an optional extra, not a core dependency
 # --------------------------------------------------------------------------- #
 
@@ -619,6 +778,54 @@ def test_served_instance_refuses_host_globs(served_client, tmp_path):
     assert exp.paths == []
     exp = files.expand_paths(["*.cellpy"])
     assert [Path(p).name for p in exp.paths] == ["mine.cellpy"]
+
+
+# --------------------------------------------------------------------------- #
+# #136 — staged-list preview: expand without loading
+# --------------------------------------------------------------------------- #
+
+
+def test_files_preview_literal_missing_and_glob(client, tmp_path):
+    """What the staged list shows is exactly what Load would take."""
+    for i in range(4):
+        (tmp_path / f"c{i}.cellpy").write_bytes(b"x")
+    literal = tmp_path / "c0.cellpy"
+
+    r = client.post(
+        "/api/files/preview",
+        json={"patterns": [str(literal), str(tmp_path / "nope.cellpy")], "max_files": 10},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["paths"] == [str(literal)]
+    assert body["total"] == 1
+    assert any("Not found" in e for e in body["errors"])
+
+    r = client.post(
+        "/api/files/preview", json={"patterns": [str(tmp_path / "*.cellpy")], "max_files": 2}
+    )
+    body = r.json()
+    assert len(body["paths"]) == 2
+    assert body["total"] == 4
+    assert body["notes"] and "first 2" in body["notes"][0]
+
+
+def test_files_preview_rejects_empty(client):
+    r = client.post("/api/files/preview", json={"patterns": ["", "  "]})
+    assert r.status_code == 400
+
+
+def test_files_preview_honours_served_sandbox(served_client, tmp_path):
+    """A served instance previews only inside its data directory (#120)."""
+    client, root = served_client
+    (tmp_path / "leak.cellpy").write_bytes(b"x")
+    (root / "mine.cellpy").write_bytes(b"x")
+
+    body = client.post(
+        "/api/files/preview", json={"patterns": [str(tmp_path / "leak.cellpy"), "mine.cellpy"]}
+    ).json()
+    assert [Path(p).name for p in body["paths"]] == ["mine.cellpy"]
+    assert any("outside the data directory" in e for e in body["errors"])
 
 
 def test_local_instance_keeps_its_freedom(client, tmp_path):

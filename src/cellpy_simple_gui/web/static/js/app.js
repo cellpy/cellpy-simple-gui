@@ -37,6 +37,22 @@ const PLOTLY_CONFIG = {
 // page's bottom padding so the card does not sit flush against the edge.
 const CHART_BOTTOM_GUTTER = 16;
 
+// Recent sources (#136): typed paths / globs, journals and remote folders the
+// user has loaded from before, offered as <datalist> suggestions.
+const RECENT_KEY = "csg.recent";
+const RECENT_CAP = 8;
+const RECENT_KINDS = ["cellpy", "raw", "journal", "remoteDir"];
+
+function loadRecent() {
+  const out = {};
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(RECENT_KEY) || "{}") || {}; } catch (_) {}
+  for (const k of RECENT_KINDS) {
+    out[k] = Array.isArray(saved[k]) ? saved[k].filter((v) => typeof v === "string").slice(0, RECENT_CAP) : [];
+  }
+  return out;
+}
+
 function app() {
   return {
     theme: localStorage.getItem("csg-theme") || "dark",
@@ -44,9 +60,19 @@ function app() {
     colorScheme: localStorage.getItem("csg-color-scheme") || "cellpy",
     cells: [],
     examples: [],
-    filesPath: "",
     filesMax: 10,
     journalPath: "",
+    // Add cells modal (#136): every file source feeds a staged list that the
+    // user reviews before the one primary button runs the unchanged job.
+    addCells: { open: false, tab: "cellpy" },
+    dragOver: "",
+    typed: { cellpy: "", raw: "" },
+    previewBusy: false,
+    staged: { cellpy: [], raw: [] }, // rows: {path, name, dir, ext, source, status, detail}
+    stageNote: { cellpy: "", raw: "" },
+    lastResult: null, // {kind, added, errors, notes, at} from the last load / ingest job
+    resultOpen: false, // details disclosure on the result card
+    recent: loadRecent(), // typed patterns / journals / remote folders, most recent first
     canPick: false,
     devMode: false,
     maxFilesCeiling: 10, // server-enforced ceiling; higher in dev mode (#97)
@@ -60,17 +86,15 @@ function app() {
     openTarget: "",
     saveName: "",
     dirty: false,
-    showDemo: false,
-    showLoadFiles: false,
-    showImport: false,
+    dataCollapsed: false, // folds the Data panel once cells are loaded
     instruments: [],
     rawExamples: [],
     ingest: {
       instrument: "", model: "", mass: "", area: "",
-      nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", paths: "", maxFiles: 10,
+      nominal_capacity: "", nom_cap_specifics: "", cycle_mode: "", maxFiles: 10,
     },
-    // Remote folder find (#162): one block per form, so extensions can follow
-    // the instrument for Import and stay .cellpy/.h5 for Load.
+    // Remote folder find (#162): one block per tab, so extensions can follow
+    // the instrument for raw files and stay .cellpy/.h5 for cellpy files.
     remoteFind: {
       load: { open: false, dir: "", filter: "" },
       ingest: { open: false, dir: "", filter: "" },
@@ -227,35 +251,232 @@ function app() {
       } catch (_) { this.canPick = false; }
     },
 
-    async uploadAndLoad(event) {
+    // ---- Add cells modal (#136) ----
+    openAddCells(tab) {
+      if (this.job.active) return;
+      if (tab) this.addCells.tab = tab;
+      this.addCells.open = true;
+    },
+    closeAddCells() {
+      this.addCells.open = false;
+      this.dragOver = "";
+    },
+    get addCellsPrimaryLabel() {
+      const tab = this.addCells.tab;
+      if (tab === "journal") return "Open journal";
+      const n = this.loadableStaged(tab).length;
+      const verb = tab === "raw" ? "Import" : "Load";
+      if (!n) return `${verb} files`;
+      return `${verb} ${n} file${n === 1 ? "" : "s"}`;
+    },
+    get addCellsDisabledReason() {
+      if (this.job.active) return "";
+      const tab = this.addCells.tab;
+      if (tab === "journal") {
+        return this.journalPath.trim() ? "" : "Enter or browse to a batch journal.";
+      }
+      const rows = this.staged[tab];
+      if (!rows.length) {
+        return tab === "raw"
+          ? "Add raw files to the list first."
+          : "Add cellpy files to the list first.";
+      }
+      if (!this.loadableStaged(tab).length) {
+        return "None of the staged files can be loaded — remove them or fix the paths.";
+      }
+      if (tab === "raw" && !this.ingest.instrument) return "Choose an instrument.";
+      return "";
+    },
+    async addCellsPrimary() {
+      if (this.addCellsDisabledReason) return;
+      const tab = this.addCells.tab;
+      if (tab === "cellpy") await this.loadFiles();
+      else if (tab === "raw") await this.ingestRaw();
+      else await this.loadJournalFromModal();
+    },
+    get showsH5Hint() {
+      return this.staged.cellpy.some((r) => r.ext === ".h5" || r.ext === ".hdf5");
+    },
+    showsRemoteHint(kind) {
+      const re = /^(sftp|ssh|scp):\/\//i;
+      return re.test((this.typed[kind] || "").trim()) || this.staged[kind].some((r) => r.status === "remote");
+    },
+    loadableStaged(kind) {
+      return this.staged[kind].filter((r) => r.status !== "missing" && r.status !== "refused");
+    },
+    acceptedExtensions(kind) {
+      if (kind === "cellpy") return [".cellpy", ".h5", ".hdf5"];
+      return this.remoteFindExtensions("ingest").map((e) => e.toLowerCase());
+    },
+    _splitPath(path) {
+      const text = String(path);
+      const cut = Math.max(text.lastIndexOf("/"), text.lastIndexOf("\\"));
+      const name = cut >= 0 ? text.slice(cut + 1) : text;
+      const dir = cut >= 0 ? text.slice(0, cut + 1) : "";
+      const dot = name.lastIndexOf(".");
+      const ext = dot > 0 ? name.slice(dot).toLowerCase() : "";
+      return { name, dir, ext };
+    },
+    _row(kind, path, source, status, detail) {
+      const { name, dir, ext } = this._splitPath(path);
+      let st = status;
+      if (!st) {
+        const accepted = this.acceptedExtensions(kind);
+        // Advisory only: the loader decides; an odd extension is still sent.
+        st = accepted.length && ext && !accepted.includes(ext) ? "unsupported" : "ok";
+      }
+      return { path, name, dir, ext, source, status: st, detail: detail || "" };
+    },
+    stage(kind, rows) {
+      const have = new Set(this.staged[kind].map((r) => r.path));
+      let added = 0;
+      for (const row of rows) {
+        if (have.has(row.path)) continue;
+        have.add(row.path);
+        this.staged[kind].push(row);
+        added++;
+      }
+      // Staging new files starts the next round: the previous outcome has
+      // been seen, so it makes way for the "why is Load disabled" reason.
+      if (added) this.dismissResult();
+    },
+    unstage(kind, idx) {
+      this.staged[kind].splice(idx, 1);
+      if (!this.staged[kind].length) this.stageNote[kind] = "";
+    },
+    clearStaged(kind) {
+      this.staged[kind] = [];
+      this.stageNote[kind] = "";
+    },
+    stagedSummary(kind) {
+      const rows = this.staged[kind];
+      const ok = this.loadableStaged(kind).length;
+      const bad = rows.length - ok;
+      const base = `${rows.length} file${rows.length === 1 ? "" : "s"} staged`;
+      return bad ? `${base} · ${bad} cannot be loaded` : base;
+    },
+    statusLabel(row) {
+      return ({
+        ok: "ready", remote: "remote", unsupported: "check type",
+        missing: "not found", refused: "refused", failed: "failed",
+      })[row.status] || row.status;
+    },
+    /** Expand typed paths / globs server-side and stage the outcome. */
+    async previewInto(kind, patterns, source) {
+      const clean = patterns.map((s) => s.trim()).filter(Boolean);
+      if (!clean.length) return;
+      const max = kind === "raw" ? this._num(this.ingest.maxFiles) : this._num(this.filesMax);
+      this.previewBusy = true;
+      try {
+        const out = await (await api("/api/files/preview", {
+          method: "POST", body: { patterns: clean, max_files: max || 10 },
+        })).json();
+        const rows = [];
+        for (const p of out.paths || []) {
+          const remote = /^(sftp|ssh|scp):\/\//i.test(p);
+          const fromGlob = !clean.includes(p) && clean.some((c) => /[*?[]/.test(c));
+          rows.push(this._row(kind, p, fromGlob ? "glob" : source, remote ? "remote" : null));
+        }
+        // Errors name the offending pattern, so they can sit in the list as
+        // rows the user can remove, instead of vanishing into a toast.
+        for (const err of out.errors || []) {
+          const m = /^(?:Not found|No files matched|Remote path refused|Remote globs are not supported yet): (.+?)(?:\.\s|$)/.exec(err)
+            || /^“(.+?)” is outside the data directory/.exec(err);
+          const status = /refused|outside the data directory|not supported/i.test(err) ? "refused" : "missing";
+          if (m) rows.push(this._row(kind, m[1], source, status, err));
+          else this.notify("warn", err);
+        }
+        this.stage(kind, rows);
+        const shown = (out.paths || []).length;
+        if (shown && source === "typed") for (const c of clean) this.remember(kind, c);
+        this.stageNote[kind] = out.total > shown
+          ? `Showing ${shown} of ${out.total} matches — raise “max” or narrow the pattern.`
+          : "";
+      } catch (e) {
+        this.notify("error", e.message || String(e));
+      } finally {
+        this.previewBusy = false;
+      }
+    },
+    async addTyped(kind) {
+      const text = (this.typed[kind] || "").trim();
+      if (!text) return;
+      await this.previewInto(kind, text.split(";"), "typed");
+      this.typed[kind] = "";
+    },
+    pickInto(kind) {
+      this.pick(kind, (paths) => this.stage(kind, paths.map((p) => this._row(kind, p, "pick"))));
+    },
+    async uploadInto(kind, event) {
       const input = event.target;
       const files = [...(input.files || [])];
+      try {
+        await this.uploadFiles(kind, files);
+      } finally {
+        input.value = ""; // let the same file be picked again
+      }
+    },
+    async onDrop(kind, event) {
+      const files = [...((event.dataTransfer && event.dataTransfer.files) || [])];
       if (!files.length) return;
-
+      // pywebview exposes the host path on dropped files; when every file
+      // carries one, stage those paths directly instead of copying the bytes.
+      const full = files.map((f) => f.pywebviewFullPath).filter(Boolean);
+      if (this.hostPathsAllowed && full.length === files.length) {
+        await this.previewInto(kind, full, "pick");
+        return;
+      }
+      await this.uploadFiles(kind, files);
+    },
+    /** Upload browser files into the data directory and stage the saved paths. */
+    async uploadFiles(kind, files) {
+      if (!files.length) return;
       this.uploading = true;
       this.uploadStatus = `Uploading ${files.length} file(s)…`;
       try {
         const body = new FormData();
         for (const f of files) body.append("files", f, f.name);
-
         // api() throws on a non-2xx with the server's detail already unwrapped.
         const out = await (await api("/api/upload", { method: "POST", body })).json();
         for (const err of out.errors || []) this.notify("warn", err);
-        if (!out.saved || !out.saved.length) return;
-
-        // Hand the server-side paths to the loader that already exists, so an
-        // uploaded file travels exactly the same road as any other.
-        this.uploadStatus = `Loading ${out.saved.length} file(s)…`;
-        const paths = out.saved.map((s) => s.path);
-        this.uploading = false; // runJob owns the progress display from here
-        await this.runJob("/api/load/files", { paths, max_files: paths.length });
+        const saved = out.saved || [];
+        this.stage(kind, saved.map((s) => this._row(kind, s.path, "upload")));
       } catch (e) {
         this.notify("error", e.message || String(e));
       } finally {
         this.uploading = false;
         this.uploadStatus = "";
-        input.value = ""; // let the same file be picked again
       }
+    },
+    remember(kind, value) {
+      const v = (value || "").trim();
+      if (!v || !RECENT_KINDS.includes(kind)) return;
+      this.recent[kind] = [v, ...this.recent[kind].filter((x) => x !== v)].slice(0, RECENT_CAP);
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(this.recent)); } catch (_) {}
+    },
+    get resultSummary() {
+      const r = this.lastResult;
+      if (!r) return "";
+      const n = r.added;
+      const bad = (r.errors || []).length;
+      const head = n ? `Loaded ${n} cell${n === 1 ? "" : "s"}` : "Nothing loaded";
+      return bad ? `${head} · ${bad} skipped` : head;
+    },
+    get resultDetails() {
+      const r = this.lastResult;
+      return r ? [...(r.errors || []), ...(r.notes || [])] : [];
+    },
+    dismissResult() {
+      this.lastResult = null;
+      this.resultOpen = false;
+    },
+    pickJournalInto() {
+      this.pick("journal", (p) => { this.journalPath = p[0]; });
+    },
+    async loadJournalFromModal() {
+      if (!this.journalPath.trim()) return;
+      await this.loadImportPath();
+      if (!this.job.error) this.closeAddCells();
     },
 
     get curatedPlotTypes() {
@@ -342,6 +563,9 @@ function app() {
       this.cells = s.cells;
       this.project = s.project;
       if (this.project && !this.saveName) this.saveName = this.project;
+      // Every load job ends here, so a successful load folds the Data panel
+      // and an emptied library unfolds it again.
+      this.dataCollapsed = this.cells.length > 0;
       // Dev mode marks each cellpy family against the *loaded* cells, so the
       // list goes stale whenever the library changes (it is first built at
       // startup, when nothing is loaded yet).
@@ -395,10 +619,31 @@ function app() {
       await this.runJob("/api/load/example", { kinds });
     },
     async loadFiles() {
-      const paths = this.filesPath.split(";").map((s) => s.trim()).filter(Boolean);
+      const paths = this.loadableStaged("cellpy").map((r) => r.path);
       if (!paths.length) return;
-      await this.runJob("/api/load/files", { paths, max_files: this._num(this.filesMax) || 10 });
-      this.filesPath = "";
+      // The preview already applied the cap, so every staged path is wanted.
+      await this._runStagedJob("cellpy", "/api/load/files", { paths, max_files: paths.length });
+    },
+    /** Run a load / ingest job for a staged list, then settle the list from the result. */
+    async _runStagedJob(kind, url, body) {
+      this.lastResult = null;
+      await this.runJob(url, body);
+      const r = this.lastResult;
+      if (!r || r.kind !== "added") return; // job failed outright: keep the list
+      const errs = r.errors || [];
+      // Loader errors read "<path>: <reason>", so a failing row can stay in
+      // the list, marked, while everything that loaded leaves it.
+      const keep = [];
+      for (const row of this.staged[kind]) {
+        const err = errs.find((e) => e.startsWith(row.path));
+        if (err) keep.push({ ...row, status: "failed", detail: err });
+        else if (row.status === "missing" || row.status === "refused") keep.push(row);
+      }
+      this.staged[kind] = keep;
+      if (!keep.length) {
+        this.stageNote[kind] = "";
+        this.closeAddCells();
+      }
     },
     async loadImportPath() {
       const path = this.journalPath.trim();
@@ -418,6 +663,7 @@ function app() {
       } else {
         await this.runJob("/api/projects/load-journal", { path });
       }
+      if (!this.job.error) this.remember("journal", path);
       this.journalPath = "";
       await this.refreshProjects();
     },
@@ -431,8 +677,6 @@ function app() {
         if (r.paths && r.paths.length) assign(r.paths);
       } catch (e) { this.notify("error", e.message); }
     },
-    pickCellpy() { this.pick("cellpy", (p) => { this.filesPath = p.join("; "); }); },
-    pickRaw() { this.pick("raw", (p) => { this.ingest.paths = p.join("; "); }); },
     pickImportFile() { this.pick("journal", (p) => { this.journalPath = p[0]; this.loadImportPath(); }); },
     pickJournal() { this.pickImportFile(); },
 
@@ -457,11 +701,11 @@ function app() {
       return Number.isFinite(n) ? n : null;
     },
     async ingestRaw() {
-      const paths = this.ingest.paths.split(";").map((s) => s.trim()).filter(Boolean);
+      const paths = this.loadableStaged("raw").map((r) => r.path);
       if (!paths.length) return;
       const body = {
         paths,
-        max_files: this._num(this.ingest.maxFiles) || 10,
+        max_files: paths.length,
         instrument: this.ingest.instrument,
         model: this.ingest.model || null,
         mass: this._num(this.ingest.mass),
@@ -470,8 +714,7 @@ function app() {
         nom_cap_specifics: this.ingest.nom_cap_specifics || null,
         cycle_mode: this.ingest.cycle_mode || null,
       };
-      await this.runJob("/api/ingest", body);
-      this.ingest.paths = "";
+      await this._runStagedJob("raw", "/api/ingest", body);
     },
     async ingestExample(kind) {
       await this.runJob("/api/ingest/example", { kind, mass: this._num(this.ingest.mass) });
@@ -502,12 +745,16 @@ function app() {
       const paths = r.paths || [];
       const errs = r.errors || [];
       const notes = r.notes || [];
+      const kind = target === "ingest" ? "raw" : "cellpy";
       if (paths.length) {
-        const joined = paths.join("; ");
-        if (target === "ingest") this.ingest.paths = joined;
-        else this.filesPath = joined;
-        const shown = r.total > paths.length ? `Found ${r.total}, showing ${paths.length}` : `Found ${paths.length}`;
-        this.notify("ok", `${shown} file${r.total === 1 ? "" : "s"} — review the path field, then load.`);
+        // Matches land in the staged list, where each one can be reviewed or
+        // removed before the load — no more `;`-joined string to eyeball.
+        this.stage(kind, paths.map((p) => this._row(kind, p, "remote", "remote")));
+        this.stageNote[kind] = r.total > paths.length
+          ? `Found ${r.total} files, showing the first ${paths.length} — raise “max” or narrow the filter.`
+          : "";
+        this.remember("remoteDir", this.remoteFind[target].dir);
+        this.remoteFind[target].open = false;
       } else if (errs.length) {
         this.notify("error", errs.join(" · "));
       } else {
@@ -602,11 +849,12 @@ function app() {
         const n = (r.added || []).length;
         const errs = r.errors || [];
         const notes = r.notes || [];
-        if (n > 0 && errs.length) this.notify("warn", `Loaded ${n} cell${n > 1 ? "s" : ""}; ${errs.length} problem${errs.length > 1 ? "s" : ""}: ${errs.join(" · ")}`);
-        else if (n > 0) this.notify("ok", `Loaded ${n} cell${n > 1 ? "s" : ""}.`);
-        else if (errs.length) this.notify("error", errs.join(" · "));
-        else this.notify("warn", "Nothing was loaded — no files matched.");
-        if (notes.length) this.notify("warn", notes.join(" · "));
+        this.lastResult = { kind: "added", added: n, errors: errs, notes, at: Date.now() };
+        this.resultOpen = false;
+        // The result card (modal footer / Data panel) carries the outcome and
+        // its details, so only outright failure still interrupts with a toast.
+        if (!n && errs.length) this.notify("error", errs.join(" · "));
+        else if (!n) this.notify("warn", "Nothing was loaded — no files matched.");
       } else if ("name" in r && "n_cells" in r) {
         const n = r.n_cells;
         const cells = `${n} cell${n === 1 ? "" : "s"}`;
@@ -760,12 +1008,15 @@ function app() {
       this.cells = s.cells;
       this.markDirty();
       if (this.cell.cell_id === id) this.cell.cell_id = "";
+      if (!this.cells.length) this.dataCollapsed = false;
       this.replotCurrent();
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
       this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
       this.dirty = false;
+      this.dataCollapsed = false;
+      this.dismissResult();
       this.cellsManagerOpen = false;
       Plotly.purge("summaryChart"); Plotly.purge("cyclesChart"); Plotly.purge("cellChart");
       this.replotCurrent();

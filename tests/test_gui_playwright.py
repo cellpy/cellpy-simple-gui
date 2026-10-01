@@ -110,3 +110,97 @@ def test_load_demo_cells_and_summary_plot(browser_page):
     # Vendored Plotly uses .plot-container.plotly (not .js-plotly-plot).
     page.wait_for_selector("#summaryChart .plot-container.plotly", timeout=60_000)
     assert page.locator("#summaryChart svg.main-svg").count() >= 1
+
+
+# --------------------------------------------------------------------------- #
+# #136 — loading UI: Data panel folds after a load; Add cells modal
+# --------------------------------------------------------------------------- #
+
+
+def _bundled_cellpy_file() -> str:
+    """A cellpy file that ships inside the installed cellpy package (no network)."""
+    from cellpy.utils import example_data
+
+    return str(example_data.rate_file())
+
+
+@pytest.mark.e2e
+def test_data_panel_collapses_after_load(browser_page):
+    """Loading is a start-of-session activity: once cells exist the Data panel
+    folds to one line with an 'add more…' link, and unfolds when emptied."""
+    page = browser_page
+    get_library().clear()
+    page.reload(wait_until="load")
+    page.wait_for_selector(".brand-title", timeout=15_000)
+
+    demo = page.get_by_role("button", name="Load demo cells")
+    assert demo.is_visible()
+    assert not page.locator(".collapsed-hint").is_visible()
+
+    demo.click()
+    try:
+        page.wait_for_selector(".cell-card", timeout=120_000)
+    except Exception as exc:  # noqa: BLE001
+        job_err = page.locator(".job-msg").inner_text() if page.locator(".job").is_visible() else ""
+        pytest.skip(f"demo cells unavailable: {job_err or exc}")
+
+    page.wait_for_selector(".collapsed-hint", state="visible", timeout=10_000)
+    assert "cells loaded" in page.locator(".collapsed-hint").inner_text()
+    assert not demo.is_visible()
+    # The result card replaces the old "Loaded N cells" toast.
+    assert "Loaded" in page.locator(".result-card.side .result-summary").inner_text()
+
+    # "show" re-opens the panel without changing anything else.
+    page.get_by_role("button", name="show", exact=True).click()
+    demo.wait_for(state="visible", timeout=5_000)
+
+
+@pytest.mark.e2e
+def test_add_cells_modal_stages_and_loads(browser_page):
+    """Type a path → it lands in the staged list → the one primary button loads it."""
+    page = browser_page
+    get_library().clear()
+    page.reload(wait_until="load")
+    page.wait_for_selector(".brand-title", timeout=15_000)
+
+    page.locator(".add-cells-btn").click()
+    modal = page.locator(".modal.add-cells")
+    modal.wait_for(state="visible", timeout=5_000)
+    assert modal.get_by_role("tab", name="cellpy files").get_attribute("aria-selected") == "true"
+
+    primary = modal.locator(".add-cells-foot .btn-primary")
+    assert primary.is_disabled()
+    assert "Add cellpy files" in modal.locator(".hint.reason").inner_text()
+
+    typed = modal.get_by_label("cellpy file path or glob")
+    typed.fill(_bundled_cellpy_file() + "; /nonexistent/nothing.cellpy")
+    typed.press("Enter")
+
+    rows = modal.locator(".staged-table tbody tr")
+    rows.first.wait_for(state="visible", timeout=10_000)
+    assert rows.count() == 2
+    assert modal.locator(".status-pill.ok").count() == 1
+    assert modal.locator(".status-pill.missing").count() == 1
+    assert primary.inner_text().strip() == "Load 1 file"
+
+    primary.click()
+    page.wait_for_selector(".cell-card", timeout=120_000)
+    # The loaded row left the list; the missing one stays, so the modal stays open.
+    page.wait_for_function(
+        "() => document.querySelectorAll('.staged-table tbody tr').length === 1", timeout=10_000
+    )
+    assert modal.is_visible()
+    assert modal.locator(".status-pill.missing").count() == 1
+    result = modal.locator(".add-cells-foot .result-card")
+    assert result.is_visible()
+    assert "Loaded 1 cell" in result.locator(".result-summary").inner_text()
+
+    result.locator(".x").click()
+    # Role queries skip the hidden tabs' duplicates of this button.
+    modal.get_by_role("button", name="clear", exact=True).click()
+    reason = modal.locator(".hint.reason")
+    reason.wait_for(state="visible", timeout=5_000)
+    assert "Add cellpy files" in reason.inner_text()
+    page.keyboard.press("Escape")
+    modal.wait_for(state="hidden", timeout=5_000)
+    assert page.locator(".cell-card").count() == 1

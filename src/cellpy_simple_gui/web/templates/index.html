@@ -56,231 +56,83 @@
                   :title="`This project's cellpy settings are active (${projectCellpyConfig}) — click for details`"
           >cellpy.toml</button>
         </div>
-        <div class="proj-open">
-          <select x-model="openTarget">
-            <option value="" disabled>Open a project…</option>
-            <template x-for="p in projects" :key="p.slug">
-              <option :value="p.slug" x-text="`${p.name} · ${p.n_cells} cells`"></option>
-            </template>
-          </select>
-          <button class="btn btn-ghost" @click="openProject()" :disabled="job.active || !openTarget" title="Open">↥</button>
-          <button class="btn btn-ghost" @click="refreshProjects()" :disabled="job.active" title="Refresh project list">↻</button>
+        <div class="proj-row">
+          <span class="proj-lbl">Open</span>
+          <div class="proj-ctl">
+            <select x-model="openTarget" aria-label="Saved projects">
+              <option value="" disabled>Saved project…</option>
+              <template x-for="p in projects" :key="p.slug">
+                <option :value="p.slug" x-text="`${p.name} · ${p.n_cells} cells`"></option>
+              </template>
+            </select>
+            <button class="btn btn-ghost sm" @click="openProject()" :disabled="job.active || !openTarget">Open</button>
+            <button class="btn btn-ghost sm icon" @click="refreshProjects()" :disabled="job.active"
+                    title="Refresh project list" aria-label="Refresh project list">↻</button>
+          </div>
+          <div class="proj-ctl">
+            <input type="text" x-model="journalPath" aria-label="Project or journal path" list="recent-journal"
+                   placeholder="project.json, folder, or batch journal path" @keydown.enter="loadImportPath()" />
+            <button class="btn btn-ghost sm icon" x-show="canPick" @click="pickImportFile()" :disabled="job.active"
+                    title="Browse…" aria-label="Browse for a project.json or batch journal">📁</button>
+            <button class="btn btn-ghost sm" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()">Open path</button>
+          </div>
         </div>
-        <div class="proj-save">
-          <input type="text" x-model="saveName" placeholder="Project name" @keydown.enter="saveProject()" />
-          <button class="btn btn-ghost" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length" title="Save project">⤓</button>
-          <button class="btn btn-ghost" @click="closeProject()"
-                  :disabled="job.active || (!cells.length && !project)"
-                  title="Close project">✕</button>
+        <div class="proj-row">
+          <span class="proj-lbl">Save</span>
+          <div class="proj-ctl">
+            <input type="text" x-model="saveName" aria-label="Project name" placeholder="Project name" @keydown.enter="saveProject()" />
+            <button class="btn btn-ghost sm" @click="saveProject()" :disabled="job.active || !saveName.trim() || !cells.length">Save</button>
+            <button class="btn btn-ghost sm" @click="closeProject()"
+                    :disabled="job.active || (!cells.length && !project)">Close</button>
+          </div>
         </div>
-        <p class="hint">Click <b>Save</b> to write every loaded cell into a portable project folder. Use <b>↻</b> to refresh the project list.</p>
-
-        <div class="proj-save" style="margin-top:10px">
-          <input type="text" x-model="journalPath" placeholder="project.json, batch journal, or project folder path" @keydown.enter="loadImportPath()" />
-          <button class="btn btn-ghost" @click="pickImportFile()" :disabled="!canPick || job.active"
-                  :title="canPick ? 'Browse JSON…' : 'Browse is desktop-only — paste a path in the field'">📁</button>
-          <button class="btn btn-ghost" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()" title="Load project or journal">↧</button>
-        </div>
-        <p class="hint">Open <b>app project</b> (<code>project.json</code> or paste a folder path) or a native cellpy <b>batch journal</b></p>
+        <p class="hint">Save writes every loaded cell into a portable project folder. Open takes a saved
+          project, a <code>project.json</code> / folder path, or a cellpy batch journal.</p>
       </section>
 
-      <section class="panel">
-        <h2 class="panel-title">Data</h2>
-        <button class="disclosure" style="margin-top:0" @click="showDemo = !showDemo">
-          <span x-text="showDemo ? '▾' : '▸'"></span> Load demo cells
-        </button>
-        <div class="import-form" x-show="showDemo" x-cloak>
+      <section class="panel" :class="{collapsed: dataCollapsed}">
+        <div class="panel-head">
+          <h2 class="panel-title">Data</h2>
+          <!-- Loading is a start-of-session activity: once cells exist the
+               panel folds to one line so the Cells list gets the height. -->
+          <button class="mini" type="button" x-show="cells.length" x-cloak
+                  @click="dataCollapsed = !dataCollapsed"
+                  x-text="dataCollapsed ? 'show' : 'hide'"></button>
+        </div>
+        <div x-show="!dataCollapsed">
           <button class="btn btn-primary block" @click="loadExamples()" :disabled="job.active">
             <span>✦</span> Load demo cells
           </button>
-          <p class="hint">Three bundled example cells.</p>
-        </div>
-
-        <button class="disclosure" @click="showLoadFiles = !showLoadFiles">
-          <span x-text="showLoadFiles ? '▾' : '▸'"></span> Add cellpy files
-        </button>
-        <div class="import-form" x-show="showLoadFiles" x-cloak>
-          <!-- Upload comes first when the server refuses host paths: to a
-               browser on another machine the path field below describes a
-               filesystem it cannot see (#133). -->
-          <div class="field" x-show="!hostPathsAllowed" x-cloak>
-            <label>Upload from this computer</label>
-            <input type="file" multiple accept=".cellpy,.h5,.hdf5"
-                   @change="uploadAndLoad($event)" :disabled="job.active || uploading" />
-            <p class="hint" x-show="!uploading"
-               x-text="`Uploaded to the server's data directory, then loaded. Up to ${maxUploadMb} MB each.`"></p>
-            <p class="hint" x-show="uploading" x-text="uploadStatus"></p>
-          </div>
-
-          <div class="field">
-            <label x-show="!hostPathsAllowed" x-cloak>Or a path on the server</label>
-            <div class="input-row">
-              <input type="text" x-model="filesPath"
-                     placeholder="path, glob, or sftp://user@host/path/file.cellpy"
-                     @keydown.enter="loadFiles()" />
-              <button class="btn btn-ghost pick" x-show="canPick" @click="pickCellpy()" title="Browse…">📁</button>
-            </div>
-            <div class="input-row" style="margin-top:7px">
-              <button class="btn btn-ghost" style="flex:1" @click="loadFiles()" :disabled="job.active || !filesPath.trim()">
-                Load files
-              </button>
-              <label class="maxlbl" title="Max files a glob may load">max
-                <input type="number" class="num-mini" x-model="filesMax" min="1" :max="maxFilesCeiling"
-                       :title="`server caps this at ${maxFilesCeiling}`" />
-              </label>
-            </div>
-            <p class="hint">Semicolon-separated. Globs (<code>*</code> <code>?</code>) expand up to “max”.
-              Native cellpy files only (<code>.cellpy</code> / cellpy <code>.h5</code>) —
-              Arbin SQL HDF5 belongs under Import raw below.
-              On the desktop you can paste a single remote URI
-              (<code>sftp://</code> / <code>ssh://</code> / <code>scp://</code>);
-              credentials come from cellpy’s <code>.env_cellpy</code>
-              (<code>CELLPY_KEY_FILENAME</code> / <code>CELLPY_PASSWORD</code>).</p>
-          </div>
-
-          <!-- Remote folder find (#162): the "approx glob" for sftp:// —
-               cellpy's filefinder walks the folder and the matches land in the
-               path field above for review before Load. Desktop only, like
-               single remote URIs. -->
-          <div x-show="hostPathsAllowed" x-cloak>
-            <button class="disclosure sub" @click="remoteFind.load.open = !remoteFind.load.open">
-              <span x-text="remoteFind.load.open ? '▾' : '▸'"></span> Find in a remote folder…
-            </button>
-            <div class="remote-find" x-show="remoteFind.load.open" x-cloak>
-              <div class="field">
-                <label>Remote folder</label>
-                <input type="text" x-model="remoteFind.load.dir"
-                       placeholder="sftp://user@host/home/user/lab/cellpy_files/"
-                       @keydown.enter="findRemote('load')" />
-              </div>
-              <div class="field">
-                <label>Name filter <span class="hint" style="display:inline">(optional)</span></label>
-                <div class="input-row">
-                  <input type="text" x-model="remoteFind.load.filter"
-                         placeholder="contains… or a glob like 2016*_cc_*"
-                         @keydown.enter="findRemote('load')" />
-                  <button class="btn btn-ghost" @click="findRemote('load')"
-                          :disabled="job.active || !remoteFind.load.dir.trim()">🔍 Find</button>
-                </div>
-              </div>
-              <p class="hint">Looks for <code>.cellpy</code> / <code>.h5</code> files, recursively,
-                up to “max” — the matches are put into the path field above so you can
-                review them before <em>Load files</em>. Prefer a project-scoped folder;
-                walking a whole shared raw-data tree over SFTP is slow.</p>
-            </div>
-          </div>
-        </div>
-
-        <button class="disclosure" @click="showImport = !showImport">
-          <span x-text="showImport ? '▾' : '▸'"></span> Import raw instrument files
-        </button>
-        <div class="import-form" x-show="showImport" x-cloak>
-          <div class="field">
-            <label>Instrument</label>
-            <select x-model="ingest.instrument">
-              <template x-for="ins in instruments" :key="ins.id">
-                <option :value="ins.id"
-                        x-text="ins.label + (ins.available === false ? ' — unavailable' : '')"></option>
-              </template>
-            </select>
-            <!-- Says so before a file is picked and a job runs, rather than
-                 after (#143). The option stays selectable: the driver may have
-                 been installed since the app started. -->
-            <p class="hint warn" x-show="currentInstrument() && currentInstrument().available === false"
-               x-text="currentInstrument() ? currentInstrument().unavailable_reason : ''"></p>
-          </div>
-          <div class="field" x-show="currentModels().length">
-            <label>Format / model</label>
-            <select x-model="ingest.model">
-              <option value="">default</option>
-              <template x-for="m in currentModels()" :key="m">
-                <option :value="m" x-text="m"></option>
-              </template>
-            </select>
-          </div>
-          <div class="grid2">
-            <div class="field"><label>Mass (mg)</label>
-              <input type="number" step="any" x-model="ingest.mass" placeholder="auto" /></div>
-            <div class="field"><label>Area (cm²)</label>
-              <input type="number" step="any" x-model="ingest.area" placeholder="auto" /></div>
-            <div class="field"><label>Nom. cap</label>
-              <input type="number" step="any" x-model="ingest.nominal_capacity" placeholder="auto" /></div>
-            <div class="field"><label>Specifics</label>
-              <select x-model="ingest.nom_cap_specifics">
-                <option value="">default</option>
-                <option value="gravimetric">gravimetric</option>
-                <option value="areal">areal</option>
-                <option value="absolute">absolute</option>
-              </select></div>
-          </div>
-          <div class="field">
-            <label>Cycle mode</label>
-            <select x-model="ingest.cycle_mode">
-              <option value="">default</option>
-              <option value="anode">anode</option>
-              <option value="cathode">cathode</option>
-              <option value="full_cell">full cell</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Raw file paths</label>
-            <div class="input-row">
-              <input type="text" x-model="ingest.paths"
-                     placeholder="path, glob, or sftp://user@host/path/file.res"
-                     @keydown.enter="ingestRaw()" />
-              <button class="btn btn-ghost pick" x-show="canPick" @click="pickRaw()" title="Browse…">📁</button>
-            </div>
-            <label class="maxlbl" style="margin-top:7px" title="Max files a glob may load">max
-              <input type="number" class="num-mini" x-model="ingest.maxFiles" min="1" :max="maxFilesCeiling"
-                     :title="`server caps this at ${maxFilesCeiling}`" />
-            </label>
-            <p class="hint" style="margin-top:7px">Remote single-file URIs work on the desktop
-              (<code>sftp://user@host/…</code>); set <code>CELLPY_KEY_FILENAME</code>
-              in <code>~/.env_cellpy</code>. Use a real hostname, not an OpenSSH
-              <code>Host</code> alias.</p>
-          </div>
-
-          <!-- Remote folder find (#162), extensions follow the chosen instrument. -->
-          <div x-show="hostPathsAllowed" x-cloak>
-            <button class="disclosure sub" @click="remoteFind.ingest.open = !remoteFind.ingest.open">
-              <span x-text="remoteFind.ingest.open ? '▾' : '▸'"></span> Find in a remote folder…
-            </button>
-            <div class="remote-find" x-show="remoteFind.ingest.open" x-cloak>
-              <div class="field">
-                <label>Remote folder</label>
-                <input type="text" x-model="remoteFind.ingest.dir"
-                       placeholder="sftp://user@host/home/user/lab/raw/my_project/"
-                       @keydown.enter="findRemote('ingest')" />
-              </div>
-              <div class="field">
-                <label>Name filter <span class="hint" style="display:inline">(optional)</span></label>
-                <div class="input-row">
-                  <input type="text" x-model="remoteFind.ingest.filter"
-                         placeholder="contains… or a glob like 2016*_cc_*"
-                         @keydown.enter="findRemote('ingest')" />
-                  <button class="btn btn-ghost" @click="findRemote('ingest')"
-                          :disabled="job.active || !remoteFind.ingest.dir.trim()">🔍 Find</button>
-                </div>
-              </div>
-              <p class="hint">Looks for
-                <span x-text="remoteFindExtensions('ingest').length ? remoteFindExtensions('ingest').map((e) => '*' + e).join(' ') : 'any file'"></span>
-                (from the selected instrument), recursively, up to “max”. Matches are put
-                into the path field above so you can review them before <em>Import</em>.</p>
-            </div>
-          </div>
-          <button class="btn btn-primary block" @click="ingestRaw()" :disabled="job.active || !ingest.paths.trim()">
-            ⚙ Import &amp; process
+          <button class="btn block add-cells-btn" type="button" @click="openAddCells()" :disabled="job.active">
+            + Add cells…
           </button>
-          <div class="demo-chips">
-            <span class="hint">or try a bundled raw file:</span>
-            <div class="chips">
-              <template x-for="ex in rawExamples" :key="ex.kind">
-                <button class="chip-btn" @click="ingestExample(ex.kind)" :disabled="job.active" x-text="ex.label"></button>
-              </template>
-            </div>
+          <p class="hint">Three bundled demo cells, or your own cellpy files, raw instrument
+            files, or a cellpy batch journal.</p>
+        </div>
+        <p class="hint collapsed-hint" x-show="dataCollapsed" x-cloak>
+          <span x-text="cells.length + (cells.length === 1 ? ' cell loaded' : ' cells loaded')"></span>
+          — <a href="#" @click.prevent="openAddCells()">add more…</a>
+        </p>
+        <!-- Outcome of the last load / ingest, in place of a transient toast. -->
+        <div class="result-card side" x-show="lastResult && !addCells.open" x-cloak
+             :class="{bad: lastResult && !lastResult.added, mixed: lastResult && lastResult.added && lastResult.errors.length}">
+          <div class="result-row">
+            <span class="result-summary" x-text="resultSummary"></span>
+            <button class="mini" type="button" x-show="resultDetails.length" x-cloak
+                    @click="resultOpen = !resultOpen" x-text="resultOpen ? 'hide' : 'details'"></button>
+            <button class="x" type="button" @click="dismissResult()" title="Dismiss">×</button>
           </div>
+          <ul class="result-details" x-show="resultOpen" x-cloak>
+            <template x-for="(line, i) in resultDetails" :key="i"><li x-text="line"></li></template>
+          </ul>
         </div>
       </section>
+
+      <!-- Recent sources (#136): suggestions for the typed inputs. -->
+      <datalist id="recent-cellpy"><template x-for="v in recent.cellpy" :key="v"><option :value="v"></option></template></datalist>
+      <datalist id="recent-raw"><template x-for="v in recent.raw" :key="v"><option :value="v"></option></template></datalist>
+      <datalist id="recent-journal"><template x-for="v in recent.journal" :key="v"><option :value="v"></option></template></datalist>
+      <datalist id="recent-remote"><template x-for="v in recent.remoteDir" :key="v"><option :value="v"></option></template></datalist>
 
       <!-- progress -->
       <div class="job" x-show="job.active || job.error" x-cloak>
@@ -738,6 +590,293 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- ============ Add cells modal (#136) ============ -->
+  <!-- One entry point for every file source. Each tab: a source zone (drop /
+       browse / upload / paste / remote find) feeds a staged list the user
+       reviews before the single primary button in the footer runs the
+       unchanged load / ingest / journal job. -->
+  <div class="modal-backdrop" x-show="addCells.open" x-cloak
+       @click.self="closeAddCells()"
+       @keydown.escape.window="if (addCells.open) closeAddCells()">
+    <div class="modal add-cells" role="dialog" aria-modal="true" aria-labelledby="add-cells-title">
+      <div class="modal-head">
+        <h2 id="add-cells-title" class="modal-title">Add cells</h2>
+        <button class="icon-btn" type="button" @click="closeAddCells()" title="Close">×</button>
+      </div>
+      <div class="segmented" role="tablist" aria-label="Source">
+        <button type="button" role="tab" :aria-selected="addCells.tab==='cellpy'"
+                :class="{active: addCells.tab==='cellpy'}" @click="addCells.tab='cellpy'">cellpy files</button>
+        <button type="button" role="tab" :aria-selected="addCells.tab==='raw'"
+                :class="{active: addCells.tab==='raw'}" @click="addCells.tab='raw'">Raw instrument files</button>
+        <button type="button" role="tab" :aria-selected="addCells.tab==='journal'"
+                :class="{active: addCells.tab==='journal'}" @click="addCells.tab='journal'">Batch journal</button>
+      </div>
+
+      <div class="modal-body add-cells-body">
+        <!-- ---------- cellpy files ---------- -->
+        <section role="tabpanel" x-show="addCells.tab==='cellpy'">
+          <div class="source-zone" :class="{dragover: dragOver==='cellpy'}"
+               @dragover.prevent="dragOver='cellpy'" @dragleave="dragOver=''"
+               @drop.prevent="dragOver=''; onDrop('cellpy', $event)">
+            <div class="zone-row">
+              <span class="zone-text">Drop <code>.cellpy</code> / cellpy <code>.h5</code> files here</span>
+              <button class="btn sm" type="button" x-show="canPick" @click="pickInto('cellpy')"
+                      :disabled="job.active">Browse…</button>
+              <label class="btn sm" x-show="!hostPathsAllowed" x-cloak>Upload…
+                <input type="file" multiple accept=".cellpy,.h5,.hdf5" class="visually-hidden"
+                       @change="uploadInto('cellpy', $event)" :disabled="job.active || uploading" />
+              </label>
+            </div>
+            <div class="input-row">
+              <input type="text" x-model="typed.cellpy" aria-label="cellpy file path or glob" list="recent-cellpy"
+                     :placeholder="hostPathsAllowed ? 'or paste a path, glob, or sftp:// URI' : 'or paste a path inside the data directory'"
+                     @keydown.enter="addTyped('cellpy')" />
+              <label class="maxlbl" title="Max files a glob may add">max
+                <input type="number" class="num-mini" x-model="filesMax" min="1" :max="maxFilesCeiling"
+                       :title="`server caps this at ${maxFilesCeiling}`" />
+              </label>
+              <button class="btn sm" type="button" @click="addTyped('cellpy')"
+                      :disabled="!typed.cellpy.trim() || previewBusy">Add</button>
+            </div>
+            <p class="hint" x-show="uploading" x-text="uploadStatus"></p>
+            <p class="hint" x-show="!uploading && !hostPathsAllowed"
+               x-text="`Uploads land in the server's data directory first (up to ${maxUploadMb} MB each).`"></p>
+            <p class="hint" x-show="showsH5Hint" x-cloak>A <code>.h5</code> here is read as a native cellpy file.
+              Arbin SQL HDF5 exports belong under <b>Raw instrument files</b>.</p>
+            <p class="hint" x-show="showsRemoteHint('cellpy')" x-cloak>Remote URIs are fetched by cellpy;
+              credentials come from <code>~/.env_cellpy</code> (<code>CELLPY_KEY_FILENAME</code> /
+              <code>CELLPY_PASSWORD</code>). Use a real hostname, not an OpenSSH <code>Host</code> alias.</p>
+
+            <!-- Remote folder find (#162): matches land in the staged list. -->
+            <div x-show="hostPathsAllowed" x-cloak>
+              <button class="disclosure sub" type="button" @click="remoteFind.load.open = !remoteFind.load.open">
+                <span x-text="remoteFind.load.open ? '▾' : '▸'"></span> Find in a remote folder…
+              </button>
+              <div class="remote-find" x-show="remoteFind.load.open" x-cloak>
+                <div class="input-row">
+                  <input type="text" x-model="remoteFind.load.dir" aria-label="Remote folder" list="recent-remote"
+                         placeholder="sftp://user@host/home/user/lab/cellpy_files/"
+                         @keydown.enter="findRemote('load')" />
+                </div>
+                <div class="input-row">
+                  <input type="text" x-model="remoteFind.load.filter" aria-label="Name filter"
+                         placeholder="name filter (optional): contains… or a glob"
+                         @keydown.enter="findRemote('load')" />
+                  <button class="btn sm" type="button" @click="findRemote('load')"
+                          :disabled="job.active || !remoteFind.load.dir.trim()">🔍 Find</button>
+                </div>
+                <p class="hint">Walks the folder recursively for <code>.cellpy</code> / <code>.h5</code>, up to “max”.
+                  Prefer a project-scoped folder — a whole shared tree over SFTP is slow.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="staged" x-show="staged.cellpy.length" x-cloak>
+            <div class="staged-head">
+              <span class="staged-summary" x-text="stagedSummary('cellpy')"></span>
+              <button class="mini" type="button" @click="clearStaged('cellpy')">clear</button>
+            </div>
+            <table class="cells-table staged-table">
+              <tbody>
+                <template x-for="(row, i) in staged.cellpy" :key="row.path">
+                  <tr :class="row.status">
+                    <td class="col-ext"><span class="ext-badge" x-text="row.ext || '—'"></span></td>
+                    <td class="col-path" :title="row.detail || row.path">
+                      <span class="path-name" x-text="row.name"></span>
+                      <span class="path-dir" x-text="row.dir"></span>
+                    </td>
+                    <td class="col-status"><span class="status-pill" :class="row.status" x-text="statusLabel(row)"></span></td>
+                    <td class="col-x"><button class="x" type="button" @click="unstage('cellpy', i)" title="Remove from list">×</button></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <p class="hint warn" x-show="stageNote.cellpy" x-text="stageNote.cellpy"></p>
+          </div>
+          <p class="empty small" x-show="!staged.cellpy.length">Nothing staged yet — files you add appear here for review.</p>
+        </section>
+
+        <!-- ---------- raw instrument files ---------- -->
+        <section role="tabpanel" class="raw-grid" x-show="addCells.tab==='raw'" x-cloak>
+          <div class="raw-source">
+            <div class="source-zone" :class="{dragover: dragOver==='raw'}"
+                 @dragover.prevent="dragOver='raw'" @dragleave="dragOver=''"
+                 @drop.prevent="dragOver=''; onDrop('raw', $event)">
+              <div class="zone-row">
+                <span class="zone-text">Drop raw files here
+                  <span x-show="remoteFindExtensions('ingest').length"
+                        x-text="'(' + remoteFindExtensions('ingest').map((e) => '*' + e).join(' ') + ')'"></span></span>
+                <button class="btn sm" type="button" x-show="canPick" @click="pickInto('raw')"
+                        :disabled="job.active">Browse…</button>
+                <label class="btn sm" x-show="!hostPathsAllowed" x-cloak>Upload…
+                  <input type="file" multiple class="visually-hidden"
+                         @change="uploadInto('raw', $event)" :disabled="job.active || uploading" />
+                </label>
+              </div>
+              <div class="input-row">
+                <input type="text" x-model="typed.raw" aria-label="Raw file path or glob" list="recent-raw"
+                       :placeholder="hostPathsAllowed ? 'or paste a path, glob, or sftp:// URI' : 'or paste a path inside the data directory'"
+                       @keydown.enter="addTyped('raw')" />
+                <label class="maxlbl" title="Max files a glob may add">max
+                  <input type="number" class="num-mini" x-model="ingest.maxFiles" min="1" :max="maxFilesCeiling"
+                         :title="`server caps this at ${maxFilesCeiling}`" />
+                </label>
+                <button class="btn sm" type="button" @click="addTyped('raw')"
+                        :disabled="!typed.raw.trim() || previewBusy">Add</button>
+              </div>
+              <p class="hint" x-show="uploading" x-text="uploadStatus"></p>
+              <p class="hint" x-show="showsRemoteHint('raw')" x-cloak>Remote URIs are fetched by cellpy;
+                credentials come from <code>~/.env_cellpy</code> (<code>CELLPY_KEY_FILENAME</code> /
+                <code>CELLPY_PASSWORD</code>). Use a real hostname, not an OpenSSH <code>Host</code> alias.</p>
+
+              <div x-show="hostPathsAllowed" x-cloak>
+                <button class="disclosure sub" type="button" @click="remoteFind.ingest.open = !remoteFind.ingest.open">
+                  <span x-text="remoteFind.ingest.open ? '▾' : '▸'"></span> Find in a remote folder…
+                </button>
+                <div class="remote-find" x-show="remoteFind.ingest.open" x-cloak>
+                  <div class="input-row">
+                    <input type="text" x-model="remoteFind.ingest.dir" aria-label="Remote folder" list="recent-remote"
+                           placeholder="sftp://user@host/home/user/lab/raw/my_project/"
+                           @keydown.enter="findRemote('ingest')" />
+                  </div>
+                  <div class="input-row">
+                    <input type="text" x-model="remoteFind.ingest.filter" aria-label="Name filter"
+                           placeholder="name filter (optional): contains… or a glob"
+                           @keydown.enter="findRemote('ingest')" />
+                    <button class="btn sm" type="button" @click="findRemote('ingest')"
+                            :disabled="job.active || !remoteFind.ingest.dir.trim()">🔍 Find</button>
+                  </div>
+                  <p class="hint">Looks for the selected instrument's extension(s), recursively, up to “max”.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="staged" x-show="staged.raw.length" x-cloak>
+              <div class="staged-head">
+                <span class="staged-summary" x-text="stagedSummary('raw')"></span>
+                <button class="mini" type="button" @click="clearStaged('raw')">clear</button>
+              </div>
+              <table class="cells-table staged-table">
+                <tbody>
+                  <template x-for="(row, i) in staged.raw" :key="row.path">
+                    <tr :class="row.status">
+                      <td class="col-ext"><span class="ext-badge" x-text="row.ext || '—'"></span></td>
+                      <td class="col-path" :title="row.detail || row.path">
+                        <span class="path-name" x-text="row.name"></span>
+                        <span class="path-dir" x-text="row.dir"></span>
+                      </td>
+                      <td class="col-status"><span class="status-pill" :class="row.status" x-text="statusLabel(row)"></span></td>
+                      <td class="col-x"><button class="x" type="button" @click="unstage('raw', i)" title="Remove from list">×</button></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="hint warn" x-show="stageNote.raw" x-text="stageNote.raw"></p>
+            </div>
+            <p class="empty small" x-show="!staged.raw.length">Nothing staged yet — files you add appear here for review.</p>
+          </div>
+
+          <div class="raw-options">
+            <h3 class="plot-sidepane-title">Processing options</h3>
+            <div class="field" style="margin-top:0">
+              <label>Instrument</label>
+              <select x-model="ingest.instrument">
+                <template x-for="ins in instruments" :key="ins.id">
+                  <option :value="ins.id"
+                          x-text="ins.label + (ins.available === false ? ' — unavailable' : '')"></option>
+                </template>
+              </select>
+              <!-- Says so before a file is picked and a job runs, rather than
+                   after (#143). The option stays selectable: the driver may have
+                   been installed since the app started. -->
+              <p class="hint warn" x-show="currentInstrument() && currentInstrument().available === false"
+                 x-text="currentInstrument() ? currentInstrument().unavailable_reason : ''"></p>
+            </div>
+            <div class="field" x-show="currentModels().length">
+              <label>Format / model</label>
+              <select x-model="ingest.model">
+                <option value="">default</option>
+                <template x-for="m in currentModels()" :key="m">
+                  <option :value="m" x-text="m"></option>
+                </template>
+              </select>
+            </div>
+            <div class="grid2">
+              <div class="field"><label>Mass (mg)</label>
+                <input type="number" step="any" x-model="ingest.mass" placeholder="auto" /></div>
+              <div class="field"><label>Area (cm²)</label>
+                <input type="number" step="any" x-model="ingest.area" placeholder="auto" /></div>
+              <div class="field"><label>Nom. cap</label>
+                <input type="number" step="any" x-model="ingest.nominal_capacity" placeholder="auto" /></div>
+              <div class="field"><label>Specifics</label>
+                <select x-model="ingest.nom_cap_specifics">
+                  <option value="">default</option>
+                  <option value="gravimetric">gravimetric</option>
+                  <option value="areal">areal</option>
+                  <option value="absolute">absolute</option>
+                </select></div>
+            </div>
+            <div class="field">
+              <label>Cycle mode</label>
+              <select x-model="ingest.cycle_mode">
+                <option value="">default</option>
+                <option value="anode">anode</option>
+                <option value="cathode">cathode</option>
+                <option value="full_cell">full cell</option>
+              </select>
+            </div>
+            <div class="demo-chips">
+              <span class="hint">or try a bundled raw file:</span>
+              <div class="chips">
+                <template x-for="ex in rawExamples" :key="ex.kind">
+                  <button class="chip-btn" type="button" @click="ingestExample(ex.kind)" :disabled="job.active" x-text="ex.label"></button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- batch journal ---------- -->
+        <section role="tabpanel" x-show="addCells.tab==='journal'" x-cloak>
+          <div class="field" style="margin-top:0">
+            <label>cellpy batch journal</label>
+            <div class="input-row">
+              <input type="text" x-model="journalPath" aria-label="Batch journal path" list="recent-journal"
+                     placeholder="path to a batch journal .json" @keydown.enter="loadJournalFromModal()" />
+              <button class="btn sm" type="button" x-show="canPick" @click="pickJournalInto()"
+                      :disabled="job.active">Browse…</button>
+            </div>
+            <p class="hint">Cells are read from the journal's <code>.cellpy</code> files (raw files are not
+              re-read). App projects (<code>project.json</code> or a project folder) open from the
+              <b>Project → Open</b> row in the sidebar.</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="modal-foot add-cells-foot">
+        <span class="foot-status" x-show="job.active" x-cloak>
+          <span class="spinner"></span><span x-text="job.message"></span>
+        </span>
+        <div class="result-card" x-show="!job.active && lastResult" x-cloak
+             :class="{bad: lastResult && !lastResult.added, mixed: lastResult && lastResult.added && lastResult.errors.length}">
+          <div class="result-row">
+            <span class="result-summary" x-text="resultSummary"></span>
+            <button class="mini" type="button" x-show="resultDetails.length" x-cloak
+                    @click="resultOpen = !resultOpen" x-text="resultOpen ? 'hide' : 'details'"></button>
+            <button class="x" type="button" @click="dismissResult()" title="Dismiss">×</button>
+          </div>
+          <ul class="result-details" x-show="resultOpen" x-cloak>
+            <template x-for="(line, i) in resultDetails" :key="i"><li x-text="line"></li></template>
+          </ul>
+        </div>
+        <span class="hint reason" x-show="!job.active && !lastResult && addCellsDisabledReason" x-text="addCellsDisabledReason"></span>
+        <button class="btn" type="button" @click="closeAddCells()">Close</button>
+        <button class="btn btn-primary" type="button" @click="addCellsPrimary()"
+                :disabled="!!addCellsDisabledReason" x-text="addCellsPrimaryLabel"></button>
+      </div>
+    </div>
   </div>
 
   <!-- ============ Manage cells modal ============ -->

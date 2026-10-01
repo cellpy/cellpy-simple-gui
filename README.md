@@ -40,17 +40,21 @@ window (via [pywebview](https://pywebview.flowrl.com/)).
   **dV/dQ** (differential voltage), charge / discharge / both.
 - **Cycles collector** — the same three curve types across *every selected
   cell*, laid out per cycle or per cell, or as a **film** (density) plot.
-- **Load data lots of ways**: bundled demo cells, `.cellpy` / `.h5` files,
-  **native cellpy batch journals** (`.json`), or your own **project folders** —
-  with **glob patterns** (`*si*.h5`, capped at a configurable max) and, in the
-  desktop app, **native file pickers**. Journal load failures surface as toasts
-  instead of a stuck spinner.
+- **Load data lots of ways** through one **Add cells…** dialog: drop files,
+  **Browse…** (desktop) or **Upload…** (served), paste paths or **glob
+  patterns** (`*si*.h5`, capped at a configurable max), or **Find in a remote
+  folder…** — every source lands in a **staged list** you review (ready /
+  not found / check type) before one button loads it. Tabs for `.cellpy` /
+  `.h5` files, raw instrument files, and **native cellpy batch journals**
+  (`.json`); project folders open from the Project panel. Recent paths are
+  offered as suggestions. The Data panel folds away once cells are loaded.
 - **Editable cell list** (the "journal"): rename, group, select/deselect, remove —
   plus a **Manage cells** modal (filter/sort, select-by-group, remove all).
 - **Instruments discovered from cellpy** at runtime (not hard-coded), with each
   loader's sub-models.
-- **Clear feedback**: toast notifications for loads, saves, opens, exports, and
-  errors (including corrupt journals).
+- **Clear feedback**: a result card for loads (`Loaded 3 cells · 1 skipped ▸
+  details`) and toast notifications for saves, opens, exports, and errors
+  (including corrupt journals).
 - **Background loading** with live progress (SSE) — the UI never freezes.
 - **Export** collected data to **CSV / Excel / Parquet / JSON**, and charts as
   **PNG / SVG / PDF** from **Export ▾** (server-side via kaleido — install with
@@ -285,7 +289,8 @@ you can confirm which rules an instance is running under.
 ### Remote files (SSH / SFTP)
 
 On a **desktop** (local) instance you can paste a single remote file URI into
-**Load cells** or **Import raw**:
+the path field of **Add cells… → cellpy files** or **Raw instrument files**
+(it is staged as *remote*; there is no existence check until the load runs):
 
 ```text
 sftp://user@hostname/home/user/lab/raw/20160805_test001_45_cc_01.res
@@ -310,15 +315,16 @@ often fail with Paramiko (cellpy #687). See cellpy’s
 #### Find files in a remote folder
 
 Globs (`*.res`) do not work on remote URIs. Instead, open **Find in a remote
-folder…** under *Add cellpy files* or *Import raw*, paste a remote **directory**
-URI (`sftp://user@hostname/home/user/lab/raw/my_project/`) and, optionally, a
-name filter (`cc_01` means *contains*; `2016*_cc_*` is used as a glob). The app
-walks the folder recursively with cellpy’s `filefinder` — for *Import raw* it
-looks for the selected instrument’s extension(s), for *Add cellpy files* for
-`.cellpy` / `.h5` — and puts the matching URIs into the path field, capped at
-“max”, so you can review them before pressing **Load files** / **Import &
-process**. Prefer a project-scoped folder: listing a whole shared raw-data tree
-over SFTP is slow. Served instances refuse remote find like any other remote URI.
+folder…** inside the *Add cells…* dialog (cellpy files or raw tab), paste a
+remote **directory** URI (`sftp://user@hostname/home/user/lab/raw/my_project/`)
+and, optionally, a name filter (`cc_01` means *contains*; `2016*_cc_*` is used
+as a glob). The app walks the folder recursively with cellpy’s `filefinder` —
+on the raw tab it looks for the selected instrument’s extension(s), on the
+cellpy tab for `.cellpy` / `.h5` — and the matches appear in the **staged
+list**, capped at “max”, where you can remove any of them before pressing
+**Load N files** / **Import N files**. Prefer a project-scoped folder: listing
+a whole shared raw-data tree over SFTP is slow. Served instances refuse remote
+find like any other remote URI.
 
 ### Per-project cellpy settings
 
