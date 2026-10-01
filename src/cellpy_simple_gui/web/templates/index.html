@@ -70,7 +70,7 @@
                     title="Refresh project list" aria-label="Refresh project list">↻</button>
           </div>
           <div class="proj-ctl">
-            <input type="text" x-model="journalPath" aria-label="Project or journal path"
+            <input type="text" x-model="journalPath" aria-label="Project or journal path" list="recent-journal"
                    placeholder="project.json, folder, or batch journal path" @keydown.enter="loadImportPath()" />
             <button class="btn btn-ghost sm icon" x-show="canPick" @click="pickImportFile()" :disabled="job.active"
                     title="Browse…" aria-label="Browse for a project.json or batch journal">📁</button>
@@ -113,7 +113,26 @@
           <span x-text="cells.length + (cells.length === 1 ? ' cell loaded' : ' cells loaded')"></span>
           — <a href="#" @click.prevent="openAddCells()">add more…</a>
         </p>
+        <!-- Outcome of the last load / ingest, in place of a transient toast. -->
+        <div class="result-card side" x-show="lastResult && !addCells.open" x-cloak
+             :class="{bad: lastResult && !lastResult.added, mixed: lastResult && lastResult.added && lastResult.errors.length}">
+          <div class="result-row">
+            <span class="result-summary" x-text="resultSummary"></span>
+            <button class="mini" type="button" x-show="resultDetails.length" x-cloak
+                    @click="resultOpen = !resultOpen" x-text="resultOpen ? 'hide' : 'details'"></button>
+            <button class="x" type="button" @click="dismissResult()" title="Dismiss">×</button>
+          </div>
+          <ul class="result-details" x-show="resultOpen" x-cloak>
+            <template x-for="(line, i) in resultDetails" :key="i"><li x-text="line"></li></template>
+          </ul>
+        </div>
       </section>
+
+      <!-- Recent sources (#136): suggestions for the typed inputs. -->
+      <datalist id="recent-cellpy"><template x-for="v in recent.cellpy" :key="v"><option :value="v"></option></template></datalist>
+      <datalist id="recent-raw"><template x-for="v in recent.raw" :key="v"><option :value="v"></option></template></datalist>
+      <datalist id="recent-journal"><template x-for="v in recent.journal" :key="v"><option :value="v"></option></template></datalist>
+      <datalist id="recent-remote"><template x-for="v in recent.remoteDir" :key="v"><option :value="v"></option></template></datalist>
 
       <!-- progress -->
       <div class="job" x-show="job.active || job.error" x-cloak>
@@ -611,7 +630,7 @@
               </label>
             </div>
             <div class="input-row">
-              <input type="text" x-model="typed.cellpy" aria-label="cellpy file path or glob"
+              <input type="text" x-model="typed.cellpy" aria-label="cellpy file path or glob" list="recent-cellpy"
                      :placeholder="hostPathsAllowed ? 'or paste a path, glob, or sftp:// URI' : 'or paste a path inside the data directory'"
                      @keydown.enter="addTyped('cellpy')" />
               <label class="maxlbl" title="Max files a glob may add">max
@@ -637,7 +656,7 @@
               </button>
               <div class="remote-find" x-show="remoteFind.load.open" x-cloak>
                 <div class="input-row">
-                  <input type="text" x-model="remoteFind.load.dir" aria-label="Remote folder"
+                  <input type="text" x-model="remoteFind.load.dir" aria-label="Remote folder" list="recent-remote"
                          placeholder="sftp://user@host/home/user/lab/cellpy_files/"
                          @keydown.enter="findRemote('load')" />
                 </div>
@@ -697,7 +716,7 @@
                 </label>
               </div>
               <div class="input-row">
-                <input type="text" x-model="typed.raw" aria-label="Raw file path or glob"
+                <input type="text" x-model="typed.raw" aria-label="Raw file path or glob" list="recent-raw"
                        :placeholder="hostPathsAllowed ? 'or paste a path, glob, or sftp:// URI' : 'or paste a path inside the data directory'"
                        @keydown.enter="addTyped('raw')" />
                 <label class="maxlbl" title="Max files a glob may add">max
@@ -718,7 +737,7 @@
                 </button>
                 <div class="remote-find" x-show="remoteFind.ingest.open" x-cloak>
                   <div class="input-row">
-                    <input type="text" x-model="remoteFind.ingest.dir" aria-label="Remote folder"
+                    <input type="text" x-model="remoteFind.ingest.dir" aria-label="Remote folder" list="recent-remote"
                            placeholder="sftp://user@host/home/user/lab/raw/my_project/"
                            @keydown.enter="findRemote('ingest')" />
                   </div>
@@ -824,7 +843,7 @@
           <div class="field" style="margin-top:0">
             <label>cellpy batch journal</label>
             <div class="input-row">
-              <input type="text" x-model="journalPath" aria-label="Batch journal path"
+              <input type="text" x-model="journalPath" aria-label="Batch journal path" list="recent-journal"
                      placeholder="path to a batch journal .json" @keydown.enter="loadJournalFromModal()" />
               <button class="btn sm" type="button" x-show="canPick" @click="pickJournalInto()"
                       :disabled="job.active">Browse…</button>
@@ -840,7 +859,19 @@
         <span class="foot-status" x-show="job.active" x-cloak>
           <span class="spinner"></span><span x-text="job.message"></span>
         </span>
-        <span class="hint reason" x-show="!job.active && addCellsDisabledReason" x-text="addCellsDisabledReason"></span>
+        <div class="result-card" x-show="!job.active && lastResult" x-cloak
+             :class="{bad: lastResult && !lastResult.added, mixed: lastResult && lastResult.added && lastResult.errors.length}">
+          <div class="result-row">
+            <span class="result-summary" x-text="resultSummary"></span>
+            <button class="mini" type="button" x-show="resultDetails.length" x-cloak
+                    @click="resultOpen = !resultOpen" x-text="resultOpen ? 'hide' : 'details'"></button>
+            <button class="x" type="button" @click="dismissResult()" title="Dismiss">×</button>
+          </div>
+          <ul class="result-details" x-show="resultOpen" x-cloak>
+            <template x-for="(line, i) in resultDetails" :key="i"><li x-text="line"></li></template>
+          </ul>
+        </div>
+        <span class="hint reason" x-show="!job.active && !lastResult && addCellsDisabledReason" x-text="addCellsDisabledReason"></span>
         <button class="btn" type="button" @click="closeAddCells()">Close</button>
         <button class="btn btn-primary" type="button" @click="addCellsPrimary()"
                 :disabled="!!addCellsDisabledReason" x-text="addCellsPrimaryLabel"></button>

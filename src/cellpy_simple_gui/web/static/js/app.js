@@ -37,6 +37,22 @@ const PLOTLY_CONFIG = {
 // page's bottom padding so the card does not sit flush against the edge.
 const CHART_BOTTOM_GUTTER = 16;
 
+// Recent sources (#136): typed paths / globs, journals and remote folders the
+// user has loaded from before, offered as <datalist> suggestions.
+const RECENT_KEY = "csg.recent";
+const RECENT_CAP = 8;
+const RECENT_KINDS = ["cellpy", "raw", "journal", "remoteDir"];
+
+function loadRecent() {
+  const out = {};
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(RECENT_KEY) || "{}") || {}; } catch (_) {}
+  for (const k of RECENT_KINDS) {
+    out[k] = Array.isArray(saved[k]) ? saved[k].filter((v) => typeof v === "string").slice(0, RECENT_CAP) : [];
+  }
+  return out;
+}
+
 function app() {
   return {
     theme: localStorage.getItem("csg-theme") || "dark",
@@ -54,7 +70,9 @@ function app() {
     previewBusy: false,
     staged: { cellpy: [], raw: [] }, // rows: {path, name, dir, ext, source, status, detail}
     stageNote: { cellpy: "", raw: "" },
-    lastResult: null,
+    lastResult: null, // {kind, added, errors, notes, at} from the last load / ingest job
+    resultOpen: false, // details disclosure on the result card
+    recent: loadRecent(), // typed patterns / journals / remote folders, most recent first
     canPick: false,
     devMode: false,
     maxFilesCeiling: 10, // server-enforced ceiling; higher in dev mode (#97)
@@ -311,11 +329,16 @@ function app() {
     },
     stage(kind, rows) {
       const have = new Set(this.staged[kind].map((r) => r.path));
+      let added = 0;
       for (const row of rows) {
         if (have.has(row.path)) continue;
         have.add(row.path);
         this.staged[kind].push(row);
+        added++;
       }
+      // Staging new files starts the next round: the previous outcome has
+      // been seen, so it makes way for the "why is Load disabled" reason.
+      if (added) this.dismissResult();
     },
     unstage(kind, idx) {
       this.staged[kind].splice(idx, 1);
@@ -365,6 +388,7 @@ function app() {
         }
         this.stage(kind, rows);
         const shown = (out.paths || []).length;
+        if (shown && source === "typed") for (const c of clean) this.remember(kind, c);
         this.stageNote[kind] = out.total > shown
           ? `Showing ${shown} of ${out.total} matches — raise “max” or narrow the pattern.`
           : "";
@@ -423,6 +447,28 @@ function app() {
         this.uploading = false;
         this.uploadStatus = "";
       }
+    },
+    remember(kind, value) {
+      const v = (value || "").trim();
+      if (!v || !RECENT_KINDS.includes(kind)) return;
+      this.recent[kind] = [v, ...this.recent[kind].filter((x) => x !== v)].slice(0, RECENT_CAP);
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(this.recent)); } catch (_) {}
+    },
+    get resultSummary() {
+      const r = this.lastResult;
+      if (!r) return "";
+      const n = r.added;
+      const bad = (r.errors || []).length;
+      const head = n ? `Loaded ${n} cell${n === 1 ? "" : "s"}` : "Nothing loaded";
+      return bad ? `${head} · ${bad} skipped` : head;
+    },
+    get resultDetails() {
+      const r = this.lastResult;
+      return r ? [...(r.errors || []), ...(r.notes || [])] : [];
+    },
+    dismissResult() {
+      this.lastResult = null;
+      this.resultOpen = false;
     },
     pickJournalInto() {
       this.pick("journal", (p) => { this.journalPath = p[0]; });
@@ -617,6 +663,7 @@ function app() {
       } else {
         await this.runJob("/api/projects/load-journal", { path });
       }
+      if (!this.job.error) this.remember("journal", path);
       this.journalPath = "";
       await this.refreshProjects();
     },
@@ -706,6 +753,7 @@ function app() {
         this.stageNote[kind] = r.total > paths.length
           ? `Found ${r.total} files, showing the first ${paths.length} — raise “max” or narrow the filter.`
           : "";
+        this.remember("remoteDir", this.remoteFind[target].dir);
         this.remoteFind[target].open = false;
       } else if (errs.length) {
         this.notify("error", errs.join(" · "));
@@ -802,11 +850,11 @@ function app() {
         const errs = r.errors || [];
         const notes = r.notes || [];
         this.lastResult = { kind: "added", added: n, errors: errs, notes, at: Date.now() };
-        if (n > 0 && errs.length) this.notify("warn", `Loaded ${n} cell${n > 1 ? "s" : ""}; ${errs.length} problem${errs.length > 1 ? "s" : ""}: ${errs.join(" · ")}`);
-        else if (n > 0) this.notify("ok", `Loaded ${n} cell${n > 1 ? "s" : ""}.`);
-        else if (errs.length) this.notify("error", errs.join(" · "));
-        else this.notify("warn", "Nothing was loaded — no files matched.");
-        if (notes.length) this.notify("warn", notes.join(" · "));
+        this.resultOpen = false;
+        // The result card (modal footer / Data panel) carries the outcome and
+        // its details, so only outright failure still interrupts with a toast.
+        if (!n && errs.length) this.notify("error", errs.join(" · "));
+        else if (!n) this.notify("warn", "Nothing was loaded — no files matched.");
       } else if ("name" in r && "n_cells" in r) {
         const n = r.n_cells;
         const cells = `${n} cell${n === 1 ? "" : "s"}`;
@@ -968,6 +1016,7 @@ function app() {
       this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
       this.dirty = false;
       this.dataCollapsed = false;
+      this.dismissResult();
       this.cellsManagerOpen = false;
       Plotly.purge("summaryChart"); Plotly.purge("cyclesChart"); Plotly.purge("cellChart");
       this.replotCurrent();
