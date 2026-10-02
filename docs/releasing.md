@@ -136,19 +136,63 @@ that JSON — it confirms you are testing the bytes the index is serving.
    git push origin v0.2.0
    ```
 
-The tag triggers:
+The tag triggers three workflows:
 
 | workflow | artefact |
 |---|---|
 | `publish.yml` | sdist + wheel → PyPI |
 | `container.yml` | image → `ghcr.io/cellpy/cellpy-simple-gui` |
+| `release.yml` | Windows installer + sdist + wheel + `SHA256SUMS` → the GitHub Release |
 
 The publish job **refuses to run if the tag and `__version__` disagree**, because
 a wrong version cannot be corrected after upload.
 
-The Windows installer is not built on the runner — it needs Inno Setup and is
-produced locally with `pwsh packaging/build_installer.ps1`, then attached to the
-GitHub release by hand. Automating that is #124.
+The Windows installer is built on a `windows-latest` runner by
+`.github/workflows/windows-installer.yml` — PyInstaller, then the 15-check
+`packaging/smoke_test.py` against the frozen app, then Inno Setup — and only
+reaches the release if the smoke test passes (#124). The same recipe is what
+`pwsh packaging/build_installer.ps1` runs locally.
+
+To rehearse without burning a version number: Actions → **Release** → *Run
+workflow* with `ref: main`. From a branch it builds and smoke-tests everything
+and stops short of creating a release.
+
+---
+
+## The rolling `continuous` release
+
+Between tags, the newest `main` is still downloadable: every push to `main` that
+touches code (`src/`, `packaging/`, `pyproject.toml`, `uv.lock`,
+`.python-version`, or the two workflows) runs `.github/workflows/continuous.yml`,
+which builds and smoke-tests the installer exactly as a release would and then
+refreshes **one** prerelease under the tag **`continuous`** (#168):
+
+- Title *Latest build from main*, marked **pre-release**, never *Latest* — so
+  `/releases/latest` keeps pointing at the real release.
+- Asset name is fixed, so the download link never changes:
+  `https://github.com/cellpy/cellpy-simple-gui/releases/download/continuous/cellpy-simple-gui-continuous-setup.exe`
+- *Add or remove programs* shows `0.1.1+main.abc1234` — the released version it
+  was built on, plus the commit. The Win32 version resource stays `0.1.1`,
+  because it has to be numeric.
+- The release is **edited, not recreated**: assets are replaced with
+  `--clobber`, notes rewritten, the tag moved. Creating a release notifies
+  everyone watching releases; editing one does not, and this one changes
+  several times a day.
+- A red smoke test publishes nothing and leaves the previous continuous
+  installer where it was.
+
+Two things about it that are deliberately unusual:
+
+**The tag is force-pushed.** `continuous` is a pointer to "whatever `main` last
+built", not history, so `git push --force origin refs/tags/continuous` is the
+mechanism — the one legitimate force-push in this repository. Its name must
+never match the `v*` glob the three release workflows trigger on, or every
+merge would publish to PyPI and GHCR; `tests/test_packaging.py` pins that.
+
+**PRs build it too.** A pull request that touches `packaging/` or either
+workflow runs the Windows build and smoke test — and stops before publishing.
+That is how a change to the packaging recipe is proved *before* it lands,
+rather than on the next tag. Docs-only merges skip the build entirely.
 
 ---
 
