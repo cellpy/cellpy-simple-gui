@@ -529,7 +529,11 @@
               <label>Cells &amp; cycles</label>
               <template x-for="(p, i) in cell.picks" :key="p.key">
                 <div class="pick-row" :title="p.min ? `cycles ${p.min}–${p.max}` : ''">
-                  <select x-model="p.cell_id" @change="onPickCellChange(i)" aria-label="Cell">
+                  <!-- x-model applies before the nested x-for has rendered the
+                       options, so a row created with its cell_id already set would
+                       display the first option; re-apply once the options exist. -->
+                  <select x-model="p.cell_id" @change="onPickCellChange(i)" aria-label="Cell"
+                          x-init="$nextTick(() => { $el.value = p.cell_id })">
                     <template x-for="c in cells" :key="c.id">
                       <option :value="c.id" x-text="c.label"></option>
                     </template>
