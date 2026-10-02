@@ -46,21 +46,11 @@ PR: https://github.com/cellpy/cellpy-simple-gui/pull/170 (#170, draft)
   `llms-full.txt` regenerated with `tools/gen_llms_txt.py`.
 - `uv run pytest`: 313 passed, 7 skipped.
 
-### Verified in CI (PR #170, run 36973630351)
+### Remaining work
 
-- `Continuous build / build / windows installer` **passed** on the PR in 5m02s:
-  version `0.1.1`, build id `main.479a857`; smoke test **14 passed, 0 failed,
-  1 skipped** (Arbin `.res` → SKIP for the missing ODBC driver — the very line
-  that failed the 2026-08-16 rehearsal); ISCC accepted
-  `/DAppVersion=0.1.1 /DBuildId=main.479a857 /DOutputBaseName=…` and produced
-  `cellpy-simple-gui-continuous-setup.exe` (187 MB); artifact uploaded.
-- `publish continuous release` **skipped** on the PR, as designed.
-- `essential`, `newest-python`, `Container image / build` all green.
-
-## 2026-10-02 — closed
-
-- No version bump (not requested). No `HISTORY.md` at the repo root → changelog
-  step skipped per `this-project.md`.
-- Graph refreshed with `graphify update .` (AST-only).
-- Remaining after merge: the first `continuous` release is created by the first
-  code-affecting push to `main` — i.e. this PR's own merge. Then `/iflow-cleanup`.
+- Watch the PR's **Continuous build / build** check — the new `pull_request`
+  trigger runs the real Windows freeze + smoke test + ISCC on the PR (first
+  rehearsal of `main`'s frozen build since the 2026-08-16 failure). `publish`
+  is gated off on PRs.
+- First `continuous` release appears on merge to `main`.
+- `/iflow-close` (HISTORY step skipped automatically: no `HISTORY.md` in the repo).
