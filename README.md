@@ -122,7 +122,10 @@
 - **Cell explorer** — cellpy's `collect_cycles` voltage–capacity curves for any
   set of cycles (gravimetric / areal / absolute, method), with per-cell metric
   tiles. Switch the same cycles to **dQ/dV** (incremental capacity) or
-  **dV/dQ** (differential voltage), charge / discharge / both.
+  **dV/dQ** (differential voltage), charge / discharge / both. Tick **Compare
+  cells** to pick several cells, each with its own cycles (`3` here, `7, 12`
+  there), and draw them **overlaid** on one axis or side by side — same
+  controls, same exports.
 - **Cycles collector** — the same three curve types across *every selected
   cell*, laid out per cycle or per cell, or as a **film** (density) plot.
 - **Load data lots of ways** through one **Add cells…** dialog: drop files,
