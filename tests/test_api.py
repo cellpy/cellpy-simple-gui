@@ -484,10 +484,18 @@ def test_index_alpine_state_is_defined():
     html = (WEB_DIR / "templates" / "index.html").read_text(encoding="utf-8")
     js = (WEB_DIR / "static" / "js" / "app.js").read_text(encoding="utf-8")
 
+    # ``x-for="(p, i) in cell.picks"`` loop variables are template-scoped, not
+    # component state — an x-model on ``p.cyclesText`` is fine.
+    loop_vars = set()
+    for head in re.findall(r'x-for="([^"]+?)\s+in\s', html):
+        for name in re.split(r"[(),\s]+", head):
+            if name.isidentifier():
+                loop_vars.add(name)
+
     roots = set()
     for expr in re.findall(r'x-model(?:\.\w+)*="([^"]+)"', html):
         root = expr.strip().split(".")[0].split("[")[0]
-        if root and root.isidentifier():
+        if root and root.isidentifier() and root not in loop_vars:
             roots.add(root)
     assert roots, "expected to find x-model bindings"
 
