@@ -20,7 +20,13 @@ from cellpy.plotting import figures as cellpy_figures
 
 from . import cellpy_adapter, collect, plotting
 from .library import CellRecord
-from .models import CyclesPlotSpec, DvaPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from .models import (
+    ComparePlotSpec,
+    CyclesPlotSpec,
+    DvaPlotSpec,
+    IcaPlotSpec,
+    SummaryPlotSpec,
+)
 
 CELL_EXPORT_FORMATS = ("cellpy", "csv", "xlsx")
 _CELL_MEDIA = {
@@ -100,6 +106,24 @@ def cycles_figure_export(
     records: list[CellRecord], spec: CyclesPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
     return figure_bytes(plotting.cycles_figure(records, spec), fmt)
+
+
+def compare_export(
+    picks: plotting.ComparePicks, spec: ComparePlotSpec, fmt: str
+) -> tuple[bytes, str]:
+    """Rows for exactly the picked ``(cell, cycle)`` pairs the chart shows (#169)."""
+    collection = plotting.compare_collection(picks, spec)
+    if collection is None:
+        raise ValueError("Pick one or more cycles to export.")
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        collection = collect.select_ica_direction(collection, spec.direction)
+    return collect.export_bytes(collection, fmt)
+
+
+def compare_figure_export(
+    picks: plotting.ComparePicks, spec: ComparePlotSpec, fmt: str
+) -> tuple[bytes, str]:
+    return figure_bytes(plotting.compare_figure(picks, spec), fmt)
 
 
 def ica_export(record: CellRecord, spec: IcaPlotSpec, fmt: str) -> tuple[bytes, str]:

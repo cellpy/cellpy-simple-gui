@@ -13,6 +13,7 @@ from . import collect
 from .library import CellRecord
 from .models import (
     CAPACITY_UNITS,
+    ComparePlotSpec,
     CycleInfoPlotSpec,
     CyclesPlotSpec,
     DvaPlotSpec,
@@ -128,6 +129,69 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         records, cycles=cycles, mode=spec.mode, method=spec.method
     )
     # cellpy cycles_plotter defaults x_unit="mAh/g" and ignores collection mode (#72).
+    x_unit = CAPACITY_UNITS.get(spec.mode, CAPACITY_UNITS["gravimetric"])
+    return collect.figure_json(collection, x_unit=x_unit, **common)
+
+
+#: ``(record, cycles)`` per pick, in pick order — what the compare router
+#: resolves from a :class:`ComparePlotSpec` once the cells are looked up.
+ComparePicks = list[tuple[CellRecord, list[int]]]
+
+
+def compare_collection(picks: ComparePicks, spec: ComparePlotSpec):
+    """Collect the picked cells over the *union* of their cycles, then narrow.
+
+    Shared by the figure and the data export so both see the same rows (#169).
+    Returns ``None`` when nothing is picked.
+    """
+    picks = [(rec, cycles) for rec, cycles in picks if cycles]
+    if not picks:
+        return None
+    records = [rec for rec, _ in picks]
+    union = tuple(sorted({c for _, cycles in picks for c in cycles}))
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        collect_fn = (
+            collect.ica_collection if spec.curve_kind == "dqdv" else collect.dva_collection
+        )
+        collection = collect_fn(
+            records, cycles=union, voltage_resolution=spec.voltage_resolution
+        )
+    else:
+        collection = collect.cycles_collection(
+            records, cycles=union, mode=spec.mode, method=spec.method
+        )
+    # Frame labels come from the batch, not the library id.
+    pairs = {
+        (label, cycle)
+        for label, (_, cycles) in zip(collect.batch_keys(records), picks, strict=True)
+        for cycle in cycles
+    }
+    return collect.restrict_to_cycle_pairs(collection, pairs)
+
+
+def compare_figure(picks: ComparePicks, spec: ComparePlotSpec) -> str:
+    """Curves from several cells, each with its own cycles, in one figure (#169).
+
+    Drawn through cellpy's ``per_cell`` layout; ``layout="overlay"`` then folds
+    the facets onto one axis pair (:func:`collect._overlay_facets`).
+    """
+    collection = compare_collection(picks, spec)
+    if collection is None:
+        return collect._empty_figure_json(
+            _CURVE_PROMPTS.get(spec.curve_kind, _CURVE_PROMPTS["voltage"]),
+            figure_theme=spec.figure_theme,
+        )
+    common = dict(
+        family_kind=_CURVE_FAMILIES.get(spec.curve_kind, "cycles"),
+        layout="per_cell",
+        overlay=spec.layout == "overlay",
+        figure_theme=spec.figure_theme,
+        color_scheme=spec.color_scheme,
+        x_range=spec.x_range,
+        y_range=spec.y_range,
+    )
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        return collect.figure_json(collection, direction=spec.direction, **common)
     x_unit = CAPACITY_UNITS.get(spec.mode, CAPACITY_UNITS["gravimetric"])
     return collect.figure_json(collection, x_unit=x_unit, **common)
 

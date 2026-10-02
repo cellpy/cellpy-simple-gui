@@ -155,6 +155,83 @@ class CyclesPlotSpec(BaseModel):
         return _clean_axis_range(value)
 
 
+#: Compare mode draws the picked curves on one axis pair, or facets them per
+#: cell (cellpy's own ``per_cell`` layout) for a side-by-side view (#169).
+CompareLayout = Literal["overlay", "per_cell"]
+
+#: Payload guards for compare mode — mirror the explorer's "max curves" cap.
+COMPARE_MAX_PICKS = 8
+COMPARE_MAX_CYCLES_PER_PICK = 40
+COMPARE_MAX_CURVES = 80
+
+
+class ComparePick(BaseModel):
+    """One cell and the cycles to draw from it."""
+
+    cell_id: str
+    cycles: list[int] = Field(default_factory=list, max_length=COMPARE_MAX_CYCLES_PER_PICK)
+
+    @field_validator("cycles")
+    @classmethod
+    def _unique_sorted(cls, value: list[int]) -> list[int]:
+        return sorted(set(value))
+
+
+class ComparePlotSpec(BaseModel):
+    """Several cells, each with its own cycles, in one figure (#169).
+
+    cellpy collects one ``cycles`` list for a whole batch and facets by cell or
+    by cycle, so "cycle 3 of A next to cycle 7 of B" is assembled app-side: the
+    union of cycles is collected, the frame is restricted to the picked
+    ``(cell, cycle)`` pairs, and ``overlay`` folds cellpy's per-cell facets onto
+    one axis pair. Curve-kind controls are the union of :class:`CyclesPlotSpec`
+    and :class:`IcaPlotSpec`; which ones apply follows ``curve_kind``.
+    """
+
+    picks: list[ComparePick] = Field(min_length=1, max_length=COMPARE_MAX_PICKS)
+    curve_kind: CurveKind = "voltage"
+    mode: CapacityMode = "gravimetric"
+    method: CycleMethod = "forth-and-forth"
+    direction: IcaDirection = "charge"
+    voltage_resolution: float = 0.005
+    layout: CompareLayout = "overlay"
+    # Axis limits ``[lo, hi]``; either end may be null (filled from data).
+    x_range: Optional[list[Optional[float]]] = None
+    y_range: Optional[list[Optional[float]]] = None
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
+    title: str = ""
+
+    @field_validator("x_range", "y_range")
+    @classmethod
+    def _clean_xy_range(cls, value: list[float | None] | None):
+        return _clean_axis_range(value)
+
+    @field_validator("picks")
+    @classmethod
+    def _bounded_curves(cls, value: list[ComparePick]) -> list[ComparePick]:
+        # Same cell picked twice merges rather than drawing the curve twice.
+        merged: dict[str, ComparePick] = {}
+        for pick in value:
+            if pick.cell_id in merged:
+                merged[pick.cell_id].cycles = sorted(
+                    set(merged[pick.cell_id].cycles) | set(pick.cycles)
+                )
+            else:
+                merged[pick.cell_id] = pick.model_copy()
+        total = sum(len(p.cycles) for p in merged.values())
+        if total > COMPARE_MAX_CURVES:
+            raise ValueError(
+                f"too many curves ({total}); compare mode draws at most "
+                f"{COMPARE_MAX_CURVES} across all cells"
+            )
+        return list(merged.values())
+
+    def pairs(self) -> set[tuple[str, int]]:
+        """Every ``(cell_id, cycle)`` the spec asks for."""
+        return {(p.cell_id, c) for p in self.picks for c in p.cycles}
+
+
 class IcaPlotSpec(BaseModel):
     """Drives a cellpy ``collect_ica`` collection for one cell (Cell explorer)."""
 

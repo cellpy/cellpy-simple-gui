@@ -9,6 +9,7 @@ from ...config import get_settings
 from ...core import cellpy_adapter, collect, plotting
 from ...core.library import get_library
 from ...core.models import (
+    ComparePlotSpec,
     CycleInfoPlotSpec,
     CyclesPlotSpec,
     DvaPlotSpec,
@@ -106,6 +107,24 @@ def selected_cycles_bounds() -> dict:
 def cycles_plot(spec: CyclesPlotSpec) -> Response:
     figure_json = plotting.cycles_figure(_cycles_records(spec), spec)
     return _figure_response(figure_json)
+
+
+def compare_picks(spec: ComparePlotSpec) -> plotting.ComparePicks:
+    """Resolve every pick's cell; a missing one names itself in the 404."""
+    lib = get_library()
+    out: plotting.ComparePicks = []
+    for pick in spec.picks:
+        try:
+            out.append((lib.get(pick.cell_id), list(pick.cycles)))
+        except KeyError:
+            raise HTTPException(404, f"No such cell: {pick.cell_id}") from None
+    return out
+
+
+@router.post("/plots/compare")
+def compare_plot(spec: ComparePlotSpec) -> Response:
+    """Several cells, each with its own cycles, overlaid or side by side (#169)."""
+    return _figure_response(plotting.compare_figure(compare_picks(spec), spec))
 
 
 @router.post("/plots/ica")
