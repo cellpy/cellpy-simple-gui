@@ -30,58 +30,15 @@ permissions:
   contents: read
 
 jobs:
+  # The build itself lives in windows-installer.yml, shared with continuous.yml
+  # (#168) so the tagged and the rolling installer can never be built two
+  # different ways. No channel: a release carries the plain version.
   windows-installer:
     name: windows installer
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Sync build environment
-        run: uv sync --extra build --extra desktop --extra export
-
-      - name: Freeze the app
-        run: uv run pyinstaller packaging/cellpy-simple-gui.spec --noconfirm
-
-      # The console twin, because a windowed exe has no stdout for the test to
-      # read a token from. Same 15 checks the container and PyPI builds face.
-      - name: Smoke-test the frozen app
-        run: uv run python packaging/smoke_test.py dist/cellpy-simple-gui/cellpy-simple-gui-console.exe
-
-      - name: Compile the installer
-        shell: pwsh
-        run: |
-          # Inno Setup ships on windows-latest (6.7.1 at time of writing), but
-          # runner images change; look, then fall back rather than assume.
-          $iscc = @(
-            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $iscc) {
-            Write-Host "Inno Setup not on the runner; installing it."
-            choco install innosetup --no-progress -y
-            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          }
-          # From __init__.py, not from the ref name — that is the single source
-          # of the version ([tool.hatch.version]), and it lets this workflow be
-          # rehearsed from a branch, which has no version in its name.
-          $init = Get-Content "src\cellpy_simple_gui\__init__.py" -Raw
-          if ($init -notmatch '__version__\s*=\s*"([^"]+)"') { throw "no __version__" }
-          $version = $Matches[1]
-          Write-Host "ISCC: $iscc  version: $version"
-          & $iscc "/DAppVersion=$version" "packaging\installer.iss"
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: dist/installer/*.exe
-          if-no-files-found: error
+    uses: ./.github/workflows/windows-installer.yml
+    with:
+      ref: ${{ inputs.ref || github.ref }}
+      artifact-name: windows-installer
 
   python-dists:
     name: sdist + wheel

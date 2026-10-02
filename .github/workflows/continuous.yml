@@ -1,0 +1,164 @@
+# Keep a downloadable Windows installer of the newest main (#168).
+#
+# A tag produces a release (release.yml); between tags, the only installer
+# anyone could download was the last release — six weeks and twenty commits
+# behind by the time this was written. Workflow artifacts are not an answer:
+# they need a GitHub login, expire after 90 days, and arrive zipped.
+#
+# So: every code-affecting push to main rebuilds the installer, smoke-tests it,
+# and refreshes ONE rolling prerelease under the tag `continuous`. The release
+# is created once and thereafter only edited (assets replaced, notes rewritten,
+# tag moved) — creating a release notifies everyone watching releases, editing
+# one does not. A red smoke test publishes nothing and leaves the previous
+# continuous installer in place.
+#
+# The tag name must never match the `v*` glob that release.yml, publish.yml and
+# container.yml trigger on, or a continuous build would publish to PyPI and
+# GHCR. tests/test_packaging.py pins this.
+#
+# PRs that touch the packaging recipe or these workflows build (and smoke-test)
+# but never publish — the same build-on-PR, publish-on-push shape as
+# container.yml, so a broken recipe is caught when it is changed.
+name: Continuous build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "packaging/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".python-version"
+      - ".github/workflows/continuous.yml"
+      - ".github/workflows/windows-installer.yml"
+  pull_request:
+    paths:
+      - "packaging/**"
+      - ".github/workflows/continuous.yml"
+      - ".github/workflows/windows-installer.yml"
+  workflow_dispatch:
+
+# Rapid merges only build the newest commit; an in-flight build of an older
+# one is cancelled rather than racing it to the release.
+concurrency:
+  group: continuous-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CONTINUOUS_TAG: continuous
+  ASSET_NAME: cellpy-simple-gui-continuous-setup.exe
+
+jobs:
+  build:
+    name: build
+    uses: ./.github/workflows/windows-installer.yml
+    with:
+      channel: main
+      output-base-name: cellpy-simple-gui-continuous-setup
+      artifact-name: continuous-installer
+
+  publish:
+    name: publish continuous release
+    needs: build
+    # Only a push to main (or a manual run from main) moves the rolling
+    # release. A PR build proves the recipe and stops there.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: continuous-installer
+          path: artifacts
+
+      - name: Collect and checksum
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          exe="$(find artifacts -type f -name '*.exe' | head -n 1)"
+          [ -n "$exe" ] || { echo "::error::no installer in the artifact"; exit 1; }
+          cp "$exe" "release/$ASSET_NAME"
+          cd release
+          sha256sum * > SHA256SUMS
+          echo "--- release payload ---"
+          ls -la
+          cat SHA256SUMS
+
+      - name: Write release notes
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          BUILD_ID: ${{ needs.build.outputs.build-id }}
+        run: |
+          set -euo pipefail
+          subject="$(git log -1 --format=%s "$GITHUB_SHA")"
+          when="$(git log -1 --format=%cI "$GITHUB_SHA")"
+          short="${GITHUB_SHA::7}"
+          download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${CONTINUOUS_TAG}/${ASSET_NAME}"
+          cat > notes.md <<EOF
+          **This is the newest code on \`main\`, not a release.** It is rebuilt on
+          every code change and may be broken in ways a release would not be. For
+          the released version, see the
+          [latest release](https://github.com/${GITHUB_REPOSITORY}/releases/latest).
+
+          | | |
+          |---|---|
+          | Built from | [\`${short}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) — ${subject} |
+          | Committed | ${when} |
+          | Version | \`${VERSION}+${BUILD_ID}\` (what *Add or remove programs* will show) |
+          | Download | [\`${ASSET_NAME}\`](${download}) — this link never changes |
+
+          ## Install
+
+          Windows, no Python needed: download \`${ASSET_NAME}\` below. It
+          installs per-user — no admin prompt — and uninstalls cleanly without
+          touching your projects. Installing it over a released version (or a
+          release over it) **replaces** the install; the two do not sit side by
+          side. It is **unsigned**, so SmartScreen will warn on first run:
+          *More info → Run anyway*. See
+          [docs/windows-installer.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/windows-installer.md).
+
+          ## Verified
+
+          The frozen app behind this installer was started, a demo cell loaded, a
+          figure rendered, a project saved and reopened — the same checks a
+          release faces — before it was published here. Checksums in
+          \`SHA256SUMS\`.
+          EOF
+          echo "--- notes ---"; cat notes.md
+
+      # A rolling tag is the one legitimate force-push in this repository: it
+      # is a pointer to "whatever main last built", not history. Pushes made
+      # with GITHUB_TOKEN never trigger other workflows, and `continuous` does
+      # not match `v*` anyway — belt and braces against a publish loop.
+      - name: Move the tag
+        run: |
+          set -euo pipefail
+          git tag -f "$CONTINUOUS_TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$CONTINUOUS_TAG"
+
+      - name: Create or refresh the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          title="Latest build from main"
+          if gh release view "$CONTINUOUS_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Edit, never recreate: watchers are notified of new releases, not
+            # of edits, and this one changes several times a day.
+            gh release upload "$CONTINUOUS_TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$CONTINUOUS_TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --notes-file notes.md --prerelease --latest=false
+          else
+            gh release create "$CONTINUOUS_TAG" release/* --repo "$GITHUB_REPOSITORY" \
+              --title "$title" --notes-file notes.md --prerelease --latest=false
+          fi
+          gh release view "$CONTINUOUS_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json isPrerelease,targetCommitish,assets \
+            -q '"prerelease=\(.isPrerelease) target=\(.targetCommitish)", (.assets[] | "  \(.name)  \(.size) bytes")'

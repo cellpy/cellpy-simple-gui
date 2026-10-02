@@ -7,18 +7,22 @@ arranging.
 
 from __future__ import annotations
 
+import fnmatch
 import importlib.util
 import os
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 from cellpy_simple_gui import logging_setup
 
 pytestmark = pytest.mark.essential
 
-PACKAGING = Path(__file__).resolve().parent.parent / "packaging"
+ROOT = Path(__file__).resolve().parent.parent
+PACKAGING = ROOT / "packaging"
+WORKFLOWS = ROOT / ".github" / "workflows"
 
 
 def _load_entry():
@@ -277,3 +281,82 @@ def test_spec_ships_both_a_windowed_and_a_console_executable():
     assert 'name="cellpy-simple-gui"' in spec
     assert 'name="cellpy-simple-gui-console"' in spec
     assert "console=False" in spec and "console=True" in spec
+
+
+# --- the continuous installer (#168) ---------------------------------------- #
+
+
+def test_installer_version_resource_stays_numeric():
+    """``VersionInfoVersion`` is the Win32 version resource and ISCC rejects
+    anything but ``a.b.c[.d]`` there. The continuous build appends its commit
+    to the *display* version — so the two must be fed from different defines,
+    and the resource must never pick up the suffixed one."""
+    iss = (PACKAGING / "installer.iss").read_text(encoding="utf-8")
+    setup = iss.split("[Setup]")[1].split("[Languages]")[0]
+    directives = [ln.strip() for ln in setup.splitlines() if ln.strip() and not ln.startswith(";")]
+
+    assert "VersionInfoVersion={#AppVersion}" in directives
+    assert "AppVersion={#DisplayVersion}" in directives
+    assert "OutputBaseFilename={#OutputBaseName}" in directives
+    assert not any("VersionInfoVersion={#DisplayVersion}" in d for d in directives)
+    # AppId is what makes an upgrade replace an install; it must not vary by build.
+    assert "AppId={{F1D4A423-3214-4BAC-8334-5BF196578FCD}" in directives
+
+
+def _workflow(name: str) -> dict:
+    data = yaml.safe_load((WORKFLOWS / name).read_text(encoding="utf-8"))
+    # PyYAML reads the bare key ``on`` as the boolean True.
+    data["on"] = data.pop(True, data.get("on"))
+    return data
+
+
+def _tag_triggers(workflow: dict) -> list[str]:
+    push = (workflow["on"] or {}).get("push") or {}
+    return list(push.get("tags") or [])
+
+
+def test_continuous_tag_can_never_fire_a_release_workflow():
+    """`continuous` is force-moved on every merge to main. If it ever matched
+    the ``v*`` tag glob, each merge would publish to PyPI and GHCR."""
+    continuous = _workflow("continuous.yml")
+    tag = continuous["env"]["CONTINUOUS_TAG"]
+
+    assert not _tag_triggers(continuous), "the rolling build must not trigger on tags"
+
+    guarded = {"release.yml", "publish.yml", "container.yml"}
+    for name in guarded:
+        patterns = _tag_triggers(_workflow(name))
+        assert patterns, f"{name} lost its tag trigger"
+        hits = [p for p in patterns if fnmatch.fnmatchcase(tag, p)]
+        assert not hits, f"tag {tag!r} matches {hits} in {name}"
+
+
+def test_continuous_build_proves_itself_on_prs_but_publishes_only_from_main():
+    wf = _workflow("continuous.yml")
+
+    # Build-on-PR, publish-on-push — the container.yml shape.
+    assert wf["on"]["pull_request"]["paths"], "PRs touching packaging must build"
+    assert wf["on"]["push"]["branches"] == ["main"]
+    assert wf["concurrency"]["cancel-in-progress"] is True
+
+    publish = wf["jobs"]["publish"]
+    assert "pull_request" in publish["if"] and "refs/heads/main" in publish["if"]
+    assert publish["permissions"]["contents"] == "write"
+    assert publish["needs"] == "build"
+
+
+def test_release_and_continuous_share_one_installer_build():
+    """Two callers, one recipe. A second copy of the PyInstaller + smoke-test
+    + ISCC steps is exactly the drift this extraction exists to prevent."""
+    shared = "./.github/workflows/windows-installer.yml"
+    assert _workflow("release.yml")["jobs"]["windows-installer"]["uses"] == shared
+    assert _workflow("continuous.yml")["jobs"]["build"]["uses"] == shared
+
+    reusable = _workflow("windows-installer.yml")
+    assert "workflow_call" in reusable["on"]
+    steps = " ".join(
+        str(s.get("run", "")) for s in reusable["jobs"]["build"]["steps"]
+    )
+    # The gate, not just the build.
+    assert "packaging/smoke_test.py" in steps
+    assert "installer.iss" in steps

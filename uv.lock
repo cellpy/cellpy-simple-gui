@@ -279,6 +279,7 @@ desktop = [
 dev = [
     { name = "httpx" },
     { name = "pytest" },
+    { name = "pyyaml" },
 ]
 e2e = [
     { name = "playwright" },
@@ -315,6 +316,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=6.0" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6" },
     { name = "tables" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
