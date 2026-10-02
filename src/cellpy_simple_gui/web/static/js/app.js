@@ -118,6 +118,8 @@ function app() {
       rawPlotType: "voltage-current", maxPoints: 4000,
       xRange: { min: "", max: "" },
       yRange: { min: "", max: "" },
+      // Compare mode (#169): picks = [{key, cell_id, cyclesText, min, max}].
+      compare: false, compareLayout: "overlay", picks: [],
     },
     cycles: {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
@@ -500,10 +502,16 @@ function app() {
       // cellpy plots the whole raw frame (cellpy #867), so these are thinned.
       return this.cell.plotKind === "raw" || this.cell.plotKind === "cycleinfo";
     },
+    get cellCompareActive() {
+      // Compare draws collected curves (#169); raw / cycle-info are per-cell
+      // time series with no collection to filter, so they stay single-cell.
+      return !!this.cell.compare && !this.cellIsRawKind;
+    },
     get cellPlotKindLabel() {
-      return {
+      const base = {
         dqdv: "dQ/dV", dvdq: "dV/dQ", raw: "Raw", cycleinfo: "Raw + steps",
       }[this.cell.plotKind] || "Curves";
+      return this.cellCompareActive ? `${base} · compare` : base;
     },
     get cellAxisLabels() {
       if (this.cell.plotKind === "dqdv") return { x: "Voltage x", y: "dQ/dV y" };
@@ -1134,8 +1142,117 @@ function app() {
         this.cell.min = info.min; this.cell.max = info.max;
         this.cell.from = info.min;
         this.cell.to = Math.min(info.max, info.min + 9);
+        // The top Cell select stays pick #1 in compare mode, so the mental
+        // model is "the explorer, plus more cells" (#169).
+        if (this.cell.picks.length) {
+          Object.assign(this.cell.picks[0], { cell_id: this.cell.cell_id, min: info.min, max: info.max });
+        }
         await this._plotCellFigure();
       });
+    },
+
+    // ---- compare mode (#169) ----
+    parseCycleList(text, min, max, limit = 40) {
+      // "1, 3, 5-9" → [1, 3, 5, 6, 7, 8, 9]; clamped to the cell's cycles,
+      // de-duplicated, sorted, capped so one pick cannot flood the figure.
+      const out = new Set();
+      const lo = Number.isFinite(min) ? min : -Infinity;
+      const hi = Number.isFinite(max) ? max : Infinity;
+      for (const tok of String(text || "").split(/[,\s;]+/)) {
+        if (!tok) continue;
+        const m = /^(\d+)\s*[-–:]\s*(\d+)$/.exec(tok);
+        let a, b;
+        if (m) { a = Number(m[1]); b = Number(m[2]); }
+        else if (/^\d+$/.test(tok)) { a = b = Number(tok); }
+        else continue;
+        if (a > b) [a, b] = [b, a];
+        a = Math.max(a, lo); b = Math.min(b, hi);
+        for (let c = a; c <= b && out.size < limit; c++) out.add(c);
+        if (out.size >= limit) break;
+      }
+      return [...out].sort((x, y) => x - y);
+    },
+    _newPick(cell_id, cyclesText) {
+      return {
+        key: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        cell_id, cyclesText, min: 0, max: 0,
+      };
+    },
+    async _loadPickBounds(pick) {
+      try {
+        const info = await (await api(`/api/cells/${pick.cell_id}/cycles`)).json();
+        pick.min = info.min; pick.max = info.max;
+      } catch (e) { console.error(e); }
+    },
+    async onCompareToggle() {
+      if (this.cell.compare && !this.cell.picks.length) {
+        // Pick #1 is the explorer's current selection; a second cell is added
+        // straight away so the toggle shows a comparison, not the same chart.
+        const seed = this.buildCycleListFrom(this.cell).join(", ");
+        const first = this._newPick(this.cell.cell_id, seed);
+        first.min = this.cell.min; first.max = this.cell.max;
+        this.cell.picks = [first];
+        const other = this.cells.find((c) => c.id !== this.cell.cell_id);
+        if (other) {
+          const second = this._newPick(other.id, seed);
+          this.cell.picks.push(second);
+          await this._loadPickBounds(second);
+        }
+      }
+      await this.plotCell();
+    },
+    async addPick() {
+      if (this.cell.picks.length >= 8) return;
+      const taken = new Set(this.cell.picks.map((p) => p.cell_id));
+      const next = this.cells.find((c) => !taken.has(c.id)) || this.cells[0];
+      if (!next) return;
+      const last = this.cell.picks[this.cell.picks.length - 1];
+      const pick = this._newPick(next.id, last ? last.cyclesText : String(this.cell.from));
+      this.cell.picks.push(pick);
+      await this._loadPickBounds(pick);
+      await this.plotCell();
+    },
+    async removePick(i) {
+      if (this.cell.picks.length <= 1) return;
+      this.cell.picks.splice(i, 1);
+      if (i === 0 && this.cell.picks[0].cell_id !== this.cell.cell_id) {
+        // Row 1 is mirrored by the top Cell select; keep them in step.
+        this.cell.cell_id = this.cell.picks[0].cell_id;
+        await this.onCellChange();
+        return;
+      }
+      await this.plotCell();
+    },
+    async onPickCellChange(i) {
+      const pick = this.cell.picks[i];
+      if (!pick) return;
+      await this._loadPickBounds(pick);
+      if (i === 0 && pick.cell_id !== this.cell.cell_id) {
+        this.cell.cell_id = pick.cell_id;
+        await this.onCellChange();
+        return;
+      }
+      await this.plotCell();
+    },
+    compareSpec() {
+      const res = Number(this.cell.voltageResolution);
+      const kind = this.cell.plotKind;
+      return {
+        picks: this.cell.picks.map((p) => ({
+          cell_id: p.cell_id,
+          cycles: this.parseCycleList(p.cyclesText, p.min || undefined, p.max || undefined),
+        })),
+        curve_kind: kind === "dqdv" || kind === "dvdq" ? kind : "voltage",
+        mode: this.cell.mode, method: this.cell.method,
+        direction: ["charge", "discharge", "both"].includes(this.cell.direction)
+          ? this.cell.direction
+          : "charge",
+        voltage_resolution: Number.isFinite(res) && res > 0 ? res : 0.005,
+        layout: this.cell.compareLayout === "per_cell" ? "per_cell" : "overlay",
+        title: "",
+        ...this.axisRangeFields(this.cell),
+        ...this.appearanceFields(),
+      };
     },
     buildAxisRange(r) {
       if (!r) return null;
@@ -1196,6 +1313,13 @@ function app() {
     },
     async _plotCellFigure() {
       if (!this.cell.cell_id) return;
+      if (this.cellCompareActive) {
+        const fig = await (await api("/api/plots/compare", { method: "POST", body: this.compareSpec() })).json();
+        Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
+        this._applyFigureHeight("cellChart", fig);
+        requestAnimationFrame(() => this.relayoutCharts());
+        return;
+      }
       const kind = this.cell.plotKind;
       const url = kind === "dqdv" ? "/api/plots/ica"
         : kind === "dvdq" ? "/api/plots/dva"
@@ -1223,6 +1347,11 @@ function app() {
     },
     async exportCycles(fmt) {
       if (!this.cell.cell_id) return;
+      if (this.cellCompareActive) {
+        // Export parity: the same picks the chart drew (#169).
+        await this.download(`/api/export/compare?fmt=${fmt}`, this.compareSpec(), `compare.${fmt}`);
+        return;
+      }
       if (this.cell.plotKind === "dqdv") {
         await this.download(`/api/export/ica?fmt=${fmt}`, this.icaSpec(), `ica.${fmt}`);
         return;

@@ -11,11 +11,13 @@ from ...core import collect, export as export_core
 from ...core.library import get_library
 from ...core.models import (
     CellsExportSpec,
+    ComparePlotSpec,
     CyclesPlotSpec,
     DvaPlotSpec,
     IcaPlotSpec,
     SummaryPlotSpec,
 )
+from .plots import compare_picks
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -107,6 +109,27 @@ def export_cycles(spec: CyclesPlotSpec, fmt: str = "csv") -> Response:
         return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
     fmt_l = _check_data_fmt(fmt_l)
     data, media = export_core.cycles_export(records, spec, fmt_l)
+    return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
+
+
+@router.post("/export/compare")
+def export_compare(spec: ComparePlotSpec, fmt: str = "csv") -> Response:
+    """Compare-mode data or figure: exactly the picked (cell, cycle) pairs (#169)."""
+    fmt_l = fmt.lower()
+    picks = compare_picks(spec)
+    name = f"compare_{len(picks)}_cells"
+    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+        fmt_l = _check_figure_fmt(fmt_l)
+        try:
+            data, media = export_core.compare_figure_export(picks, spec, fmt_l)
+        except export_core.FigureExportError as exc:
+            raise _figure_http(exc) from exc
+        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+    fmt_l = _check_data_fmt(fmt_l)
+    try:
+        data, media = export_core.compare_export(picks, spec, fmt_l)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
 
 

@@ -983,6 +983,35 @@ knob it concerns already works
 **What we changed instead:** the guides and the skill now say that `direction`
 lives on `plot()` and defaults to charge.
 
+### 36. 🟢 No overlay layout for collected curves, and one cycle list per batch
+
+Found building **Compare cells**
+([#169](https://github.com/cellpy/cellpy-simple-gui/issues/169)): "cycle 3 of
+cell A over cycle 7 of cell B, in one panel". Two collect-side facts stand in
+the way — verified against cellpy 2.1.3 (`resolve_collected_layout_kind`,
+`_VALID_LAYOUTS`, `CurveOptions` / `IcaOptions`), not assumed:
+
+1. **`cycles` is per batch.** `CurveOptions(cycles=…)` applies to every cell,
+   so per-cell cycle picks have no expression in the collect step.
+2. **Both layouts facet.** `per_cell` (panel = cell, colour = cycle) and
+   `per_cycle` (panel = cycle, colour = cell). There is no `overlay`, and
+   because colour follows the cycle number, cycle 3 of two cells would be the
+   same colour if the traces were simply moved onto one axis.
+
+**Workaround (app):** collect the *union* of cycles, then narrow
+`collection.data` with a polars semi-join on `(cell, cycle_num | cycle)` — the
+same in-place move as the `direction` export filter, so chart and export agree.
+Overlay is a post-plot restyle of cellpy's own `per_cell` figure: traces moved
+to `x`/`y`, one legend entry each (`"<cell> · cycle <n>"`, identity kept in the
+PX hovertemplate), sequential colours, facet strips and extra axes dropped
+(`collect._overlay_facets`). ~120 lines the app would rather not own.
+
+**Wish:** `layout="overlay"` for collected curves (one axis pair, legend by
+cell · cycle, colours by series rather than by cycle), and a way to say which
+cycles belong to which cell — e.g. `cycles` accepting `{cell_label: [..]}` in
+`CurveOptions` / `IcaOptions`. Not filed from here; recorded for the maintainer
+to decide.
+
 ---
 
 ## What already works well (thank-you notes)

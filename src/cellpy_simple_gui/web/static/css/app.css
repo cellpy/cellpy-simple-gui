@@ -424,6 +424,21 @@ input:focus, select:focus { border-color: var(--accent); }
 .plot-sidepane .yrange-inputs { width: 100%; }
 .plot-sidepane .yrange-inputs .num-mini { flex: 1; min-width: 0; width: auto; }
 
+/* compare mode picks (#169): one row per cell — cell select, cycles text, remove */
+.picks { gap: 8px; }
+/* Two lines per pick: the cell label on top (the sidepane is 200px, a select
+   sharing a line with the cycles box would show six characters), cycles + ✕ below. */
+.pick-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: 100%;
+  padding-bottom: 6px; border-bottom: 1px dashed var(--line);
+}
+.pick-row:last-of-type { border-bottom: 0; padding-bottom: 0; }
+.plot-sidepane .pick-row select { flex: 1 1 100%; min-width: 0; width: 100%; }
+.plot-sidepane .pick-row .pick-cycles { flex: 1 1 0; width: auto; min-width: 0; padding: 6px 8px; }
+.pick-remove { flex: 0 0 auto; padding: 3px 6px; line-height: 1; }
+.pick-remove:disabled { opacity: .4; cursor: not-allowed; }
+.picks > .mini { align-self: flex-start; }
+
 .chart-card {
   position: relative;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);

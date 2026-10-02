@@ -1,70 +1,69 @@
-# Graph Report - workspace  (2026-10-01)
+# Graph Report - workspace  (2026-10-02)
 
 ## Corpus Check
-- 266 files · ~320,549 words
+- 270 files · ~596,316 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 22 file(s) not represented in the graph (top: (none) 13, .mdc 2, .toml 1)
 
 ## Summary
-- 5629 nodes · 15739 edges · 316 communities (206 shown, 110 thin omitted)
-- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 3007 edges (avg confidence: 0.87)
+- 5671 nodes · 15783 edges · 276 communities (207 shown, 69 thin omitted)
+- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 3008 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `aaec0572`
+- Built from commit: `2975a2ab`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- _render
+- cells.py
 - CellProcessor 2.0 — design guide (for agents)
 - ni
-- test_cycles_figure_mode_updates_xaxis_units
+- summary_columns_for
 - ss
 - i
 - e
-- api/app.py
+- routers/projects.py
 - $
-- collect.py
-- test_cycles_figure_forwards_group_legend_muting
+- SummaryPlotSpec
+- What's done
 - vn
 - test_api.py
 - wo
-- .getPitch
+- paths.py
 - k
 - get_settings
-- apply_physical_meta
-- ur
+- read_meta
+- yr
 - issue-flow — issue comments triage
-- Plan — Issue #3: Manage cells in an expanded editor
+- test_uploads.py
 - na
 - .constructor
 - test_projects.py
 - oa
-- eu
-- .push
+- .get
+- k
 - issue-flow — issue plan (`/iflow-plan`)
-- _export_one_cell
-- _update
-- instrument_meta_schema
+- Issue #28 plan — Export cells from Manage cells
+- xi
+- ingest.py
 - issue-flow — issue close (`/iflow-close`)
 - Cursor issue workflow (Agent Skills)
 - I
-- .createVertexBuffer
 - cellpy_config.py
 - test_paths.py
-- issue-flow — issue cycle (`/iflow-cycle`)
+- .resume
 - N
 - m
 - Dt
-- yr
+- Plan — Issue #168: Create installer using CI
 - Instructions
 - issue-flow — history update
-- Job
-- .render
+- api/jobs.py
+- bn
 - resize
 - cellpy pain-points & wishlist (from building cellpy-simple-gui)
-- Issue #48 — create gui tests (plan)
+- desktop.py
 - hi
 - Instructions
 - .reset
@@ -72,41 +71,41 @@
 - issue-flow — create a normal issue (`/iflow-issue`)
 - issue-flow — version bump
 - fa
-- di
+- re
 - test_remote_find.py
 - .renderLayer
 - The tools
 - .parse
-- Issue #2 plan: Independent y-limits on multi-panel summary plots
+- pytest
 - Original issue text
 - ti
-- Settings
+- Next phase — deployment routes and app-builder documentation
 - core/projects.py
 - .evaluate
-- pick
+- system.py
 - s
-- Issue #67: Cell explorer dQ/dV: Charge/Discharge direction has no effect (and joins half-cycles)
+- IcaPlotSpec
 - Issue #73: Job progress pane: Cancel/Dismiss overlap long status text
-- The Windows installer
-- k
+- Packaging
+- de
 - Issue #58 plan: plot side pane + top bar blend
 - Issue #5 plan
 - test_packaging.py
 - ah
 - ii
-- Issue #136 — Plan: redesign the loading surface (files, projects, journals, raw import)
-- b
+- Prior art
+- layout
+- .push
 - issue-flow — epic planning (`/iflow-epic`)
 - gh
 - expand_paths
-- cellpy API surface
+- instruments
 - .add
 - issue-flow — issue yolo (`/iflow-yolo`)
 - test_api_reference.py
-- Xt
 - .constructor
 - Issue #32: Plot appearance options: color scheme and figure theme
-- mcp/server.py
+- logging_setup.py
 - Issue #60 status
 - Be token greedy - as a caveman
 - Si
@@ -114,28 +113,28 @@
 - .status
 - An MCP server for cellpy — design, and what a prototype found
 - issue-flow — issue build (`/iflow-build`)
-- issue-flow — issue cleanup (`/iflow-cleanup`)
+- The Windows installer
 - Do
-- ea
-- ve
+- tool
+- add_cells
 - test_core.py
 - cellpy_adapter.py
 - get_library
 - describe_api
-- CellRecord
-- SummaryPlotSpec
+- collect.py
+- Group vs individual legend muting (#62)
 - Issue #36: Chart card stays white under dark figure theme; default figure theme to Match app
 - _apply_colorway
 - Issue #39: Group-avg merge puts singleton CE traces on the wrong summary facet
-- .convert
+- qi
 - Issue #3: Make the Cells list workable for many cells (modal or expanded editor)
 - test_agent_docs.py
-- load_raw
+- Issue #41: Arbin SQL HDF5 import uses cellpy `.h5` loader instead of `arbin_sql_h5`
 - Issue #4: Replace deprecated pywebview OPEN_DIALOG with FileDialog.OPEN
-- Issue #1: Fix Plotly summary legend when cell names are very long
+- Issue #52: Deep-dive: bump cellpy post-release and delegate more app glue to cellpy
 - Original issue text
-- Files to touch
-- la
+- test_gui_playwright.py
+- mh
 - Issue #5: Add cellpy logo and app icon
 - Issue #73 status
 - Essential tests (pytest)
@@ -145,7 +144,7 @@
 - issue-flow — issue pause (`/iflow-pause`)
 - test_jobs.py
 - issue-flow — iflow smart dispatcher (`/iflow`)
-- .populate
+- wn
 - Deploying cellpy simple GUI as a server
 - Issue #48: create gui tests
 - .draw
@@ -156,41 +155,42 @@
 - Plan: Issue #15 — update readme
 - Plan: Issue #17 — export success message
 - Plan: Issue #18 — improve manage cells modal
-- <img src="cellpy-icon-bw.svg" height="40" alt="cellpy-icon"> cellpy simple gui
+- Quick start (from a clone)
 - Plan — Issue #36
+- cellpy API surface
 - Plan — Issue #39
 - test_loader_availability.py
 - Issue #56: add single cell dqdv plot
 - issue-flow — graph rebuild (`/iflow-graphify`)
-- load_journal_cells
+- export
 - Issue #63: Iterative fixes: plot bottom clipping
 - Issue #27: Iterative fixes: group average checkbox
 - Issue #31: Iterative fixes: export download location
 - Issue #63 status
-- Plan — Issue #62: Group vs individual Plotly legend muting
+- kn
 - `00-tools/` — shared helper tools
 - playwright-gui-tests.md
 - Cycle status
-- Refused
+- collect
 - Issue #15: update readme
 - mt
 - oi
 - Development information
 - gen_api_reference.py
 - Status — Issue #3: Manage cells expanded editor
-- Original issue text
+- Issue-flow best practices
 - Issue #47 — Status
-- entry.py
+- sys
 - Issue #50 — Status
-- Client
-- ht
+- smoke_test.py
+- issue-flow — review and label issues (`/iflow-review`)
 - Issue #58 status
 - Issue #5 status
-- _yaxis_for_variable
+- 6. Process state and threading
 - Plan — Issue #73: Job progress Cancel/Dismiss overlap
 - Journal load diagnostics & desktop exit
 - Issue #12: add logging
-- ee
+- te
 - Issue #13: add workflows
 - Status: Issue #13 — add workflows
 - Issue #14: make saving and closing more obvious
@@ -202,121 +202,78 @@
 - Status: Issue #18 — improve manage cells modal
 - Issue #19: stale loading of cellpy batch journal
 - ho
-- test_group_average_keeps_singleton_traces
+- _clean_axis_range
 - Issue #28: add ability to export cellpy cell
-- Issue #31 status — Iterative fixes: export download location
+- Hl
 - Status — Issue #36
-- app_main_module
 - Status — Issue #39
-- .outputDefined
 - Issue #47: Iterative fixes: share-y-scale
 - Issue #50: Iterative fixes: journal-load-logging
 - Issue #54: add widgets for setting individual y-axis ranges.
 - branding-assets.md
-- yi
 - cellpy-simple-gui
 - ri
 - m
-- steps
+- test_mcp_prototype.py
+- README.md
 - Kt
 - gr
+- Issue #1: Fix Plotly summary legend when cell names are very long
 - ft
-- _default_visible_hints
+- Plan — Issue #41
 - .cancel
-- test_mcp_prototype.py
+- prototype
 - Instructions
 - starter/app.py
-- So
-- The cold-context agent test
-- Ga
+- Continuous Windows installer from `main`
+- Issue #168: Create installer using CI
 - U
 - Plan — Issue #38: cellpy label builders for axis titles
 - cellpy-simple-gui
-- Uc
-- ._updateWorkerData
-- collect
-- Za
-- essential
+- tt
+- Issue #72: Cycles tab: Mode change does not update x-axis capacity units
 - issue-flow — harness init (`/iflow-init`)
 - Releasing
 - bt
 - Guides: what belongs upstream in cellpy
-- va
-- vi
 - cellpy starter app
 - 1. Getting cells into memory
 - The prompts
-- fo
-- .getRenderableIds
-- Po
-- th
 - Ic
-- wn
-- gn
 - En
-- Zi
-- ya
-- rh
-- _without_webview
 - pl
-- da
 - issue-flow — PR queue sync (`/iflow-pr-sync`)
 - 4. Exporting data and figures
-- 5. Configuration
 - Issue #81: Keep CE summary panel order consistent (prefer CE on top)
 - Xe
-- .getZoom
 - _t
-- Pt
-- test_ica_figure_charge_differs_from_discharge
-- ca
-- drive
 - Ki
 - issue-flow — ops / no-PR (`/iflow-ops`)
-- .emplaceBack
+- Ku
 - 2. Cells into a Collection
 - 7. What cellpy will and will not do for you
 - Library
-- Issue #38: Use cellpy label builders for summary/cycle axis titles
-- Summary plot y-scales (#2, #54)
+- _apply_y_ranges
 - Mn
-- LaunchedApp
-- .mousePos
-- jr
-- ro
+- o
+- fo
 - se
-- test_index_click_and_show_targets_exist
 - test_ingest.py
 - qn
-- pi
-- _client_config_path
-- Ft
-- getImage
-- xc
+- mcp/server.py
+- Xt
 - Building on cellpy
 - Issue #69: edit meta data
 - ge
 - Issue #86 — Status
 - P
-- setStyle
-- ln
-- sendAsync
-- test_summary_schema_unions_across_cells
+- ht
 - Issue #160: Add option to use OtherPath for loading files from remote directory
 - skills/README.md
-- dev_mode
-- test_a_default_direction_plot_says_it_drew_less
-- test_writes_are_sandboxed_too
-- test_unknown_handles_and_kinds_are_told_what_to_do
-- test_describe_api_follows_the_reference_the_docstring_points_at
 - wi
-- test_describe_api_renders_a_method_the_way_you_would_call_it
 - test_starter.py
 - test_journal.py
 - jh
-- test_search_api_points_at_the_module_that_defines_the_call
-- test_startup_survives_an_unreadable_cellpy_config
-- test_stderr_usable_rejects_a_broken_handle
 - docker-entrypoint.sh
 - xt
 
@@ -333,129 +290,137 @@
 10. `n()` - 130 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Spec` --references--> `collect()`  [INFERRED]
+  .issueflows/03-solved-issues/issue72_original.md → examples/mcp/server.py
+- `2. Target architecture` --references--> `collect()`  [INFERRED]
+  .issueflows/04-designs-and-guides/cellprocessor-v2-design.md → examples/mcp/server.py
 - `How it is built` --references--> `collect()`  [INFERRED]
   README.md → examples/mcp/server.py
 - `Resolved in 2.1.2a3` --references--> `instruments()`  [INFERRED]
   .issueflows/04-designs-and-guides/cellpy-delegation-inventory.md → examples/starter/app.py
 - `Configuration and threads` --references--> `instruments()`  [INFERRED]
   skills/cellpy-app/SKILL.md → examples/starter/app.py
-- `Raw data views (developer mode)` --references--> `raw_plot()`  [INFERRED]
-  .issueflows/04-designs-and-guides/cellpy-delegation-inventory.md → src/cellpy_simple_gui/api/routers/plots.py
-- `Strong — general cellpy knowledge, no app in it` --references--> `cycle_info_plot()`  [INFERRED]
-  .issueflows/04-designs-and-guides/guides-upstream-candidates.md → src/cellpy_simple_gui/api/routers/plots.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (316 total, 110 thin omitted)
+## Communities (276 total, 69 thin omitted)
 
-### Community 0 - "_render"
-Cohesion: 0.22
-Nodes (7): g(), isMoving(), isRotating(), isSourceLoaded(), loaded(), redraw(), _render()
+### Community 0 - "cells.py"
+Cohesion: 0.07
+Nodes (27): Issue #162 — Status, Remaining work, What's done, Decision, Cancelled, Progress, clear(), delete_cell() (+19 more)
 
 ### Community 1 - "CellProcessor 2.0 — design guide (for agents)"
-Cohesion: 0.17
-Nodes (12): 10. Risks & open questions, 11. Sibling repos (context only), 1. Goals & locked decisions, 3. Technology choices (design vs MVP), 4. Package layout, 5. Core layer rules, 7. Frontend pages (parity map), 8. Packaging, native deps & updates (still open) (+4 more)
+Cohesion: 0.15
+Nodes (13): 10. Risks & open questions, 11. Sibling repos (context only), 1. Goals & locked decisions, 2. Target architecture, 3. Technology choices (design vs MVP), 4. Package layout, 5. Core layer rules, 7. Frontend pages (parity map) (+5 more)
 
 ### Community 2 - "ni"
-Cohesion: 0.08
+Cohesion: 0.06
 Nodes (3): Hi(), gi(), ni()
 
-### Community 3 - "test_cycles_figure_mode_updates_xaxis_units"
-Cohesion: 0.13
-Nodes (8): _summary_facet_titles_top_to_bottom(), test_cycles_figure_mode_updates_xaxis_units(), test_figure_export_names_the_actual_missing_piece(), test_shorten_legend_runs_when_restyle_cosmetics_fail(), boom(), test_spread_fillcolor_has_alpha(), test_summary_capacity_ce_facet_order_stable(), _xaxis_title()
+### Community 3 - "summary_columns_for"
+Cohesion: 0.09
+Nodes (21): Acceptance criteria, Issue #60: fix: summary y_ranges warn/miss on charge_capacity facet, Original issue text, Out of scope, Problem / context, Spec, Approach, Constraints (+13 more)
 
 ### Community 4 - "ss"
 Cohesion: 0.06
 Nodes (29): al(), As(), bs(), cl(), cs(), ds(), el(), Es() (+21 more)
 
 ### Community 5 - "i"
-Cohesion: 0.07
-Nodes (86): Be(), Dc(), Dn(), o(), s(), ec(), x(), a() (+78 more)
+Cohesion: 0.04
+Nodes (114): o(), ar(), Be(), Br(), E(), Dc(), Dn(), r() (+106 more)
 
 ### Community 6 - "e"
 Cohesion: 0.05
-Nodes (49): a(), a(), c(), l(), f(), u(), o(), r() (+41 more)
+Nodes (59): c(), d(), g(), h(), o(), p(), r(), S() (+51 more)
 
-### Community 7 - "api/app.py"
-Cohesion: 0.05
-Nodes (29): Decision, guard_path(), require_token(), Cancelled, get_job_manager(), Progress, ingest(), ingest_example() (+21 more)
+### Community 7 - "routers/projects.py"
+Cohesion: 0.07
+Nodes (22): Approach, Goal, Plan: Issue #19 — journal load error surfacing, Test strategy, Done, Status: Issue #19 — journal load errors, guard_path(), get_job_manager() (+14 more)
 
 ### Community 8 - "$"
 Cohesion: 0.02
-Nodes (60): $, addControl(), addImage(), bh(), Bu(), clearMetrics(), _containerDimensions(), _createDelegatedListener() (+52 more)
+Nodes (94): $, addControl(), addImage(), addLayer(), addSprite(), bh(), clearMetrics(), completeTask() (+86 more)
 
-### Community 9 - "collect.py"
-Cohesion: 0.02
-Nodes (101): Problem / context, Approach, Constraints, Files to touch, Goal, Issue #1 plan: Fix Plotly summary legend when cell names are very long, Open questions, Prior art (+93 more)
+### Community 9 - "SummaryPlotSpec"
+Cohesion: 0.04
+Nodes (70): Problem / context, Approach, Constraints, Files to touch, Goal, Issue #1 plan: Fix Plotly summary legend when cell names are very long, Open questions, Prior art (+62 more)
 
-### Community 10 - "test_cycles_figure_forwards_group_legend_muting"
-Cohesion: 0.33
-Nodes (3): test_cycles_figure_forwards_group_legend_muting(), test_summary_figure_forwards_group_legend_muting(), spy()
+### Community 10 - "What's done"
+Cohesion: 0.22
+Nodes (6): Issue #62 status, Remaining work, What's done, test_cycles_figure_forwards_group_legend_muting(), test_summary_figure_forwards_group_legend_muting(), spy()
+
+### Community 11 - "vn"
+Cohesion: 0.11
+Nodes (3): jn(), Un(), vn()
 
 ### Community 12 - "test_api.py"
-Cohesion: 0.06
-Nodes (16): _dva_spec(), test_dva_endpoints_need_no_dev_mode(), test_dva_missing_cell_is_404_not_403(), test_export_cells_cellpy(), test_files_preview_honours_served_sandbox(), test_files_preview_literal_missing_and_glob(), test_job_cancel_running_load(), test_job_timings_reported() (+8 more)
+Cohesion: 0.03
+Nodes (41): Issue #31 status — Iterative fixes: export download location, Iterative fixes log, Constraints, Prior art, _add_cells_modal_html(), _component_names(), _default_visible_hints(), __init__() (+33 more)
 
 ### Community 13 - "wo"
-Cohesion: 0.16
-Nodes (4): bo(), Lo(), To(), wo()
+Cohesion: 0.05
+Nodes (15): Ao(), bo(), Co(), Eo(), feature(), jo(), ko(), Lo() (+7 more)
+
+### Community 14 - "paths.py"
+Cohesion: 0.17
+Nodes (9): Local vs served: what the app may touch, _contains(), expand_glob(), host_paths_allowed(), PathNotAllowed, _refused(), resolve_input(), _same_volume() (+1 more)
 
 ### Community 15 - "k"
-Cohesion: 0.05
-Nodes (26): g(), M(), fs(), g(), a(), c(), l(), o() (+18 more)
+Cohesion: 0.07
+Nodes (7): Dt(), getImage(), k(), w(), rt(), r(), u()
 
 ### Community 16 - "get_settings"
 Cohesion: 0.05
-Nodes (25): create_app(), list_uploads(), upload(), get_settings(), clear(), max_upload_bytes(), safe_name(), save() (+17 more)
+Nodes (23): create_app(), require_token(), clear_uploads(), list_uploads(), upload(), get_settings(), clear(), max_upload_bytes() (+15 more)
 
-### Community 17 - "apply_physical_meta"
-Cohesion: 0.06
-Nodes (39): 1. 🔴 No public "collection from in-memory cells", 21. 🟠 No selective summary rebuild after meta edits, Constraints, Prior art, Approach, Constraints, Files to touch, Goal (+31 more)
+### Community 17 - "read_meta"
+Cohesion: 0.05
+Nodes (39): Approach, Backend, Chrome decision: **centered modal** (not drawer / not resizable sidebar), Constraints, Files to touch, Goal, Niceties in scope, Open questions (+31 more)
 
-### Community 18 - "ur"
-Cohesion: 0.08
-Nodes (7): cr(), dr(), fr(), Je(), lr(), ur(), o()
+### Community 18 - "yr"
+Cohesion: 0.05
+Nodes (13): cr(), dr(), fr(), Je(), lr(), mr(), sr(), ur() (+5 more)
 
 ### Community 19 - "issue-flow — issue comments triage"
 Cohesion: 0.14
 Nodes (12): Constraints, Instructions, issue-flow — issue capture (`/iflow-capture`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces), Constraints, Edge cases, Inputs (+4 more)
 
-### Community 20 - "Plan — Issue #3: Manage cells in an expanded editor"
-Cohesion: 0.18
-Nodes (10): Approach, Backend, Chrome decision: **centered modal** (not drawer / not resizable sidebar), Files to touch, Goal, Niceties in scope, Open questions, Plan — Issue #3: Manage cells in an expanded editor (+2 more)
+### Community 20 - "test_uploads.py"
+Cohesion: 0.12
+Nodes (6): client(), served(), test_capabilities_advertise_the_cap(), test_safe_name_reduces_a_path_to_a_filename(), test_safe_name_refuses_what_is_left_of_nothing(), test_upload_needs_the_token()
 
 ### Community 22 - ".constructor"
 Cohesion: 0.12
 Nodes (3): isParsed(), removeSource(), setMethods()
 
 ### Community 23 - "test_projects.py"
-Cohesion: 0.06
-Nodes (25): _counting_save_cell(), _make_project_dir(), test_api_open_unknown_404(), test_api_save_and_open(), test_broken_project_config_does_not_block_open(), test_data_dir_defaults_to_home(), test_diagnostics_reports_project_as_source(), test_discovery_reports_shadowed_legacy() (+17 more)
-
-### Community 25 - "eu"
-Cohesion: 0.10
-Nodes (6): au(), cu(), eu(), qc(), tu, uu()
-
-### Community 26 - ".push"
 Cohesion: 0.04
-Nodes (95): J(), R(), at(), i(), K(), E(), cn(), D() (+87 more)
+Nodes (30): What the current architecture already decides for us, Settings, _counting_save_cell(), _make_project_dir(), test_api_open_unknown_404(), test_api_save_and_open(), test_broken_project_config_does_not_block_open(), test_data_dir_defaults_to_home() (+22 more)
+
+### Community 24 - "oa"
+Cohesion: 0.05
+Nodes (6): Bu(), hc(), nu(), oa(), Uc(), zu
+
+### Community 25 - ".get"
+Cohesion: 0.05
+Nodes (14): au(), bl(), ch(), cu(), dh(), eu(), lu(), ou() (+6 more)
+
+### Community 26 - "k"
+Cohesion: 0.05
+Nodes (96): J(), R(), i(), K(), f(), D(), y(), E() (+88 more)
 
 ### Community 27 - "issue-flow — issue plan (`/iflow-plan`)"
 Cohesion: 0.15
 Nodes (11): Activation, Boundaries, Grill me — relentless planning interview, How to grill, When to use, Constraints, Instructions, issue-flow — issue plan (`/iflow-plan`) (+3 more)
 
-### Community 28 - "_export_one_cell"
-Cohesion: 0.10
-Nodes (14): Constraints, Files to touch, Goal, Issue #28 plan — Export cells from Manage cells, Open questions, Test strategy, Issue #28 status — Export cells from Manage cells, Remaining work (+6 more)
+### Community 28 - "Issue #28 plan — Export cells from Manage cells"
+Cohesion: 0.17
+Nodes (10): Approach, Constraints, Files to touch, Goal, Issue #28 plan — Export cells from Manage cells, Open questions, Test strategy, Behaviour (+2 more)
 
-### Community 29 - "_update"
-Cohesion: 0.05
-Nodes (25): addLayer(), addSource(), addSprite(), _getUIString(), _lazyInitEmptyStyle(), moveLayer(), removeFeatureState(), removeLayer() (+17 more)
-
-### Community 30 - "instrument_meta_schema"
-Cohesion: 0.09
-Nodes (21): Problem / context, Approach, Approach, Constraints, Files to touch, Goal, Issue #52 — Plan: bump cellpy post4 + delegate app glue, Open questions (+13 more)
+### Community 30 - "ingest.py"
+Cohesion: 0.18
+Nodes (9): Entry points, ingest(), ingest_example(), _ingest_example_job(), _ingest_job(), list_instruments(), explain_load_error(), IngestExampleRequest (+1 more)
 
 ### Community 31 - "issue-flow — issue close (`/iflow-close`)"
 Cohesion: 0.15
@@ -463,35 +428,35 @@ Nodes (12): Branch switch tokens (command input), Changelog update tokens (comma
 
 ### Community 32 - "Cursor issue workflow (Agent Skills)"
 Cohesion: 0.08
-Nodes (24): 0. `/iflow` — smart dispatcher (quick start), 0a. `/iflow-pick` — choose the next issue (front door), 10. `/iflow-issue` — create a normal (non-epic) issue, 10a. `/iflow-split` — linked sub-issues for an over-large issue, 11. `/iflow-status` — status overview of all issues (read-only), 12. `/iflow-review` — review open issues and apply labels, 13. `/iflow-epic` — plan a large change as staged issues, 14. `/iflow-cycle` — batch-process a queue of yolo-fit issues (+16 more)
+Nodes (23): 0. `/iflow` — smart dispatcher (quick start), 0a. `/iflow-pick` — choose the next issue (front door), 10. `/iflow-issue` — create a normal (non-epic) issue, 10a. `/iflow-split` — linked sub-issues for an over-large issue, 11. `/iflow-status` — status overview of all issues (read-only), 12. `/iflow-review` — review open issues and apply labels, 13. `/iflow-epic` — plan a large change as staged issues, 17. `/iflow-archive` — condense the solved-issues archive (destructive, gated) (+15 more)
 
 ### Community 33 - "I"
 Cohesion: 0.05
-Nodes (18): E(), a(), l(), i(), I(), r(), s(), u() (+10 more)
+Nodes (16): u(), E(), a(), i(), i(), I(), r(), s() (+8 more)
 
 ### Community 35 - "cellpy_config.py"
 Cohesion: 0.10
-Nodes (20): Configuration (`cellpy.config`, new in 2.1.2), Resolved in 2.1.2a3, Hard part 1 — state, activate_project_config(), active_project_config(), _config_dump(), _deactivate_locked(), deactivate_project_config() (+12 more)
+Nodes (19): Configuration (`cellpy.config`, new in 2.1.2), Resolved in 2.1.2a3, activate_project_config(), active_project_config(), _config_dump(), _deactivate_locked(), deactivate_project_config(), diagnostics() (+11 more)
 
 ### Community 36 - "test_paths.py"
 Cohesion: 0.06
 Nodes (7): local(), served(), test_another_volume_is_refused_without_touching_the_filesystem(), test_glob_drops_symlinked_escapes(), test_override_forces_the_sandbox_on_loopback(), test_served_mode_refuses_a_symlink_pointing_out(), test_served_mode_refuses_drive_and_unc_paths()
 
-### Community 37 - "issue-flow — issue cycle (`/iflow-cycle`)"
-Cohesion: 0.20
-Nodes (9): All yolo issues + merge conflicts, Constraints, Input — queue spec, Instructions, issue-flow — issue cycle (`/iflow-cycle`), MODEL & EXECUTION DIRECTIVE, Parallel dispatch (experimental, opt-in), Resolve project root (multi-root workspaces) (+1 more)
+### Community 37 - ".resume"
+Cohesion: 0.18
+Nodes (10): All yolo issues + merge conflicts, Constraints, Input — queue spec, Instructions, issue-flow — issue cycle (`/iflow-cycle`), MODEL & EXECUTION DIRECTIVE, Parallel dispatch (experimental, opt-in), Resolve project root (multi-root workspaces) (+2 more)
 
 ### Community 38 - "N"
-Cohesion: 0.05
-Nodes (26): an(), fn(), hn(), jt(), a(), ke(), N(), f() (+18 more)
+Cohesion: 0.06
+Nodes (16): an(), cn(), fn(), hn(), jr(), ke(), N(), f() (+8 more)
 
 ### Community 39 - "m"
 Cohesion: 0.07
-Nodes (18): h(), S(), i(), l(), c(), e(), o(), r() (+10 more)
+Nodes (14): fs(), m(), c(), g(), l(), u(), w(), l() (+6 more)
 
-### Community 41 - "yr"
-Cohesion: 0.08
-Nodes (8): mr(), Pr(), qr(), sr(), Wr(), xr(), yr(), zr()
+### Community 41 - "Plan — Issue #168: Create installer using CI"
+Cohesion: 0.14
+Nodes (13): 1. Extract the installer build into a reusable workflow, 2. Teach `installer.iss` about a build suffix without breaking the version resource, 3. New `continuous.yml` — the rolling prerelease, 4. Docs, Approach, Constraints, Files to touch, Goal (+5 more)
 
 ### Community 42 - "Instructions"
 Cohesion: 0.20
@@ -501,105 +466,117 @@ Nodes (9): Constraints, Input, Instructions, issue-flow — interactive iterativ
 Cohesion: 0.18
 Nodes (10): A. No version bump — append to `[Unreleased]`, B. Version bump happened — promote `[Unreleased]` to a new release section, Conflict resolution — keep both bullet sets, Constraints, Inputs from `/iflow-close`, issue-flow — history update, MODEL & EXECUTION DIRECTIVE, Operation modes (+2 more)
 
-### Community 44 - "Job"
-Cohesion: 0.07
-Nodes (12): 6. Process state and threading, A worker pool that survives its workers, `override` is per thread; `reload` is not, Progress and cancellation, The short answer, Where to go next, Your own singletons are the real constraint, _DaemonPool (+4 more)
+### Community 44 - "api/jobs.py"
+Cohesion: 0.08
+Nodes (6): Stack / runtime, _DaemonPool, Job, _job_result_errors(), _job_result_summary(), JobManager
+
+### Community 45 - "bn"
+Cohesion: 0.09
+Nodes (4): bc(), bi(), bn(), qr()
 
 ### Community 46 - "resize"
-Cohesion: 0.10
-Nodes (6): aa(), ba, ma, resize(), setPixelRatio(), xa
+Cohesion: 0.04
+Nodes (15): aa(), ba, ca(), Ga(), ja, ka, ma, pa() (+7 more)
 
 ### Community 47 - "cellpy pain-points & wishlist (from building cellpy-simple-gui)"
-Cohesion: 0.06
-Nodes (31): 10. 🟢 No per-instrument metadata schema, 11. 🟢 Collected figures aren't app-friendly by default, 12. 🟢 Per-panel y-limits on collected summary facets, 12b. 🟠 `spread_plot` ignores `share_y` / `match_axes`, 13. 🟠 No app-friendly static figure export on the collect path, 15. 🟢 Cycles collector facet strips still use raw `cycle_num=` / `cell=`, 17. 🟢 Cycles plotter ignores collect `mode` for `x_unit`, 18. 🟢 Summary default y-labels omit units (CE / C-rate unit hooks) (+23 more)
+Cohesion: 0.03
+Nodes (56): 10. 🟢 No per-instrument metadata schema, 11. 🟢 Collected figures aren't app-friendly by default, 12. 🟢 Per-panel y-limits on collected summary facets, 12b. 🟠 `spread_plot` ignores `share_y` / `match_axes`, 14. 🟠 `.h5` auto-picks cellpy format over raw instrument loaders, 15. 🟢 Cycles collector facet strips still use raw `cycle_num=` / `cell=`, 16. 🟢 ICA plotter direction gaps (line plots + `both`), 17. 🟢 Cycles plotter ignores collect `mode` for `x_unit` (+48 more)
 
-### Community 48 - "Issue #48 — create gui tests (plan)"
-Cohesion: 0.22
-Nodes (8): Constraints, Files to touch, Goal, Issue #48 — create gui tests (plan), Open questions, Prior art, Test strategy, test_load_and_plot_flow()
+### Community 48 - "desktop.py"
+Cohesion: 0.08
+Nodes (17): Approach, Files to touch, Goal, Issue #48 — create gui tests (plan), Open questions, Test strategy, Issue #48 — status, Remaining work (+9 more)
 
 ### Community 49 - "hi"
 Cohesion: 0.10
-Nodes (6): Vi(), hi(), r(), ui(), a(), c()
+Nodes (6): Vi(), hi(), r(), setMaxPitch(), setMinPitch(), c()
 
 ### Community 50 - "Instructions"
 Cohesion: 0.20
 Nodes (9): Constraints, Input, Instructions, issue-flow — pick next issue (`/iflow-pick`), MODEL & EXECUTION DIRECTIVE, Phase 1 — choose the issue, Phase 2 — create the branch, Phase 3 — hand off (+1 more)
 
+### Community 51 - ".reset"
+Cohesion: 0.05
+Nodes (4): gn(), vi(), xn(), s()
+
 ### Community 52 - "CyclesPlotSpec"
-Cohesion: 0.04
-Nodes (55): 25. 🟠 `dva_plot(direction="both")` drew both half-cycles identically, 26. 🟠 No `collect_dva`, 27. 🟠 `raw_plot` has no way to limit points *(fixed in 2.1.2)*, 28. 🔴 Seven registered families cannot be collected at all *(fixed in 2.1.2)*, 29. 🟠 An unknown `layout=` is accepted silently *(fixed in 2.1.3)*, 30. 🟠 `spread_plot` traces carry no hover at all *(open)*, Round 4 — DVA and raw data, The Collection (+47 more)
+Cohesion: 0.08
+Nodes (26): The plot menu you should not hard-code, Traps, _cell(), cycle_info_plot(), cycles_plot(), _cycles_records(), _dev_cell(), dva_plot() (+18 more)
 
 ### Community 53 - "issue-flow — create a normal issue (`/iflow-issue`)"
 Cohesion: 0.22
 Nodes (8): Constraints, Input, Instructions, issue-flow — create a normal issue (`/iflow-issue`), MODEL & EXECUTION DIRECTIVE, Phase 1 — draft and create, Phase 2 — optional lifecycle setup, Resolve project root (multi-root workspaces)
 
 ### Community 54 - "issue-flow — version bump"
-Cohesion: 0.20
-Nodes (9): Bump levels (both strategies), Choosing the level, Constraints, issue-flow — version bump, MODEL & EXECUTION DIRECTIVE, Resolve the release strategy first, Strategy: git-tag derived, Strategy: static version (uv) (+1 more)
+Cohesion: 0.12
+Nodes (14): Bump levels (both strategies), Choosing the level, Constraints, issue-flow — version bump, MODEL & EXECUTION DIRECTIVE, Resolve the release strategy first, Strategy: git-tag derived, Strategy: static version (uv) (+6 more)
+
+### Community 55 - "fa"
+Cohesion: 0.05
+Nodes (5): da(), fa, ha(), la(), qa
+
+### Community 56 - "re"
+Cohesion: 0.27
+Nodes (5): describe_guide(), guide_files(), main(), render_full(), render_index()
 
 ### Community 57 - "test_remote_find.py"
 Cohesion: 0.10
 Nodes (10): _client(), fake_finder(), local(), served(), test_find_surfaces_search_failures(), test_remote_find_endpoint_enforces_the_max_files_ceiling(), test_remote_find_endpoint_rejects_empty_directory(), test_remote_find_endpoint_reports_served_refusal_in_errors() (+2 more)
 
-### Community 58 - ".renderLayer"
-Cohesion: 0.17
-Nodes (3): bn(), _setupPainter(), Tn()
-
 ### Community 59 - "The tools"
-Cohesion: 0.13
-Nodes (14): Grouping and averaging, cellpy MCP server (prototype), Four things it does on purpose, Limits worth knowing before you rely on it, Run it, The tools, describe_plot_families(), list_cells() (+6 more)
+Cohesion: 0.14
+Nodes (13): 3. 🟠 Silent all-or-nothing group-averaging when any group is a singleton, cellpy MCP server (prototype), Four things it does on purpose, Limits worth knowing before you rely on it, Run it, The tools, describe_plot_families(), list_cells() (+5 more)
 
 ### Community 60 - ".parse"
 Cohesion: 0.24
 Nodes (4): dt(), ct(), ht(), ut()
 
-### Community 61 - "Issue #2 plan: Independent y-limits on multi-panel summary plots"
-Cohesion: 0.20
-Nodes (9): Test strategy, Approach, Files to touch, Goal, Issue #2 plan: Independent y-limits on multi-panel summary plots, Open questions, Test strategy, example_cell() (+1 more)
+### Community 61 - "pytest"
+Cohesion: 0.14
+Nodes (7): Test strategy, Test strategy, example_cell(), loaded_library(), python_blocks(), test_the_code_in_this_guide_runs(), test_there_are_guides_to_run()
 
 ### Community 62 - "Original issue text"
 Cohesion: 0.25
 Nodes (7): Acceptance criteria, Comments (curated summary), Issue #62: Add checkbox for group vs individual Plotly legend muting on summary plots, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 63 - "ti"
-Cohesion: 0.11
-Nodes (5): kn(), ti(), a(), i(), o()
+Cohesion: 0.22
+Nodes (4): ti(), a(), i(), o()
 
-### Community 64 - "Settings"
-Cohesion: 0.09
-Nodes (12): Decisions taken up front, Issues, Milestone 1 — Headless-ready, Milestone 3 — Build your own cellpy app, Next phase — deployment routes and app-builder documentation, Risks, Sequencing, What the current architecture already decides for us (+4 more)
+### Community 64 - "Next phase — deployment routes and app-builder documentation"
+Cohesion: 0.22
+Nodes (7): Decisions taken up front, Issues, Milestone 1 — Headless-ready, Milestone 3 — Build your own cellpy app, Next phase — deployment routes and app-builder documentation, Risks, Sequencing
 
 ### Community 65 - "core/projects.py"
 Cohesion: 0.06
-Nodes (38): Acceptance criteria, Issue #75: Refresh project list and open portable projects from the import path, Original issue text, Out of scope, Problem / context, Spec, Approach, Constraints (+30 more)
+Nodes (40): Phase A — bump + smoke, Acceptance criteria, Issue #75: Refresh project list and open portable projects from the import path, Original issue text, Out of scope, Problem / context, Spec, Approach (+32 more)
 
 ### Community 66 - ".evaluate"
-Cohesion: 0.11
-Nodes (5): Fl(), Ml(), no(), Ra(), Sl()
+Cohesion: 0.05
+Nodes (11): ea(), Fl(), hu(), ia(), no(), paint(), pu(), Ra() (+3 more)
 
-### Community 67 - "pick"
-Cohesion: 0.10
-Nodes (16): Approach, Constraints, Files to touch, Goal, Issue #4 plan, Open questions, Prior art, Test strategy (+8 more)
+### Community 67 - "system.py"
+Cohesion: 0.07
+Nodes (23): Approach, Constraints, Files to touch, Goal, Issue #4 plan, Open questions, Prior art, Test strategy (+15 more)
 
 ### Community 68 - "s"
-Cohesion: 0.04
-Nodes (68): ae(), ar(), e(), c(), Br(), r(), ce(), ct() (+60 more)
+Cohesion: 0.05
+Nodes (52): ae(), e(), c(), r(), ce(), ct(), ee(), r() (+44 more)
 
-### Community 69 - "Issue #67: Cell explorer dQ/dV: Charge/Discharge direction has no effect (and joins half-cycles)"
-Cohesion: 0.29
-Nodes (6): Acceptance criteria, Issue #67: Cell explorer dQ/dV: Charge/Discharge direction has no effect (and joins half-cycles), Original issue text, Out of scope, Problem / context, Spec
+### Community 69 - "IcaPlotSpec"
+Cohesion: 0.05
+Nodes (43): Approach, Constraints, Files to touch, Goal, Grill decisions (locked), Issue #56 — Plan: single-cell dQ/dV in Cell explorer, Open questions, Prior art (+35 more)
 
 ### Community 70 - "Issue #73: Job progress pane: Cancel/Dismiss overlap long status text"
 Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #73: Job progress pane: Cancel/Dismiss overlap long status text, Original issue text, Out of scope, Problem / context, Spec
 
-### Community 71 - "The Windows installer"
-Cohesion: 0.10
-Nodes (19): Arbin `.res` needs a Microsoft ODBC driver, Building it yourself, Installing, Static figure export needs Chrome, The Windows installer, Uninstalling, WebView2, What you will see first: a SmartScreen warning (+11 more)
+### Community 71 - "Packaging"
+Cohesion: 0.18
+Nodes (11): Not solvable in code, Numbers, Numbers, Numbers, Packaging, Server-side figure export is not in the image, Two silent failures the first build shipped with, What the container established (#121) (+3 more)
 
-### Community 72 - "k"
+### Community 72 - "de"
 Cohesion: 0.05
-Nodes (14): f(), de(), A(), getFeatureState(), getLayer(), getLayoutProperty(), getPaintProperty(), getSource() (+6 more)
+Nodes (10): addSource(), de(), getLayer(), getLayoutProperty(), getPaintProperty(), getSource(), hasImage(), isSourceLoaded() (+2 more)
 
 ### Community 73 - "Issue #58 plan: plot side pane + top bar blend"
 Cohesion: 0.22
@@ -610,20 +587,28 @@ Cohesion: 0.22
 Nodes (8): Approach, Constraints, Files to touch, Goal, Issue #5 plan, Open questions, Prior art, Test strategy
 
 ### Community 75 - "test_packaging.py"
-Cohesion: 0.11
-Nodes (9): _load_entry(), _smoke_test_module(), test_crash_goes_to_stderr_when_there_is_a_console(), test_crash_report_is_written_and_the_dialog_names_it(), test_crash_reporter_agrees_with_the_app_on_where_logs_go(), test_installer_removes_its_own_directory_but_never_user_data(), test_setup_logging_survives_a_windowed_build(), test_smoke_test_skips_only_a_missing_reader() (+1 more)
+Cohesion: 0.06
+Nodes (24): app_main_module(), _clear_overrides(), _fake_cellpy_config(), reload(), _load_entry(), _smoke_test_module(), _tag_triggers(), test_absolute_cellpy_dirs_are_created_but_not_overridden() (+16 more)
 
 ### Community 76 - "ah"
-Cohesion: 0.13
-Nodes (7): ah, feature(), ih, lh(), pop(), push(), sh()
+Cohesion: 0.11
+Nodes (7): ah, ih, lh(), nh, pop(), push(), sh()
 
 ### Community 77 - "ii"
-Cohesion: 0.10
+Cohesion: 0.12
 Nodes (6): Ai(), ci(), i(), n(), ii(), o()
 
-### Community 78 - "Issue #136 — Plan: redesign the loading surface (files, projects, journals, raw import)"
+### Community 78 - "Prior art"
+Cohesion: 0.07
+Nodes (30): Acceptance criteria, Issue #136: Redesign the loading surface: one "Add cells" flow, staged file list, contextual help, Original issue text, Out of scope, Problem / context, Spec, Approach, Constraints (+22 more)
+
+### Community 79 - "layout"
+Cohesion: 0.20
+Nodes (10): The Collection, Approach, Constraints, Files to touch, Goal, Issue #55 — Plan: cycles collector (per cell / per cycle), Open questions, Test strategy (+2 more)
+
+### Community 80 - ".push"
 Cohesion: 0.11
-Nodes (19): Approach, Goal, Issue #136 — Plan: redesign the loading surface (files, projects, journals, raw import), Manual smoke checklist (G3/G4; server mode, `CSG_TOKEN=devtoken`), New tests (summary), Open questions, Scope check, Stage 1 — Sidebar restructure (template + CSS) (+11 more)
+Nodes (7): b(), getFeatureState(), e(), z(), h(), S(), u()
 
 ### Community 81 - "issue-flow — epic planning (`/iflow-epic`)"
 Cohesion: 0.25
@@ -631,19 +616,19 @@ Nodes (7): Action: publish, Constraints, Input, Instructions, issue-flow — epi
 
 ### Community 82 - "gh"
 Cohesion: 0.09
-Nodes (25): Fallback (workflow runs), gh-ci — wait on GitHub CI with `gh`, Primary (PR-attached checks), Semantics, Where this fits, Constraints, Input, Instructions (+17 more)
+Nodes (24): Fallback (workflow runs), gh-ci — wait on GitHub CI with `gh`, Primary (PR-attached checks), Semantics, Where this fits, Constraints, Input, Instructions (+16 more)
 
 ### Community 83 - "expand_paths"
 Cohesion: 0.04
-Nodes (49): Prior art, Stage 3 — Staged file list + glob preview endpoint, Approach, Constraints, Explicitly deferred (later than phase 2), Ordering, Phase 1 — MVP (this issue after Accept), Phase 2 — filefinder “approx glob” (follow-up issue; decided) (+41 more)
+Nodes (56): Stage 3 — Staged file list + glob preview endpoint, Approach, Explicitly deferred (later than phase 2), Files to touch, Goal, Issue #160 — Plan: OtherPath remote loading, Open questions, Ordering (+48 more)
 
-### Community 84 - "cellpy API surface"
-Cohesion: 0.11
-Nodes (18): Attributes worth knowing, cellpy API surface, Cells into a Collection, Collect options, Configuration, Figures to bytes, Loading, One cell (+10 more)
+### Community 84 - "instruments"
+Cohesion: 0.12
+Nodes (16): Configuration, 5. Configuration, Changing settings, Credentials, Never write the user's config file, The layers, The relative-path trap, Where to go next (+8 more)
 
 ### Community 85 - ".add"
-Cohesion: 0.06
-Nodes (14): completeTask(), constructor(), _createButton(), _createCanvas(), finish(), Li(), mark(), once() (+6 more)
+Cohesion: 0.07
+Nodes (4): getCanvasContainer(), Li(), pi(), yi()
 
 ### Community 86 - "issue-flow — issue yolo (`/iflow-yolo`)"
 Cohesion: 0.25
@@ -653,17 +638,13 @@ Nodes (7): Chain, Constraints, issue-flow — issue yolo (`/iflow-yolo`), MODEL 
 Cohesion: 0.12
 Nodes (9): generated_against(), generator(), skip_unless_pinned_cellpy(), test_every_listed_call_actually_exists(), test_it_covers_the_calls_the_guides_lean_on(), test_the_committed_reference_matches_the_installed_cellpy(), test_the_reference_does_not_depend_on_which_python_generated_it(), test_the_sharp_edges_are_stated_where_someone_will_read_them() (+1 more)
 
-### Community 89 - ".constructor"
-Cohesion: 0.11
-Nodes (3): getGlyphs(), _getMapId(), setTerrain()
-
 ### Community 90 - "Issue #32: Plot appearance options: color scheme and figure theme"
 Cohesion: 0.25
 Nodes (7): Acceptance criteria, Comments (curated summary), Issue #32: Plot appearance options: color scheme and figure theme, Original issue text, Out of scope, Problem / context, Spec
 
-### Community 91 - "mcp/server.py"
-Cohesion: 0.03
-Nodes (42): Approach, Files to touch, Goal, Plan: Issue #12 — add logging, Test strategy, Done, Status: Issue #12 — add logging, Approach (+34 more)
+### Community 91 - "logging_setup.py"
+Cohesion: 0.07
+Nodes (17): Approach, Files to touch, Goal, Plan: Issue #12 — add logging, Test strategy, Done, Status: Issue #12 — add logging, Constraints (+9 more)
 
 ### Community 92 - "Issue #60 status"
 Cohesion: 0.50
@@ -682,60 +663,60 @@ Cohesion: 0.20
 Nodes (8): Constraints, Input, Instructions, issue-flow — advanced auto (`/iflow-auto`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces), 15. `/iflow-auto` — unattended large-change orchestration, Decided (2026-09-05)
 
 ### Community 97 - "An MCP server for cellpy — design, and what a prototype found"
-Cohesion: 0.12
-Nodes (16): list_templates(), new_project(), An MCP server for cellpy — design, and what a prototype found, Finding 4 — `cellpy new` cannot currently be automated, Prompts — the part aimed at people who are not asking for tools, Proposed: `cellpy mcp`, not `cellpy server mcp`, Proposed upstream, Proposed upstream — round two (+8 more)
+Cohesion: 0.15
+Nodes (13): An MCP server for cellpy — design, and what a prototype found, Hard part 1 — state, Prompts — the part aimed at people who are not asking for tools, Proposed: `cellpy mcp`, not `cellpy server mcp`, Proposed upstream, Proposed upstream — round two, Recommendation, Recommendation, restated (+5 more)
 
 ### Community 98 - "issue-flow — issue build (`/iflow-build`)"
 Cohesion: 0.29
 Nodes (6): Constraints, Early PR tokens (command input), Instructions, issue-flow — issue build (`/iflow-build`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces)
 
-### Community 99 - "issue-flow — issue cleanup (`/iflow-cleanup`)"
-Cohesion: 0.29
-Nodes (6): Constraints, Input, Instructions, issue-flow — issue cleanup (`/iflow-cleanup`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces)
+### Community 99 - "The Windows installer"
+Cohesion: 0.20
+Nodes (10): Arbin `.res` needs a Microsoft ODBC driver, Building it yourself, Downloading, Installing, Static figure export needs Chrome, The Windows installer, Uninstalling, WebView2 (+2 more)
 
 ### Community 100 - "Do"
-Cohesion: 0.14
-Nodes (4): Do, Io(), jo(), Oo()
+Cohesion: 0.16
+Nodes (3): Do, Io(), Oo()
 
-### Community 101 - "ea"
-Cohesion: 0.11
-Nodes (4): ea(), ia(), paint(), ta()
+### Community 101 - "tool"
+Cohesion: 0.22
+Nodes (5): list_instruments(), list_templates(), new_project(), Finding 4 — `cellpy new` cannot currently be automated, What is still open
 
-### Community 102 - "ve"
-Cohesion: 0.12
-Nodes (3): er(), Sc(), ve()
+### Community 102 - "add_cells"
+Cohesion: 0.22
+Nodes (4): add_cells(), load_example(), load_file(), _remember()
 
 ### Community 103 - "test_core.py"
 Cohesion: 0.02
-Nodes (55): _rate_library(), test_cells_export_cellpy_and_xlsx(), test_cells_export_csv_is_zip(), test_cells_export_two_cells_zip(), test_config_diagnostics_masks_credentialish_values(), test_config_diagnostics_shape(), test_config_diagnostics_survives_broken_provenance(), test_config_diagnostics_warns_on_legacy_fallback() (+47 more)
+Nodes (83): _hover_variable(), _ica_y_values(), _numeric_y_values(), _rate_library(), _summary_facet_titles_top_to_bottom(), test_cells_export_cellpy_and_xlsx(), test_cells_export_csv_is_zip(), test_cells_export_two_cells_zip() (+75 more)
 
 ### Community 104 - "cellpy_adapter.py"
-Cohesion: 0.06
-Nodes (26): Files to touch, Prior art, Approach, _ingest_example_job(), list_instruments(), arbin_res_reader_available(), capacity_curve(), cycle_numbers() (+18 more)
+Cohesion: 0.05
+Nodes (39): 5. 🟠 Instrument discovery logs a WARNING per non-loader module, Issue #28 status — Export cells from Manage cells, Remaining work, What's done, Approach, Progress, Status — Issue #41, Phase C — implement “delegate now” (+31 more)
 
 ### Community 105 - "get_library"
-Cohesion: 0.10
-Nodes (28): clear(), delete_cell(), get_state(), list_examples(), load_example(), _load_examples_job(), load_files(), _load_files_job() (+20 more)
+Cohesion: 0.12
+Nodes (15): _check_data_fmt(), _check_figure_fmt(), _cycles_records(), export_cells(), export_cycles(), export_dva(), export_ica(), export_summary() (+7 more)
 
 ### Community 106 - "describe_api"
-Cohesion: 0.13
-Nodes (10): describe_api(), _follow_reference(), _index(), _resolve_dotted(), search_api(), _summarise(), And a boundary, Finding 3 — the documentation is usually there, one hop away (+2 more)
+Cohesion: 0.22
+Nodes (7): describe_api(), _follow_reference(), _resolve_dotted(), And a boundary, Finding 3 — the documentation is usually there, one hop away, The API family — and what it measured, Two smaller traps, both fixed and both tested
 
-### Community 107 - "CellRecord"
-Cohesion: 0.03
-Nodes (76): 16. 🟢 ICA plotter direction gaps (line plots + `both`), What to add next, and where to look, Prior art, Prior art, Issue #55 — Status, Remaining work, What's done, Approach (+68 more)
+### Community 107 - "collect.py"
+Cohesion: 0.04
+Nodes (52): 13. 🟠 No app-friendly static figure export on the collect path, What to add next, and where to look, Prior art, Prior art, Issue #55 — Status, Remaining work, What's done, Issue #72 status (+44 more)
 
-### Community 108 - "SummaryPlotSpec"
-Cohesion: 0.06
-Nodes (25): Acceptance criteria, Issue #2: Allow independent y-limits on multi-panel summary plots, Original issue text, Out of scope, Problem / context, Spec, Constraints, Files to touch (+17 more)
+### Community 108 - "Group vs individual legend muting (#62)"
+Cohesion: 0.40
+Nodes (4): Alternatives considered, Context, Decision, Group vs individual legend muting (#62)
 
 ### Community 109 - "Issue #36: Chart card stays white under dark figure theme; default figure theme to Match app"
 Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #36: Chart card stays white under dark figure theme; default figure theme to Match app, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 110 - "_apply_colorway"
-Cohesion: 0.10
-Nodes (15): Acceptance criteria, Issue #37: Spread bands too opaque for safe/muted color schemes, Original issue text, Out of scope, Problem / context, Spec, Approach, Files to touch (+7 more)
+Cohesion: 0.06
+Nodes (28): Issue #32 — Status, Remaining work, What's done, Acceptance criteria, Issue #37: Spread bands too opaque for safe/muted color schemes, Original issue text, Out of scope, Problem / context (+20 more)
 
 ### Community 111 - "Issue #39: Group-avg merge puts singleton CE traces on the wrong summary facet"
 Cohesion: 0.29
@@ -749,29 +730,29 @@ Nodes (6): Acceptance criteria, Issue #3: Make the Cells list workable for many 
 Cohesion: 0.12
 Nodes (6): generator(), test_every_path_the_index_points_at_exists(), test_llms_full_actually_contains_the_documents(), test_the_index_lists_every_guide(), test_the_skill_reference_is_bundled(), test_the_skill_states_the_traps_that_produce_plausible_output()
 
-### Community 115 - "load_raw"
-Cohesion: 0.06
-Nodes (27): 14. 🟠 `.h5` auto-picks cellpy format over raw instrument loaders, Files to touch, Goal, Issue #160 — Plan: OtherPath remote loading, Open questions, Phase 1 (this PR), Phase 2 (follow-up issue), Scope check (+19 more)
+### Community 115 - "Issue #41: Arbin SQL HDF5 import uses cellpy `.h5` loader instead of `arbin_sql_h5`"
+Cohesion: 0.29
+Nodes (6): Acceptance criteria, Issue #41: Arbin SQL HDF5 import uses cellpy `.h5` loader instead of `arbin_sql_h5`, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 116 - "Issue #4: Replace deprecated pywebview OPEN_DIALOG with FileDialog.OPEN"
 Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #4: Replace deprecated pywebview OPEN_DIALOG with FileDialog.OPEN, Original issue text, Out of scope, Problem / context, Spec
 
-### Community 117 - "Issue #1: Fix Plotly summary legend when cell names are very long"
-Cohesion: 0.14
-Nodes (11): Acceptance criteria, Issue #1: Fix Plotly summary legend when cell names are very long, Original issue text, Out of scope, Spec, Acceptance criteria, Issue #52: Deep-dive: bump cellpy post-release and delegate more app glue to cellpy, Original issue text (+3 more)
+### Community 117 - "Issue #52: Deep-dive: bump cellpy post-release and delegate more app glue to cellpy"
+Cohesion: 0.29
+Nodes (6): Acceptance criteria, Issue #52: Deep-dive: bump cellpy post-release and delegate more app glue to cellpy, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 118 - "Original issue text"
 Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #58: Add a plot side pane and match the top bar to the app background, Original issue text, Out of scope, Problem / context, Spec
 
-### Community 119 - "Files to touch"
-Cohesion: 0.14
-Nodes (11): Files to touch, Alternatives considered, Context, Decision, Guard rails (tests), Links, Loading UI: Add cells modal + staged list (local issue 136), app() (+3 more)
+### Community 119 - "test_gui_playwright.py"
+Cohesion: 0.11
+Nodes (14): Files to touch, Guard rails (tests), app(), loadRecent(), PLOTLY_CONFIG, RECENT_KINDS, browser_page(), _bundled_cellpy_file() (+6 more)
 
-### Community 120 - "la"
-Cohesion: 0.18
-Nodes (3): ha(), la(), qa
+### Community 120 - "mh"
+Cohesion: 0.24
+Nodes (8): fh(), hh(), mh(), ph(), qh(), uh, Vh(), yh()
 
 ### Community 121 - "Issue #5: Add cellpy logo and app icon"
 Cohesion: 0.29
@@ -809,9 +790,9 @@ Nodes (6): test_jobs_do_not_depend_on_private_stdlib_internals(), test_manager_r
 Cohesion: 0.33
 Nodes (5): Constraints, Instructions, issue-flow — iflow smart dispatcher (`/iflow`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces)
 
-### Community 130 - ".populate"
-Cohesion: 0.13
-Nodes (3): ne(), nh, yc()
+### Community 130 - "wn"
+Cohesion: 0.12
+Nodes (3): ln(), ne(), wn()
 
 ### Community 131 - "Deploying cellpy simple GUI as a server"
 Cohesion: 0.12
@@ -822,8 +803,8 @@ Cohesion: 0.33
 Nodes (5): Approach, Files to touch, Goal, Plan: Issue #13 — add workflows, Test strategy
 
 ### Community 135 - "Ei"
-Cohesion: 0.11
-Nodes (6): calculateCameraOptionsFromTo(), _cancelRenderFrame(), Ei(), i(), project(), _requestRenderFrame()
+Cohesion: 0.08
+Nodes (7): calculateCameraOptionsFromTo(), _cancelRenderFrame(), Ei(), i(), project(), _requestRenderFrame(), unproject()
 
 ### Community 137 - "Plan: Issue #14 — make saving and closing more obvious"
 Cohesion: 0.33
@@ -841,13 +822,17 @@ Nodes (5): Approach, Files to touch, Goal, Plan: Issue #17 — export success me
 Cohesion: 0.33
 Nodes (5): Approach, Files to touch, Goal, Plan: Issue #18 — improve manage cells modal, Test strategy
 
-### Community 141 - "<img src="cellpy-icon-bw.svg" height="40" alt="cellpy-icon"> cellpy simple gui"
-Cohesion: 0.13
-Nodes (15): Build the Windows installer, Building your own cellpy app, Developer mode, Development, Features, Future plans, How it is built, If you are a coding agent (+7 more)
+### Community 141 - "Quick start (from a clone)"
+Cohesion: 0.50
+Nodes (4): Build the Windows installer, Developer mode, Quick start (from a clone), Run it as a server
 
 ### Community 142 - "Plan — Issue #36"
 Cohesion: 0.33
 Nodes (5): Approach, Files to touch, Goal, Plan — Issue #36, Test strategy
+
+### Community 143 - "cellpy API surface"
+Cohesion: 0.22
+Nodes (9): Attributes worth knowing, cellpy API surface, Cells into a Collection, Collect options, Figures to bytes, Loading, One cell, Single-cell plots (+1 more)
 
 ### Community 144 - "Plan — Issue #39"
 Cohesion: 0.33
@@ -861,9 +846,9 @@ Nodes (5): test_an_unrecognised_error_is_passed_through_unchanged(), test_availa
 Cohesion: 0.40
 Nodes (4): Constraints, Instructions, issue-flow — graph rebuild (`/iflow-graphify`), MODEL & EXECUTION DIRECTIVE
 
-### Community 148 - "load_journal_cells"
-Cohesion: 0.17
-Nodes (7): Approach, Goal, Plan: Issue #19 — journal load error surfacing, Test strategy, Done, Status: Issue #19 — journal load errors, load_journal_cells()
+### Community 148 - "export"
+Cohesion: 0.25
+Nodes (7): export(), figure(), index(), state(), UX, 6. API sketch (design), Milestone 2 — Two ways to run it
 
 ### Community 150 - "Issue #27: Iterative fixes: group average checkbox"
 Cohesion: 0.40
@@ -873,10 +858,6 @@ Nodes (4): First reported bug, Interactive `/iflow-fix` session, Issue #27: Iter
 Cohesion: 0.40
 Nodes (4): First reported bug, Interactive `/iflow-fix` session, Issue #31: Iterative fixes: export download location, Original issue text
 
-### Community 153 - "Plan — Issue #62: Group vs individual Plotly legend muting"
-Cohesion: 0.10
-Nodes (16): Approach, Files to touch, Goal, Open questions, Plan — Issue #62: Group vs individual Plotly legend muting, Test strategy, Group average + static figure export, Group average with mixed group sizes (+8 more)
-
 ### Community 154 - "`00-tools/` — shared helper tools"
 Cohesion: 0.50
 Nodes (3): `00-tools/` — shared helper tools, Tool index, When working an issue
@@ -885,9 +866,9 @@ Nodes (3): `00-tools/` — shared helper tools, Tool index, When working an issu
 Cohesion: 0.50
 Nodes (3): Cycle status, Queue, Skipped / blocked
 
-### Community 157 - "Refused"
-Cohesion: 0.20
-Nodes (8): _cell(), _collection(), export_collection(), Refused, render(), _resolve(), Session, Hard part 2 — file access
+### Community 157 - "collect"
+Cohesion: 0.13
+Nodes (12): _cell(), collect(), _collection(), export_collection(), Refused, render(), _resolve(), Session (+4 more)
 
 ### Community 158 - "Issue #15: update readme"
 Cohesion: 0.50
@@ -898,40 +879,44 @@ Cohesion: 0.15
 Nodes (14): cn(), ct(), fr(), get(), has(), ie(), It(), je() (+6 more)
 
 ### Community 160 - "oi"
-Cohesion: 0.16
-Nodes (6): oi(), a(), i(), n(), r(), s()
+Cohesion: 0.06
+Nodes (9): oi(), a(), i(), n(), r(), s(), querySourceFeatures(), setTerrain() (+1 more)
 
 ### Community 161 - "Development information"
 Cohesion: 0.15
 Nodes (13): Branch hygiene, Chat invocation (no slash), CI via GitHub CLI, Designs and guides, Development information, Folder hygiene for `.issueflows/01-current-issues`, Knowledge graph (optional, via [graphify](https://iflow-graphify.net)), Multi-root workspaces (+5 more)
 
 ### Community 162 - "gen_api_reference.py"
-Cohesion: 0.23
-Nodes (7): describe(), display_name(), main(), normalise(), render(), resolve(), _version()
+Cohesion: 0.13
+Nodes (13): If you run it again, Protocol, Results, The cold-context agent test, What the test found, test_the_upstream_bugs_the_guides_describe_are_still_bugs(), describe(), display_name() (+5 more)
 
 ### Community 163 - "Status — Issue #3: Manage cells expanded editor"
 Cohesion: 0.50
 Nodes (3): Remaining work, Status — Issue #3: Manage cells expanded editor, What's done
 
-### Community 164 - "Original issue text"
-Cohesion: 0.15
-Nodes (9): Acceptance criteria, Issue #136: Redesign the loading surface: one "Add cells" flow, staged file list, contextual help, Original issue text, Out of scope, Problem / context, Spec, Constraints, test_app_js_parses() (+1 more)
+### Community 164 - "Issue-flow best practices"
+Cohesion: 0.25
+Nodes (7): Cursor Cloud specific instructions, If the project uses conda, If the project uses uv (issue-flow's default), Issue-flow best practices, Issue tracking structure, Other toolchains (plain venv / pip / poetry), Running python
 
 ### Community 165 - "Issue #47 — Status"
 Cohesion: 0.50
 Nodes (3): Issue #47 — Status, Iterative fixes log, Remaining work
 
-### Community 166 - "entry.py"
-Cohesion: 0.19
+### Community 166 - "sys"
+Cohesion: 0.18
 Nodes (4): _log_dir(), main(), _report_crash(), _show_dialog()
 
 ### Community 167 - "Issue #50 — Status"
 Cohesion: 0.50
 Nodes (3): Issue #50 — Status, Iterative fixes log, Remaining work
 
-### Community 168 - "Client"
-Cohesion: 0.18
-Nodes (6): Client, main(), run_checks(), skip(), test_the_tool_surface_is_small_and_named_as_documented(), main()
+### Community 168 - "smoke_test.py"
+Cohesion: 0.10
+Nodes (7): Client, LaunchedApp, main(), run_checks(), skip(), test_the_tool_surface_is_small_and_named_as_documented(), main()
+
+### Community 169 - "issue-flow — review and label issues (`/iflow-review`)"
+Cohesion: 0.25
+Nodes (7): Constraints, Input, Instructions, issue-flow — review and label issues (`/iflow-review`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces), Review kinds (extendable)
 
 ### Community 170 - "Issue #58 status"
 Cohesion: 0.50
@@ -941,9 +926,9 @@ Nodes (3): Issue #58 status, Remaining work, What's done
 Cohesion: 0.50
 Nodes (3): Issue #5 status, Remaining work, What's done
 
-### Community 172 - "_yaxis_for_variable"
-Cohesion: 0.08
-Nodes (14): _hover_variable(), _numeric_y_values(), test_summary_figure_ce_outlier_does_not_crush_capacity(), test_summary_figure_independent_y_by_default(), test_summary_figure_share_y_matches_axes(), test_summary_figure_share_y_with_group_avg_and_spread(), test_summary_figure_y_ranges_charge_on_multipart_group_avg(), test_summary_figure_y_ranges_one_sided_max() (+6 more)
+### Community 172 - "6. Process state and threading"
+Cohesion: 0.25
+Nodes (7): 6. Process state and threading, A worker pool that survives its workers, `override` is per thread; `reload` is not, Progress and cancellation, The short answer, Where to go next, Your own singletons are the real constraint
 
 ### Community 173 - "Plan — Issue #73: Job progress Cancel/Dismiss overlap"
 Cohesion: 0.15
@@ -953,33 +938,25 @@ Nodes (11): Approach, Constraints, Files to touch, Goal, Open questions, Plan �
 Cohesion: 0.50
 Nodes (3): Desktop exit / terminal prompt, Journal load diagnostics & desktop exit, Journal / project load
 
-### Community 176 - "ee"
-Cohesion: 0.17
-Nodes (4): ee(), a(), r(), te()
-
 ### Community 187 - "ho"
-Cohesion: 0.18
-Nodes (3): ho(), su(), xu()
+Cohesion: 0.15
+Nodes (3): ho(), mu(), Wa()
 
-### Community 188 - "test_group_average_keeps_singleton_traces"
-Cohesion: 0.29
-Nodes (4): Issue #27 status — Iterative fixes: group average checkbox, Iterative fixes log, test_group_average_keeps_singleton_traces(), test_summary_figure_export_svg()
-
-### Community 190 - "Issue #31 status — Iterative fixes: export download location"
-Cohesion: 0.50
-Nodes (3): Issue #31 status — Iterative fixes: export download location, Iterative fixes log, test_system_save_rejected_without_webview()
-
-### Community 192 - "app_main_module"
-Cohesion: 0.26
-Nodes (8): Test strategy, app_main_module(), _clear_overrides(), _fake_cellpy_config(), reload(), test_absolute_cellpy_dirs_are_created_but_not_overridden(), test_relative_cellpy_dirs_are_anchored_at_home_not_cwd(), test_remote_paths_are_never_touched()
+### Community 190 - "Hl"
+Cohesion: 0.25
+Nodes (3): Hl(), ql(), tc()
 
 ### Community 203 - "m"
 Cohesion: 0.22
 Nodes (11): A(), d(), E(), he(), m(), no(), Rt(), Sr() (+3 more)
 
-### Community 204 - "steps"
-Cohesion: 0.23
-Nodes (9): main(), call(), test_availability_is_answered_rather_than_discovered_by_drawing(), steps(), test_new_project_refuses_before_it_writes_anything(), steps(), test_paths_outside_the_sandbox_are_refused(), steps() (+1 more)
+### Community 204 - "test_mcp_prototype.py"
+Cohesion: 0.08
+Nodes (27): drive(), main(), call(), test_a_default_direction_plot_says_it_drew_less(), steps(), test_availability_is_answered_rather_than_discovered_by_drawing(), steps(), test_describe_api_follows_the_reference_the_docstring_points_at() (+19 more)
+
+### Community 205 - "README.md"
+Cohesion: 0.17
+Nodes (11): A tour in screenshots, Building your own cellpy app, Development, Features, Future plans, How it is built, If you are a coding agent, Install (+3 more)
 
 ### Community 206 - "Kt"
 Cohesion: 0.38
@@ -989,65 +966,61 @@ Nodes (7): jn(), Kt(), me(), Ot(), qn(), xe(), ze()
 Cohesion: 0.22
 Nodes (14): br(), dr(), er(), Et(), gr(), mr(), pe(), S() (+6 more)
 
-### Community 212 - "_default_visible_hints"
-Cohesion: 0.20
-Nodes (6): _add_cells_modal_html(), _default_visible_hints(), __init__(), _template_html(), test_add_cells_modal_has_one_primary_action(), test_default_visible_hint_budget()
+### Community 209 - "Issue #1: Fix Plotly summary legend when cell names are very long"
+Cohesion: 0.33
+Nodes (5): Acceptance criteria, Issue #1: Fix Plotly summary legend when cell names are very long, Original issue text, Out of scope, Spec
+
+### Community 210 - "ft"
+Cohesion: 0.21
+Nodes (4): ft(), off(), onRemove(), removeControl()
+
+### Community 212 - "Plan — Issue #41"
+Cohesion: 0.40
+Nodes (4): Files to touch, Goal, Plan — Issue #41, Test strategy
 
 ### Community 213 - ".cancel"
 Cohesion: 0.22
 Nodes (8): Command lifecycle, Constraints, Input, Instructions, issue-flow — drive (`/iflow-drive`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces), 16. `/iflow-drive` — compose epic → publish → auto-all
-
-### Community 214 - "test_mcp_prototype.py"
-Cohesion: 0.20
-Nodes (3): prototype(), test_describe_api_will_not_import_outside_cellpy(), steps()
 
 ### Community 215 - "Instructions"
 Cohesion: 0.20
 Nodes (9): Constraints, Input, Instructions, issue-flow — split an over-large issue (`/iflow-split`), MODEL & EXECUTION DIRECTIVE, Phase 1 — draft children, Phase 2 — create and link, Phase 3 — optional handoff (+1 more)
 
 ### Community 216 - "starter/app.py"
-Cohesion: 0.06
-Nodes (24): Cursor Cloud specific instructions, If the project uses conda, If the project uses uv (issue-flow's default), Issue-flow best practices, Issue tracking structure, Other toolchains (plain venv / pip / poetry), Running python, add_cells() (+16 more)
+Cohesion: 0.18
+Nodes (5): clear_cells(), collection_for(), export_csv(), figure_json(), _missing()
 
-### Community 217 - "So"
-Cohesion: 0.19
-Nodes (5): Ao(), Eo(), ko(), Mo(), So()
-
-### Community 218 - "The cold-context agent test"
-Cohesion: 0.20
-Nodes (6): If you run it again, Protocol, Results, The cold-context agent test, What the test found, test_the_upstream_bugs_the_guides_describe_are_still_bugs()
+### Community 217 - "Continuous Windows installer from `main`"
+Cohesion: 0.40
+Nodes (4): Alternatives considered, Context, Continuous Windows installer from `main`, Decision
 
 ### Community 220 - "U"
 Cohesion: 0.29
 Nodes (8): en(), ki(), q(), qr(), tn(), U(), zi(), zr()
 
 ### Community 221 - "Plan — Issue #38: cellpy label builders for axis titles"
-Cohesion: 0.12
-Nodes (12): Constraints, Goal, Open questions, Plan — Issue #38: cellpy label builders for axis titles, Prior art, Test strategy, Constraints, Files to touch (+4 more)
+Cohesion: 0.06
+Nodes (27): Acceptance criteria, Issue #38: Use cellpy label builders for summary/cycle axis titles, Original issue text, Out of scope, Problem / context, Spec, Approach, Constraints (+19 more)
 
 ### Community 222 - "cellpy-simple-gui"
 Cohesion: 0.13
-Nodes (12): Cross-repo guidance, Default for lifecycle commands, Members, Multi-root workspace — cellpyapp, Toolchain disambiguation, cellpy-simple-gui, How to run / test, Motivation (+4 more)
+Nodes (12): Cross-repo guidance, Default for lifecycle commands, Members, Multi-root workspace — cellpyapp, Toolchain disambiguation, cellpy-simple-gui, Conventions, How to run / test (+4 more)
 
-### Community 223 - "Uc"
+### Community 224 - "tt"
 Cohesion: 0.11
-Nodes (3): hc(), Uc(), zu
+Nodes (8): gt(), lt(), Mt(), ft(), lt(), tt(), ua(), yt()
 
-### Community 225 - "collect"
-Cohesion: 0.13
-Nodes (12): collect(), Issue #54 status, Remaining work, What's done, Acceptance criteria, Issue #72: Cycles tab: Mode change does not update x-axis capacity units, Original issue text, Out of scope (+4 more)
-
-### Community 227 - "essential"
-Cohesion: 0.20
-Nodes (6): test_cellpy_config_diagnostics_endpoint(), test_examples(), test_healthz(), test_served_instance_refuses_paths_outside_its_data_dir(), test_served_instance_will_not_load_files_from_the_host(), test_token_required()
+### Community 225 - "Issue #72: Cycles tab: Mode change does not update x-axis capacity units"
+Cohesion: 0.29
+Nodes (6): Acceptance criteria, Issue #72: Cycles tab: Mode change does not update x-axis capacity units, Original issue text, Out of scope, Problem / context, Spec
 
 ### Community 228 - "issue-flow — harness init (`/iflow-init`)"
 Cohesion: 0.22
 Nodes (8): Constraints, Instructions, issue-flow — harness init (`/iflow-init`), MODEL & EXECUTION DIRECTIVE, Package vs scaffold (read first), Parent-folder recipe, Resolve project root (multi-root workspaces), Start directory (before member resolve)
 
 ### Community 229 - "Releasing"
-Cohesion: 0.22
-Nodes (8): Cutting a release, One-time: let PyPI trust this repository, One-time: make the container image public, Rehearsal log, Rehearse on TestPyPI, Releasing, Things that will bite, What to check after publishing
+Cohesion: 0.17
+Nodes (9): Cutting a release, One-time: let PyPI trust this repository, One-time: make the container image public, Rehearsal log, Rehearse on TestPyPI, Releasing, The rolling `continuous` release, Things that will bite (+1 more)
 
 ### Community 231 - "Guides: what belongs upstream in cellpy"
 Cohesion: 0.22
@@ -1066,12 +1039,12 @@ Cohesion: 0.32
 Nodes (4): The prompts, analyse_cell(), explain_call(), start_batch_project()
 
 ### Community 241 - "Ic"
-Cohesion: 0.14
-Nodes (4): Go(), Hl(), Ic(), Ns()
+Cohesion: 0.15
+Nodes (3): Go(), Ic(), Ns()
 
-### Community 248 - "_without_webview"
-Cohesion: 0.25
-Nodes (4): test_api_works_without_pywebview(), test_desktop_import_failure_names_the_extra(), test_native_dialogs_refuse_without_pywebview(), _without_webview()
+### Community 249 - "pl"
+Cohesion: 0.09
+Nodes (5): jl(), pl, Ul(), xc(), Yl()
 
 ### Community 251 - "issue-flow — PR queue sync (`/iflow-pr-sync`)"
 Cohesion: 0.29
@@ -1081,10 +1054,6 @@ Nodes (6): Constraints, Input, Instructions, issue-flow — PR queue sync (`/ifl
 Cohesion: 0.29
 Nodes (7): 4. Exporting data and figures, "kaleido is installed" and "figure export works" are different facts, Matching the chart, in practice, The figure, The numbers, Where to go next, Whole cells
 
-### Community 253 - "5. Configuration"
-Cohesion: 0.29
-Nodes (7): 5. Configuration, Changing settings, Credentials, The layers, The relative-path trap, Where to go next, Which file actually won, and where each value came from
-
 ### Community 254 - "Issue #81: Keep CE summary panel order consistent (prefer CE on top)"
 Cohesion: 0.29
 Nodes (6): Acceptance criteria, Issue #81: Keep CE summary panel order consistent (prefer CE on top), Original issue text, Out of scope, Problem / context, Spec
@@ -1093,49 +1062,41 @@ Nodes (6): Acceptance criteria, Issue #81: Keep CE summary panel order consisten
 Cohesion: 0.15
 Nodes (12): Bn(), Gi(), Gn(), Ln(), Oe(), Re(), _t(), te() (+4 more)
 
-### Community 261 - "drive"
-Cohesion: 0.29
-Nodes (4): drive(), test_no_tool_returns_a_frame(), steps(), test_the_whole_arc_over_the_protocol()
-
 ### Community 263 - "issue-flow — ops / no-PR (`/iflow-ops`)"
 Cohesion: 0.33
 Nodes (5): Constraints, Instructions, issue-flow — ops / no-PR (`/iflow-ops`), MODEL & EXECUTION DIRECTIVE, Resolve project root (multi-root workspaces)
 
-### Community 264 - ".emplaceBack"
-Cohesion: 0.12
-Nodes (7): bl(), ch(), dh(), Ku(), lu(), ou(), zh()
+### Community 264 - "Ku"
+Cohesion: 0.15
+Nodes (3): eh(), Ku(), Qu()
 
 ### Community 265 - "2. Cells into a Collection"
-Cohesion: 0.33
-Nodes (6): 2. Cells into a Collection, Collecting, polars here, pandas there, Two things that fail quietly, What a Collection is, Where to go next
+Cohesion: 0.29
+Nodes (7): 2. Cells into a Collection, Collecting, Grouping and averaging, polars here, pandas there, Two things that fail quietly, What a Collection is, Where to go next
 
 ### Community 266 - "7. What cellpy will and will not do for you"
 Cohesion: 0.33
 Nodes (6): 7. What cellpy will and will not do for you, cellpy does not do these, and probably should not, cellpy owns these — do not reimplement them, Currently worth working around, How to keep the list shrinking, The shape that turned out right
 
 ### Community 267 - "Library"
-Cohesion: 0.09
-Nodes (5): file_stat(), Library, test_group_average_singleton_traces_on_correct_facet(), test_grouped_summary_renders(), test_spread_traces_keep_useful_hover()
+Cohesion: 0.07
+Nodes (9): Issue #27 status — Iterative fixes: group average checkbox, Iterative fixes log, file_stat(), Library, test_group_average_keeps_singleton_traces(), test_group_average_singleton_traces_on_correct_facet(), test_grouped_summary_renders(), test_spread_traces_keep_useful_hover() (+1 more)
 
-### Community 268 - "Issue #38: Use cellpy label builders for summary/cycle axis titles"
-Cohesion: 0.33
-Nodes (5): Acceptance criteria, Issue #38: Use cellpy label builders for summary/cycle axis titles, Original issue text, Out of scope, Spec
+### Community 269 - "_apply_y_ranges"
+Cohesion: 0.08
+Nodes (18): Approach, Constraints, Files to touch, Goal, Issue #60 plan — summary y_ranges facet miss, Open questions, Test strategy, Alternatives considered (+10 more)
 
-### Community 269 - "Summary plot y-scales (#2, #54)"
-Cohesion: 0.33
-Nodes (3): Alternatives considered, Context, Summary plot y-scales (#2, #54)
-
-### Community 270 - "Mn"
-Cohesion: 0.18
-Nodes (3): An(), Mn(), setMaxBounds()
-
-### Community 276 - "test_index_click_and_show_targets_exist"
-Cohesion: 0.33
-Nodes (3): _component_names(), _free_identifiers(), test_index_click_and_show_targets_exist()
+### Community 272 - "o"
+Cohesion: 0.07
+Nodes (13): a(), a(), c(), l(), f(), u(), r(), s() (+5 more)
 
 ### Community 277 - "test_ingest.py"
 Cohesion: 0.10
 Nodes (12): _client(), test_adapter_load_raw_pec(), test_ingest_bad_instrument_400(), test_ingest_example_neware(), test_instruments_endpoint(), test_load_file_passes_remote_uri(), test_load_file_remote_missing_raises(), test_load_raw_passes_instrument() (+4 more)
+
+### Community 280 - "mcp/server.py"
+Cohesion: 0.16
+Nodes (5): _client_config_path(), _index(), _install(), search_api(), _summarise()
 
 ### Community 285 - "Building on cellpy"
 Cohesion: 0.50
@@ -1157,13 +1118,13 @@ Nodes (3): Issue #86 — Status, Remaining work, What's done
 Cohesion: 0.50
 Nodes (4): lt(), P(), tr(), Wt()
 
-### Community 291 - "setStyle"
-Cohesion: 0.67
-Nodes (4): _diffStyle(), setStyle(), _updateDiff(), _updateStyle()
+### Community 293 - "ht"
+Cohesion: 0.06
+Nodes (4): o(), ht(), resolveURL(), sendAsync()
 
 ### Community 304 - "test_starter.py"
-Cohesion: 0.05
-Nodes (16): python_blocks(), test_the_code_in_this_guide_runs(), test_there_are_guides_to_run(), starter(), test_a_column_the_cells_lack_is_refused_not_drawn_empty(), test_adding_a_plot_is_one_line(), test_it_stays_small_enough_to_read(), test_the_dependency_header_covers_every_import() (+8 more)
+Cohesion: 0.09
+Nodes (8): starter(), test_a_column_the_cells_lack_is_refused_not_drawn_empty(), test_adding_a_plot_is_one_line(), test_it_stays_small_enough_to_read(), test_the_dependency_header_covers_every_import(), test_the_whole_arc(), test_voltage_curves_are_a_different_collector(), with_cell()
 
 ### Community 305 - "test_journal.py"
 Cohesion: 0.25
@@ -1174,19 +1135,19 @@ Cohesion: 0.27
 Nodes (10): B(), Ce(), fe(), Fn(), k(), $n(), Ne(), xt() (+2 more)
 
 ## Knowledge Gaps
-- **647 isolated node(s):** `docker-entrypoint.sh script`, `cellpy-simple-gui`, `PLOTLY_CONFIG`, `RECENT_KINDS`, `Persistence` (+642 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2181 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **110 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **667 isolated node(s):** `docker-entrypoint.sh script`, `cellpy-simple-gui`, `PLOTLY_CONFIG`, `RECENT_KINDS`, `Persistence` (+662 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2210 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **69 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `$` connect `$` to `_render`, `ni`, `ss`, `i`, `e`, `vn`, `wo`, `.getPitch`, `k`, `ur`, `na`, `.constructor`, `oa`, `eu`, `.push`, `_update`, `I`, `.createVertexBuffer`, `N`, `m`, `Dt`, `yr`, `.render`, `resize`, `hi`, `.reset`, `CyclesPlotSpec`, `issue-flow — version bump`, `fa`, `di`, `.renderLayer`, `.parse`, `ti`, `.evaluate`, `s`, `k`, `ah`, `ii`, `.get`, `b`, `gh`, `.add`, `Xt`, `.constructor`, `Si`, `alpine.min.js`, `Do`, `ea`, `ve`, `.convert`, `la`, `.populate`, `.draw`, `Ei`, `oi`, `ht`, `ee`, `ho`, `.outputDefined`, `yi`, `ri`, `Kt`, `gr`, `ft`, `.load`, `So`, `Ga`, `Uc`, `._updateWorkerData`, `Za`, `bt`, `va`, `vi`, `fo`, `.getRenderableIds`, `Po`, `th`, `Ic`, `wn`, `gn`, `En`, `Zi`, `ya`, `rh`, `pl`, `da`, `Xe`, `.getZoom`, `_t`, `Pt`, `ca`, `Ki`, `.emplaceBack`, `Mn`, `.mousePos`, `jr`, `ro`, `se`, `qn`, `pi`, `Ft`, `getImage`, `xc`, `P`, `setStyle`, `ln`, `sendAsync`, `wi`, `jh`?**
-  _High betweenness centrality (0.442) - this node is a cross-community bridge._
-- **Why does `gh()` connect `gh` to `issue-flow — iflow smart dispatcher (`/iflow`)`, `i`, `issue-flow — ops / no-PR (`/iflow-ops`)`, `$`, `.emplaceBack`, `issue-flow — issue comments triage`, `issue-flow — issue plan (`/iflow-plan`)`, `issue-flow — issue close (`/iflow-close`)`, `Cursor issue workflow (Agent Skills)`, `Development information`, `Original issue text`, `issue-flow — issue cycle (`/iflow-cycle`)`, `Instructions`, `Instructions`, `issue-flow — create a normal issue (`/iflow-issue`)`, `issue-flow — epic planning (`/iflow-epic`)`, `.cancel`, `issue-flow — issue yolo (`/iflow-yolo`)`, `Instructions`, `cellpy-simple-gui`, `.status`, `collect`, `issue-flow — issue build (`/iflow-build`)`, `issue-flow — issue cleanup (`/iflow-cleanup`)`, `issue-flow — harness init (`/iflow-init`)`, `issue-flow — PR queue sync (`/iflow-pr-sync`)`, `issue-flow — doctor (`.issueflows/` health) (`/iflow-doctor`)`, `issue-flow — issue pause (`/iflow-pause`)`?**
-  _High betweenness centrality (0.222) - this node is a cross-community bridge._
-- **Why does `layout()` connect `CyclesPlotSpec` to `$`, `CellRecord`, `ea`?**
-  _High betweenness centrality (0.141) - this node is a cross-community bridge._
+- **Why does `$` connect `$` to `ni`, `ss`, `i`, `e`, `vn`, `wo`, `k`, `yr`, `na`, `.constructor`, `oa`, `.get`, `k`, `xi`, `I`, `.createVertexBuffer`, `.resume`, `N`, `m`, `Dt`, `bn`, `resize`, `hi`, `.reset`, `issue-flow — version bump`, `fa`, `.renderLayer`, `.parse`, `ti`, `.evaluate`, `s`, `de`, `ah`, `ii`, `layout`, `.push`, `gh`, `.add`, `.constructor`, `Si`, `alpine.min.js`, `Do`, `qi`, `mh`, `wn`, `.draw`, `Ei`, `kn`, `oi`, `te`, `ho`, `Hl`, `ri`, `Kt`, `gr`, `ft`, `.load`, `.clone`, `tt`, `bt`, `Ic`, `En`, `pl`, `Xe`, `_t`, `Ki`, `Ku`, `Mn`, `o`, `fo`, `se`, `qn`, `Xt`, `P`, `ht`, `wi`, `jh`?**
+  _High betweenness centrality (0.454) - this node is a cross-community bridge._
+- **Why does `gh()` connect `gh` to `issue-flow — iflow smart dispatcher (`/iflow`)`, `i`, `issue-flow — ops / no-PR (`/iflow-ops`)`, `$`, `issue-flow — issue comments triage`, `.get`, `issue-flow — issue plan (`/iflow-plan`)`, `issue-flow — issue close (`/iflow-close`)`, `Cursor issue workflow (Agent Skills)`, `Development information`, `.resume`, `issue-flow — review and label issues (`/iflow-review`)`, `Instructions`, `api/jobs.py`, `Instructions`, `issue-flow — create a normal issue (`/iflow-issue`)`, `Prior art`, `issue-flow — epic planning (`/iflow-epic`)`, `.cancel`, `issue-flow — issue yolo (`/iflow-yolo`)`, `Instructions`, `cellpy-simple-gui`, `.status`, `issue-flow — issue build (`/iflow-build`)`, `issue-flow — harness init (`/iflow-init`)`, `mh`, `issue-flow — PR queue sync (`/iflow-pr-sync`)`, `issue-flow — doctor (`.issueflows/` health) (`/iflow-doctor`)`, `issue-flow — issue pause (`/iflow-pause`)`?**
+  _High betweenness centrality (0.230) - this node is a cross-community bridge._
+- **Why does `layout()` connect `layout` to `$`, `.evaluate`, `collect.py`, `cellpy pain-points & wishlist (from building cellpy-simple-gui)`?**
+  _High betweenness centrality (0.167) - this node is a cross-community bridge._
 - **Are the 45 inferred relationships involving `$` (e.g. with `J()` and `Jt()`) actually correct?**
   _`$` has 45 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 132 inferred relationships involving `e()` (e.g. with `u()` and `r()`) actually correct?**

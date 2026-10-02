@@ -62,12 +62,14 @@ _THEME_TOKENS: dict[str, dict[str, str]] = {
 # --------------------------------------------------------------------------- #
 
 
-def _batch(records: list[CellRecord]):
-    """Build a cellpy ``Batch`` from library records (labels/groups/selection)."""
-    cells: dict[str, object] = {}
-    groups: dict[str, int] = {}
-    selected: dict[str, bool] = {}
-    group_labels: dict[int, str] = {}
+def batch_keys(records: list[CellRecord]) -> list[str]:
+    """The ``cell`` label each record gets in a collected frame, in order.
+
+    This is the key :func:`_batch` hands to cellpy, so anything that filters a
+    collection by cell (compare mode, #169) must derive labels here rather than
+    re-implement the rule and drift.
+    """
+    keys: list[str] = []
     seen: dict[str, int] = {}
     for rec in records:
         key = rec.label or rec.name or rec.id
@@ -76,6 +78,17 @@ def _batch(records: list[CellRecord]):
             key = f"{key} ({seen[key]})"
         else:
             seen[key] = 1
+        keys.append(key)
+    return keys
+
+
+def _batch(records: list[CellRecord]):
+    """Build a cellpy ``Batch`` from library records (labels/groups/selection)."""
+    cells: dict[str, object] = {}
+    groups: dict[str, int] = {}
+    selected: dict[str, bool] = {}
+    group_labels: dict[int, str] = {}
+    for key, rec in zip(batch_keys(records), records, strict=True):
         cells[key] = rec.cell
         groups[key] = rec.group
         selected[key] = rec.selected
@@ -539,6 +552,46 @@ def select_ica_direction(collection, direction: str):
     return collection
 
 
+#: The cycle column differs between the collected curve frames: cellpy's
+#: cycles frame says ``cycle_num``, the ICA / DVA frames say ``cycle``.
+_CYCLE_COLUMNS = ("cycle_num", "cycle")
+
+
+def restrict_to_cycle_pairs(collection, pairs: set[tuple[str, int]]):
+    """Keep only the ``(cell label, cycle)`` rows in ``pairs`` (#169).
+
+    cellpy collects one ``cycles`` list for the whole batch, so "cycle 3 of A
+    and cycle 7 of B" is collected as the union and narrowed here — the same
+    in-place move as :func:`select_ica_direction`, so the plot and the export
+    see identical rows. Labels are the ones :func:`batch_keys` produces.
+    Best-effort: an unexpected frame is left alone with a warning.
+    """
+    data = getattr(collection, "data", None)
+    if data is None or getattr(data, "height", 0) == 0:
+        return collection
+    cycle_col = next((c for c in _CYCLE_COLUMNS if c in data.columns), None)
+    if cycle_col is None or "cell" not in data.columns:
+        log.warning(
+            "collected frame has no cell/cycle columns (%s) - compare filter skipped",
+            list(data.columns),
+        )
+        return collection
+    try:
+        import polars as pl
+
+        wanted = pl.DataFrame(
+            {
+                "cell": [cell for cell, _ in pairs],
+                cycle_col: [int(cycle) for _, cycle in pairs],
+            },
+            schema={"cell": pl.Utf8, cycle_col: data.schema[cycle_col]},
+        )
+        collection.data = data.join(wanted, on=["cell", cycle_col], how="semi")
+    except Exception:  # noqa: BLE001 - fall back to the full union
+        log.warning("could not restrict collection to picked cycles", exc_info=True)
+    return collection
+
+
 # --------------------------------------------------------------------------- #
 # Figures (Collection.plot -> cellpy.plotting -> plotly) + app restyle
 # --------------------------------------------------------------------------- #
@@ -759,6 +812,7 @@ def figure_json(
     spread: bool = False,
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
+    overlay: bool = False,
     **plot_kwargs,
 ) -> str:
     # spread (mean ± std band) only makes sense once actually group-averaged.
@@ -776,6 +830,12 @@ def figure_json(
         fig = collection.plot(spread=spread, **opts)
         if spread:
             _add_spread_hover(fig)
+        if overlay:
+            # Before _restyle so legend truncation and the colorway see the
+            # final "<cell> · cycle n" names (#169).
+            fig = _overlay_facets(
+                fig, height=opts["height_per_panel"] + opts["figure_border_height"]
+            )
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         if y_ranges:
             _apply_y_ranges(fig, y_ranges)
@@ -1058,6 +1118,140 @@ def _tidy_facet_annotations(fig) -> None:
         text = getattr(ann, "text", None)
         if isinstance(text, str) and text.startswith("variable="):
             ann.text = text.split("=", 1)[1]
+
+
+#: Default Plotly colorway, used when a figure's template carries none.
+_FALLBACK_COLORWAY = (
+    "#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A",
+    "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52",
+)
+
+
+def _trace_cell_label(tr, facet_labels: dict[tuple[str, str], str]) -> str:
+    """Which cell a per-cell facet trace belongs to.
+
+    Plotly Express writes ``cell=<label>`` into every trace's hovertemplate,
+    which is exact. The facet strip annotation is the fallback.
+    """
+    ht = str(getattr(tr, "hovertemplate", None) or "")
+    for part in ht.split("<br>"):
+        if part.startswith("cell="):
+            label = part.split("=", 1)[1].split("<", 1)[0].strip()
+            if label:
+                return label
+    key = (str(getattr(tr, "xaxis", None) or "x"), str(getattr(tr, "yaxis", None) or "y"))
+    return facet_labels.get(key, "")
+
+
+def _facet_labels_by_axes(fig) -> dict[tuple[str, str], str]:
+    """Facet strip text per ``(xaxis, yaxis)`` pair, matched on axis domain.
+
+    PX positions each strip annotation at the horizontal centre and top of its
+    facet, so the pair whose domains contain that point owns the label.
+    """
+    out: dict[tuple[str, str], str] = {}
+    axes = fig.to_dict().get("layout", {})
+    annotations = getattr(fig.layout, "annotations", None) or ()
+    for key in _facet_traces(fig):
+        x_id, y_id = key
+        x_dom = axes.get(_layout_key_for_x_id(x_id), {}).get("domain") or [0, 1]
+        y_dom = axes.get(_layout_key_for_y_id(y_id), {}).get("domain") or [0, 1]
+        for ann in annotations:
+            try:
+                ax, ay = float(ann.x), float(ann.y)
+            except (TypeError, ValueError):
+                continue
+            if x_dom[0] - 1e-6 <= ax <= x_dom[1] + 1e-6 and abs(ay - y_dom[1]) < 0.02:
+                out[key] = str(ann.text or "")
+                break
+    return out
+
+
+def _layout_key_for_x_id(x_id: str) -> str:
+    return "xaxis" if x_id == "x" else f"xaxis{x_id[1:]}"
+
+
+def _overlay_label(cell: str, series: str, limit: int = _LEGEND_NAME_LIMIT) -> str:
+    """``"<cell> · cycle <n>"`` that still fits the legend after truncation.
+
+    :func:`_shorten_legend` cuts long names from the right, which would drop the
+    cycle — the one part that differs between two curves of the same cell — so
+    the cell label is what gets shortened.
+    """
+    # cellpy names "both"-direction traces "<n>, charge" / "<n>, discharge";
+    # keep the half-cycle visible without it eating the whole legend width.
+    series = series.replace(", discharge", " dchg").replace(", charge", " chg")
+    suffix = f" · cycle {series}" if series else ""
+    room = max(6, limit - len(suffix))
+    return _truncate_label(cell, room) + suffix
+
+
+def _overlay_facets(fig, *, height: int | None = None):
+    """Fold a cellpy ``per_cell`` facet figure onto one axis pair (#169).
+
+    cellpy's collected layouts both facet (``per_cell`` / ``per_cycle``); there
+    is no overlay, and its colours follow the *cycle number*, so cycle 3 of two
+    cells would draw in the same colour on one axis. This keeps cellpy's traces
+    and data untouched and rewrites only the presentation: every trace moves to
+    ``x``/``y`` and gets its own legend entry (``"<cell> · cycle <n>"``, full
+    identity still in the PX hovertemplate), colours run sequentially through
+    the colorway, and the facet strips and extra axes go. Returns a new figure.
+    """
+    import plotly.graph_objects as go
+
+    facet_labels = _facet_labels_by_axes(fig)
+    raw = fig.to_dict()
+    layout = raw.get("layout", {})
+
+    x_title = y_title = None
+    for key, axis in layout.items():
+        if not isinstance(axis, dict):
+            continue
+        text = (axis.get("title") or {}).get("text")
+        if text and key.startswith("xaxis") and x_title is None:
+            x_title = text
+        if text and key.startswith("yaxis") and y_title is None:
+            y_title = text
+
+    colorway = (
+        (layout.get("template") or {}).get("layout", {}).get("colorway")
+        or layout.get("colorway")
+        or _FALLBACK_COLORWAY
+    )
+
+    traces = []
+    for i, tr in enumerate(fig.data):
+        d = tr.to_plotly_json()
+        cell = _trace_cell_label(tr, facet_labels)
+        series = str(d.get("name") or "")
+        d["name"] = _overlay_label(cell, series)
+        # Short and unique: a legend click mutes exactly this curve, and
+        # _shorten_legend never truncates it into a neighbour's group.
+        d["legendgroup"] = f"c{i}"
+        d["showlegend"] = True
+        d["xaxis"] = "x"
+        d["yaxis"] = "y"
+        color = colorway[i % len(colorway)]
+        line = d.get("line")
+        d["line"] = {**(line if isinstance(line, dict) else {}), "color": color}
+        marker = d.get("marker")
+        if isinstance(marker, dict):
+            d["marker"] = {**marker, "color": color}
+        traces.append(d)
+
+    new_layout = {
+        k: v
+        for k, v in layout.items()
+        if not k.startswith(("xaxis", "yaxis")) and k not in ("annotations", "grid", "width")
+    }
+    new_layout["xaxis"] = {"anchor": "y", "domain": [0, 1], "title": {"text": x_title or ""}}
+    new_layout["yaxis"] = {"anchor": "x", "domain": [0, 1], "title": {"text": y_title or ""}}
+    legend = dict(new_layout.get("legend") or {})
+    legend["title"] = {"text": "Cell · cycle"}
+    new_layout["legend"] = legend
+    if height:
+        new_layout["height"] = height
+    return go.Figure(data=traces, layout=new_layout)
 
 
 def _hex_to_rgba(color: str, alpha: float = 0.28) -> str:

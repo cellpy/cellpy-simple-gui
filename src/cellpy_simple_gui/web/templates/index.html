@@ -510,15 +510,51 @@
                 <option value="cycleinfo" x-show="devMode">Raw + step/cycle info</option>
               </select>
             </div>
-            <div class="ctl" x-show="cell.plotKind !== 'raw'">
+            <!-- Compare mode (#169): several cells, each with its own cycles,
+                 on one axis pair or side by side. Collected curve kinds only;
+                 raw / cycle-info stay single-cell. -->
+            <label class="chk" x-show="!cellIsRawKind && cells.length > 1"
+                   title="Pick several cells, each with its own cycles, and draw them together">
+              <input type="checkbox" x-model="cell.compare" @change="onCompareToggle()" />
+              Compare cells
+            </label>
+            <div class="ctl" x-show="cellCompareActive">
+              <label>Layout</label>
+              <select x-model="cell.compareLayout" @change="plotCell()">
+                <option value="overlay">Overlay</option>
+                <option value="per_cell">Side by side</option>
+              </select>
+            </div>
+            <div class="ctl picks" x-show="cellCompareActive">
+              <label>Cells &amp; cycles</label>
+              <template x-for="(p, i) in cell.picks" :key="p.key">
+                <div class="pick-row" :title="p.min ? `cycles ${p.min}–${p.max}` : ''">
+                  <!-- x-model applies before the nested x-for has rendered the
+                       options, so a row created with its cell_id already set would
+                       display the first option; re-apply once the options exist. -->
+                  <select x-model="p.cell_id" @change="onPickCellChange(i)" aria-label="Cell"
+                          x-init="$nextTick(() => { $el.value = p.cell_id })">
+                    <template x-for="c in cells" :key="c.id">
+                      <option :value="c.id" x-text="c.label"></option>
+                    </template>
+                  </select>
+                  <input type="text" class="num pick-cycles" x-model="p.cyclesText"
+                         placeholder="1, 3, 5-9" aria-label="Cycles" @change="plotCell()" />
+                  <button class="mini danger pick-remove" @click="removePick(i)"
+                          :disabled="cell.picks.length <= 1" title="Remove this cell">✕</button>
+                </div>
+              </template>
+              <button class="mini" @click="addPick()" :disabled="cell.picks.length >= 8">+ Add cell</button>
+            </div>
+            <div class="ctl" x-show="cell.plotKind !== 'raw' && !cellCompareActive">
               <label>Cycles from</label>
               <input type="number" class="num" x-model.number="cell.from" :min="cell.min" :max="cell.max" @change="plotCell()" />
             </div>
-            <div class="ctl" x-show="cell.plotKind !== 'raw'">
+            <div class="ctl" x-show="cell.plotKind !== 'raw' && !cellCompareActive">
               <label>to</label>
               <input type="number" class="num" x-model.number="cell.to" :min="cell.min" :max="cell.max" @change="plotCell()" />
             </div>
-            <div class="ctl" x-show="cell.plotKind !== 'raw'">
+            <div class="ctl" x-show="cell.plotKind !== 'raw' && !cellCompareActive">
               <label>max curves</label>
               <input type="number" class="num" x-model.number="cell.maxCurves" min="1" max="40" @change="plotCell()" />
             </div>
