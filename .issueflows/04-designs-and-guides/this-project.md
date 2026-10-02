@@ -80,12 +80,14 @@ No ruff/formatter gate is configured in `pyproject.toml` yet — do not invent o
 
 ## Release & version bump
 
-**Static version (uv).** `[project] version` lives in `pyproject.toml`
-(currently `0.1.0`). Bump with:
-
-```bash
-uv version --bump <level>   # major | minor | patch | alpha | beta | rc | …
-```
+**Static version, single source.** `__version__` in
+`src/cellpy_simple_gui/__init__.py` is the only place the version lives;
+`pyproject.toml` declares `dynamic = ["version"]` and reads it from there
+(`[tool.hatch.version]`), so `uv version --bump` does **not** apply — edit the
+string by hand. The release routine (bump → PR → tag `v<version>` on `main` →
+`publish.yml` / `container.yml` / `release.yml`) is in `docs/releasing.md`;
+`publish.yml` refuses a tag that disagrees with `__version__`. Releases so far:
+0.1.0, 0.1.1, 0.2.0.
 
 There is no `HISTORY.md` yet — `/iflow-close` changelog updates are skipped
 until one exists at the repo root. No git-tag-derived versioning.
