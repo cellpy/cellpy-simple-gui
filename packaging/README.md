@@ -226,3 +226,24 @@ the app returns the 503 that names the real cause, so this degrades honestly.
 The installer is unsigned, so SmartScreen warns on first run. That is a
 certificate purchase, not a build change; `docs/windows-installer.md` says so
 plainly and prices it.
+
+## What the continuous build added (#168)
+
+The build now runs in CI twice over: on a `v*` tag for the release, and on
+every code change to `main` for a rolling `continuous` prerelease. One recipe
+serves both — `.github/workflows/windows-installer.yml`, a reusable workflow —
+so the two installers cannot be built two different ways. See
+[`docs/releasing.md`](../docs/releasing.md) for how the rolling release is
+refreshed and why its tag is force-moved.
+
+**Two versions, on purpose.** Inno Setup's `VersionInfoVersion` is the Win32
+version resource and `ISCC` rejects anything that is not `a.b.c[.d]` there. A
+build from `main` wants to say which commit it is, so `installer.iss` takes two
+defines: `AppVersion` (numeric, from `__init__.py`, feeds the resource) and an
+optional `BuildId` (`main.abc1234`) that goes only into the *display* version,
+`0.1.1+main.abc1234`. A tagged build passes no `BuildId` and is byte-for-byte
+what it was before. Locally: `pwsh packaging/build_installer.ps1 -BuildId main.abc1234`.
+
+`AppId` is deliberately the same for both, so a continuous build installed over
+a release (or the reverse) upgrades the single install rather than sitting
+beside it.

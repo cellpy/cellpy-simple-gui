@@ -38,6 +38,27 @@ against the release page is a more meaningful check than SmartScreen anyway.
 
 ---
 
+## Downloading
+
+Two installers are kept on the
+[releases page](https://github.com/cellpy/cellpy-simple-gui/releases):
+
+| | where | what you get |
+|---|---|---|
+| **Released** | [latest release](https://github.com/cellpy/cellpy-simple-gui/releases/latest) → `cellpy-simple-gui-<version>-setup.exe` | A tagged version, also on PyPI and GHCR. Start here. |
+| **Newest** | [`continuous`](https://github.com/cellpy/cellpy-simple-gui/releases/tag/continuous) → [`cellpy-simple-gui-continuous-setup.exe`](https://github.com/cellpy/cellpy-simple-gui/releases/download/continuous/cellpy-simple-gui-continuous-setup.exe) | Whatever is on `main` right now, rebuilt on every code change. It passed the same smoke test a release does, but nobody has used it for a week yet. |
+
+The newest build shows up in *Add or remove programs* as e.g.
+`0.1.1+main.abc1234` — the released version it was built on, plus the commit.
+Its release notes name the commit and date.
+
+**They replace each other.** Both installers share one application id, so
+installing the newest build over a release — or a release over the newest build
+— upgrades the one install rather than creating a second one. Your projects
+are untouched either way.
+
+---
+
 ## Installing
 
 Run `cellpy-simple-gui-<version>-setup.exe` and click through. It installs to:

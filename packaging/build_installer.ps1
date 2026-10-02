@@ -11,13 +11,20 @@
     failure #117 exists to catch. Shipping an installer around an untested
     bundle just moves the discovery to a user.
 
+.PARAMETER BuildId
+    Optional build id appended to the *display* version, e.g. "main.abc1234" —
+    what CI passes for the rolling `continuous` release (#168). Reproduces
+    that installer locally; leave it off for a release build.
+
 .EXAMPLE
     pwsh packaging/build_installer.ps1
     pwsh packaging/build_installer.ps1 -Version 0.2.0 -SkipSmokeTest
+    pwsh packaging/build_installer.ps1 -BuildId "main.$(git rev-parse --short=7 HEAD)"
 #>
 [CmdletBinding()]
 param(
     [string]$Version = "",
+    [string]$BuildId = "",
     [switch]$SkipBuild,
     [switch]$SkipSmokeTest
 )
@@ -27,14 +34,17 @@ $Root = Split-Path -Parent $PSScriptRoot
 Push-Location $Root
 try {
     if (-not $Version) {
-        $pyproject = Get-Content "pyproject.toml" -Raw
-        if ($pyproject -match '(?m)^version\s*=\s*"([^"]+)"') {
+        # __init__.py is the single source of the version ([tool.hatch.version]);
+        # pyproject.toml declares it dynamic and has no literal to read.
+        $init = Get-Content "src\cellpy_simple_gui\__init__.py" -Raw
+        if ($init -match '__version__\s*=\s*"([^"]+)"') {
             $Version = $Matches[1]
         } else {
-            throw "Could not read version from pyproject.toml; pass -Version."
+            throw "Could not read __version__ from src\cellpy_simple_gui\__init__.py; pass -Version."
         }
     }
-    Write-Host "Building $Version" -ForegroundColor Cyan
+    $label = if ($BuildId) { "$Version+$BuildId" } else { $Version }
+    Write-Host "Building $label" -ForegroundColor Cyan
 
     if (-not $SkipBuild) {
         Write-Host "==> PyInstaller" -ForegroundColor Cyan
@@ -66,7 +76,9 @@ try {
     }
 
     Write-Host "==> Inno Setup" -ForegroundColor Cyan
-    & $iscc "/DAppVersion=$Version" "packaging\installer.iss"
+    $defines = @("/DAppVersion=$Version")
+    if ($BuildId) { $defines += "/DBuildId=$BuildId" }
+    & $iscc @defines "packaging\installer.iss"
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed." }
 
     $setup = Get-ChildItem "dist\installer\*.exe" | Sort-Object LastWriteTime | Select-Object -Last 1
