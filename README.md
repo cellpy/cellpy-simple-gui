@@ -16,6 +16,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/cellpy-simple-gui/"><img alt="PyPI" src="https://img.shields.io/pypi/v/cellpy-simple-gui?color=2f6fde&label=PyPI" /></a>
+  <a href="https://github.com/cellpy/cellpy-simple-gui/releases/latest"><img alt="Latest release (Windows installer)" src="https://img.shields.io/github/v/release/cellpy/cellpy-simple-gui?color=1f8f6b&label=Windows%20installer&logo=windows&logoColor=white" /></a>
   <img alt="Python ≥ 3.13" src="https://img.shields.io/badge/python-%E2%89%A5%203.13-3776ab?logo=python&logoColor=white" />
   <a href="https://github.com/jepegit/cellpy"><img alt="cellpy ≥ 2.1" src="https://img.shields.io/badge/cellpy-%E2%89%A5%202.1-1f8f6b" /></a>
   <a href="https://github.com/cellpy/cellpy-simple-gui/actions/workflows/essential-tests.yml"><img alt="Essential tests" src="https://github.com/cellpy/cellpy-simple-gui/actions/workflows/essential-tests.yml/badge.svg" /></a>
@@ -23,6 +24,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/cellpy/cellpy-simple-gui/releases/latest"><b>Download</b></a> ·
   <a href="#install"><b>Install</b></a> ·
   <a href="#quick-start-from-a-clone"><b>Quick start</b></a> ·
   <a href="#features"><b>Features</b></a> ·
@@ -30,6 +32,12 @@
   <a href="#building-your-own-cellpy-app"><b>Build your own</b></a> ·
   <a href="docs/"><b>Docs</b></a>
 </p>
+
+> **Get it:** Windows users — grab the installer from the
+> [**latest release**](https://github.com/cellpy/cellpy-simple-gui/releases/latest)
+> (no Python, no admin; the [newest build from `main`](https://github.com/cellpy/cellpy-simple-gui/releases/tag/continuous)
+> is there too). Everyone else — `uv tool install "cellpy-simple-gui[desktop]"`.
+> Details under [Install](#install).
 
 <p align="center">
   <img src="docs/img/demo.gif" width="100%" alt="Demo: load the bundled demo cells, group them, open the cell explorer, import a raw Neware file through the Add cells dialog, and switch to the light theme" />
