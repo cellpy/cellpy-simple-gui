@@ -152,7 +152,8 @@ Two heavier routes, if you would rather not have Python in the picture:
 - **Windows installer** — 178 MB, no admin, Start-menu entry. Download the
   [latest release](https://github.com/cellpy/cellpy-simple-gui/releases/latest),
   or the [newest build from `main`](https://github.com/cellpy/cellpy-simple-gui/releases/tag/continuous)
-  (rebuilt on every code change). See [`docs/windows-installer.md`](docs/windows-installer.md).
+  (rebuilt on every code change). Each installer is also a `.zip` of that same
+  file, for machines that block an `.exe` download. See [`docs/windows-installer.md`](docs/windows-installer.md).
 - **Container** — `docker compose up`. See [`docs/deployment.md`](docs/deployment.md).
 
 ---

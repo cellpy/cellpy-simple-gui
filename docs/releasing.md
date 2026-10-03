@@ -142,7 +142,7 @@ The tag triggers three workflows:
 |---|---|
 | `publish.yml` | sdist + wheel → PyPI |
 | `container.yml` | image → `ghcr.io/cellpy/cellpy-simple-gui` |
-| `release.yml` | Windows installer + sdist + wheel + `SHA256SUMS` → the GitHub Release |
+| `release.yml` | Windows installer, the same installer as a `.zip`, sdist + wheel + `SHA256SUMS` → the GitHub Release |
 
 The publish job **refuses to run if the tag and `__version__` disagree**, because
 a wrong version cannot be corrected after upload.

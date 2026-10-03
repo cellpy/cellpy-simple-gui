@@ -85,6 +85,8 @@ jobs:
           exe="$(find artifacts -type f -name '*.exe' | head -n 1)"
           [ -n "$exe" ] || { echo "::error::no installer in the artifact"; exit 1; }
           cp "$exe" "release/$ASSET_NAME"
+          # Same installer, as a zip, for machines that refuse an .exe download (#173).
+          python packaging/zip_installer.py release
           cd release
           sha256sum * > SHA256SUMS
           echo "--- release payload ---"
@@ -101,6 +103,8 @@ jobs:
           when="$(git log -1 --format=%cI "$GITHUB_SHA")"
           short="${GITHUB_SHA::7}"
           download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${CONTINUOUS_TAG}/${ASSET_NAME}"
+          asset_zip="${ASSET_NAME%.exe}.zip"
+          download_zip="https://github.com/${GITHUB_REPOSITORY}/releases/download/${CONTINUOUS_TAG}/${asset_zip}"
           cat > notes.md <<EOF
           **This is the newest code on \`main\`, not a release.** It is rebuilt on
           every code change and may be broken in ways a release would not be. For
@@ -113,10 +117,13 @@ jobs:
           | Committed | ${when} |
           | Version | \`${VERSION}+${BUILD_ID}\` (what *Add or remove programs* will show) |
           | Download | [\`${ASSET_NAME}\`](${download}) — this link never changes |
+          | Zip | [\`${asset_zip}\`](${download_zip}) — the same installer, when \`.exe\` downloads are blocked |
 
           ## Install
 
-          Windows, no Python needed: download \`${ASSET_NAME}\` below. It
+          Windows, no Python needed: download \`${ASSET_NAME}\` below, or
+          \`${asset_zip}\` when a download of \`.exe\` files is blocked (it
+          contains that same installer). It
           installs per-user — no admin prompt — and uninstalls cleanly without
           touching your projects. Installing it over a released version (or a
           release over it) **replaces** the install; the two do not sit side by
