@@ -608,18 +608,26 @@ def _index() -> list[dict]:
     return entries
 
 
-#: ``See :func:`cellpy.readers.capacity_curves.get_cap` `` and friends.
-_REFERENCE = re.compile(r":(?:func|meth|obj|class):`~?([\w.]+)`")
+#: Sphinx ``:func:`...` `` and the plain ``See `cellpy.a.b` `` form used
+#: since the cellpy 2.1.5 docstring rewrite. A double-backtick span is a
+#: literal, not a hop, so it is left alone.
+_REFERENCE = re.compile(
+    r"(?:"
+    r":(?:func|meth|obj|class):`~?(?P<path>[\w.]+)`"
+    r"|"
+    r"(?<!`)`(?P<path2>cellpy(?:\.[\w]+)+)`(?!`)"
+    r")"
+)
 
 
 def _follow_reference(doc: str) -> tuple[str | None, str]:
     """Resolve a Sphinx cross-reference in `doc` to the docstring it points at.
 
     This is the single biggest win in the family, and it is worth saying why.
-    `CellpyCell.get_cap` takes 23 arguments, documents none of them, and its
-    whole docstring is "Gets the capacity for the run. See
-    :func:`cellpy.readers.capacity_curves.get_cap`." The delegate documents 22
-    of its 24 in a full ``Args:`` block.
+    `CellpyCell.get_cap` points at the implementation with
+    ``See `cellpy.readers.capacity_curves.get_cap` `` (older builds used a
+    Sphinx ``:func:`` role and documented none of the arguments themselves).
+    The delegate still carries the full ``Args:`` block.
 
     So the documentation is not missing — it is one hop away, behind a marker
     that only a docs *site* resolves. Anyone reading the docstring where it is
@@ -632,7 +640,7 @@ def _follow_reference(doc: str) -> tuple[str | None, str]:
     match = _REFERENCE.search(doc)
     if not match:
         return None, ""
-    target = match.group(1)
+    target = match.group("path") or match.group("path2")
     if target.split(".")[0] not in API_ROOTS:
         return None, ""
     try:
