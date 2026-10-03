@@ -63,6 +63,8 @@ function app() {
     examples: [],
     filesMax: 10,
     journalPath: "",
+    // Project panel Open: add to the loaded cells instead of replacing them (#174).
+    openAppend: false,
     // Add cells modal (#136): every file source feeds a staged list that the
     // user reviews before the one primary button runs the unchanged job.
     addCells: { open: false, tab: "cellpy" },
@@ -488,7 +490,8 @@ function app() {
     },
     async loadJournalFromModal() {
       if (!this.journalPath.trim()) return;
-      await this.loadImportPath();
+      // "Add cells" means add: never replace the loaded set from here (#174).
+      await this.loadImportPath({ mode: "append" });
       if (!this.job.error) this.closeAddCells();
     },
 
@@ -620,10 +623,27 @@ function app() {
       this.dirty = false;
       await this.refreshProjects();
     },
+    /** How the next Open treats the loaded cells: replace them, or append (#174). */
+    _openMode() {
+      return this.openAppend && this.cells.length ? "append" : "replace";
+    },
+    /** Replacing a non-empty library is destructive — say so and ask first. */
+    _confirmReplace(mode, what) {
+      if (mode !== "replace" || !this.cells.length) return true;
+      const n = this.cells.length;
+      const loss = this.dirty ? " Unsaved changes will be lost." : "";
+      return window.confirm(
+        `Replace the ${n} loaded cell${n === 1 ? "" : "s"} with “${what}”?${loss}\n\n` +
+        "Tick “Append to the loaded cells” to keep them instead."
+      );
+    },
     async openProject() {
       if (!this.openTarget) return;
-      await this.runJob("/api/projects/open", { target: this.openTarget });
-      this.dirty = false;
+      const mode = this._openMode();
+      const name = this.projects.find((p) => p.slug === this.openTarget)?.name || this.openTarget;
+      if (!this._confirmReplace(mode, name)) return;
+      await this.runJob("/api/projects/open", { target: this.openTarget, mode });
+      if (mode === "replace") this.dirty = false;
       await this.refreshProjects();
     },
     async closeProject() {
@@ -670,7 +690,7 @@ function app() {
         this.closeAddCells();
       }
     },
-    async loadImportPath() {
+    async loadImportPath({ mode = this._openMode() } = {}) {
       const path = this.journalPath.trim();
       if (!path) return;
       let kind;
@@ -682,11 +702,12 @@ function app() {
         this.notify("error", e.message || String(e));
         return;
       }
+      if (!this._confirmReplace(mode, path)) return;
       if (kind === "project") {
-        await this.runJob("/api/projects/open", { target: path });
-        this.dirty = false;
+        await this.runJob("/api/projects/open", { target: path, mode });
+        if (mode === "replace") this.dirty = false;
       } else {
-        await this.runJob("/api/projects/load-journal", { path });
+        await this.runJob("/api/projects/load-journal", { path, mode });
       }
       if (!this.job.error) this.remember("journal", path);
       this.journalPath = "";
@@ -889,6 +910,10 @@ function app() {
         } else if (r.action === "opened") {
           this.dirty = false;
           this.notify("ok", `Opened “${r.name}” — ${cells}.`);
+        } else if (r.action === "appended") {
+          // The loaded set now differs from anything on disk.
+          this.markDirty();
+          this.notify("ok", `Appended “${r.name}” — ${cells} added to the loaded cells.`);
         } else {
           this.notify("ok", `Project “${r.name}” — ${cells}.`);
         }
