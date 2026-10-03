@@ -871,6 +871,10 @@ def figure_json(
         # cellpy ≥2.1.2 honours share_y / match_axes on the collection itself,
         # incl. the group-avg + spread path (#816/#817), so no app re-link here.
         fig = collection.plot(spread=spread, **opts)
+        # Resolve which facet axis each summary column lives on *now*: the
+        # spread hover below rewrites ``variable=<column id>`` into the pretty
+        # axis title, after which the ids are gone from the figure (#186).
+        var_to_axes = _variable_axis_map(fig) if y_ranges else None
         if spread:
             _add_spread_hover(fig)
         if overlay:
@@ -881,7 +885,7 @@ def figure_json(
             )
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         if y_ranges:
-            _apply_y_ranges(fig, y_ranges)
+            _apply_y_ranges(fig, y_ranges, var_to_axes=var_to_axes)
         else:
             _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
         _stamp_warnings(fig, warnings)
@@ -1031,12 +1035,19 @@ def _layout_key_for_y_id(y_id: str) -> str:
     return "yaxis" if y_id == "y" else f"yaxis{y_id[1:]}"
 
 
-def _apply_y_ranges(fig, y_ranges: dict) -> None:
+def _apply_y_ranges(
+    fig, y_ranges: dict, *, var_to_axes: dict[str, tuple[str, str]] | None = None
+) -> None:
     """Set per-facet ``[lo, hi]`` on the merged summary figure (#60 / #54).
 
     Prefer hover ``variable=…`` → axis map (same source as secondary remapping).
     Fall back to cellpy's facet/title resolver so spread bands (no hover
     ``variable=``) still match pretty axis titles.
+
+    ``var_to_axes`` is that map taken *before* the app rewrote any hover text;
+    :func:`figure_json` passes it because the spread hover (#40) replaces the
+    column id with the axis title, which otherwise left every range unmatched
+    on the Group avg + Spread path (#186).
 
     Either end of ``[lo, hi]`` may be null; the missing end is filled from that
     facet's trace extent (same idea as cycles/ICA ``x_range`` / ``y_range``).
@@ -1053,7 +1064,8 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
     except Exception:  # noqa: BLE001
         pass
 
-    var_to_axes = _variable_axis_map(fig)
+    if var_to_axes is None:
+        var_to_axes = _variable_axis_map(fig)
     for variable, y_range in y_ranges.items():
         if y_range is None:
             continue
