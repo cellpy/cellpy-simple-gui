@@ -87,7 +87,7 @@ No ruff/formatter gate is configured in `pyproject.toml` yet — do not invent o
 string by hand. The release routine (bump → PR → tag `v<version>` on `main` →
 `publish.yml` / `container.yml` / `release.yml`) is in `docs/releasing.md`;
 `publish.yml` refuses a tag that disagrees with `__version__`. Releases so far:
-0.1.0, 0.1.1, 0.2.0.
+0.1.0, 0.1.1, 0.2.0, 0.2.1.
 
 There is no `HISTORY.md` yet — `/iflow-close` changelog updates are skipped
 until one exists at the repo root. No git-tag-derived versioning.

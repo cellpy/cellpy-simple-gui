@@ -1,6 +1,6 @@
 # Issue #173 status
 
-- [ ] Done
+- [x] Done
 
 ## Done
 
@@ -10,4 +10,4 @@
 
 ## Remaining
 
-- Land the branch and close the GitHub issue. The zip appears on the next tag and the next `continuous` publish, not on releases that already exist.
+- None. Shipped in 0.2.1. The zip is on that tag and on later `continuous` publishes.
