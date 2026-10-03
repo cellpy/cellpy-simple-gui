@@ -386,3 +386,194 @@ def test_api_compare_export(client):
     if r.status_code == 200:
         assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
         assert "compare_2_cells.png" in r.headers["content-disposition"]
+
+
+# --------------------------------------------------------------------------- #
+# Missing / unreadable cycles are reported, not dropped (#175)
+# --------------------------------------------------------------------------- #
+
+
+def _warnings(fig: dict) -> list[str]:
+    return (fig["layout"].get("meta") or {}).get("warnings") or []
+
+
+def test_present_cycle_pairs_mirrors_restrict(two_cell_library):
+    records = two_cell_library.all()
+    label_a, label_b = collect.batch_keys(records)
+    collection = collect.cycles_collection(records, cycles=(1, 3))
+    assert collect.present_cycle_pairs(collection) == {
+        (label_a, 1), (label_a, 3), (label_b, 1), (label_b, 3),
+    }
+    collect.restrict_to_cycle_pairs(collection, {(label_b, 3)})
+    assert collect.present_cycle_pairs(collection) == {(label_b, 3)}
+
+    ica = collect.ica_collection(records, cycles=(2,), voltage_resolution=0.005)
+    assert collect.present_cycle_pairs(ica) == {(label_a, 2), (label_b, 2)}
+
+
+def test_present_cycle_pairs_unknown_frame_is_none():
+    import polars as pl
+
+    class _Coll:
+        data = pl.DataFrame({"x": [1]})
+
+    assert collect.present_cycle_pairs(_Coll()) is None
+    assert collect.present_cycle_pairs(object()) is None
+
+
+def test_compare_collection_reports_missing_cycles(picks):
+    """The 21-cycle cell lacks cycle 50: the other cell is still drawn and the
+    report names the cell, the cycle and what the cell does have."""
+    a, b = (rec for rec, _ in picks)
+    label_a, label_b = collect.batch_keys([a, b])
+    bad = [(a, [1, 3]), (b, [22, 23, 24, 30, 50])]
+    collection, reports = plotting.compare_collection(bad, _spec(bad))
+    assert collect.present_cycle_pairs(collection) == {(label_a, 1), (label_a, 3)}
+    assert [r.cell for r in reports] == [label_b]
+    assert reports[0].missing == (22, 23, 24, 30, 50)
+    assert reports[0].unreadable == ()
+    assert reports[0].available == (1, 21)
+    assert reports[0].message() == f"{label_b}: cycles 22–24, 30, 50 not in data (has 1–21)"
+
+
+def test_compare_figure_partial_missing_warns_and_draws_the_rest(picks):
+    a, b = (rec for rec, _ in picks)
+    _, label_b = collect.batch_keys([a, b])
+    bad = [(a, [1, 3]), (b, [50])]
+    fig = json.loads(plotting.compare_figure(bad, _spec(bad)))
+    assert [n.rsplit("cycle ", 1)[1] for n in (t["name"] for t in fig["data"])] == ["1", "3"]
+    assert _warnings(fig) == [f"{label_b}: cycle 50 not in data (has 1–21)"]
+    # A clean request leaves no note behind.
+    assert _warnings(json.loads(plotting.compare_figure(picks, _spec(picks)))) == []
+
+
+@pytest.mark.parametrize("kind,layout", [("voltage", "per_cell"), ("dqdv", "overlay"), ("dvdq", "overlay")])
+def test_compare_reports_for_every_kind_and_layout(picks, kind, layout):
+    a, b = (rec for rec, _ in picks)
+    _, label_b = collect.batch_keys([a, b])
+    bad = [(a, [2]), (b, [2, 40])]
+    fig = json.loads(plotting.compare_figure(bad, _spec(bad, curve_kind=kind, layout=layout)))
+    assert len(fig["data"]) == 2
+    assert _warnings(fig) == [f"{label_b}: cycle 40 not in data (has 1–21)"]
+
+
+def test_compare_all_missing_explains_instead_of_blank(picks):
+    """Every pick names a cycle its cell lacks → no 'Could not render', no
+    silent blank: the figure text says which cells lack what."""
+    a, b = (rec for rec, _ in picks)
+    label_a, label_b = collect.batch_keys([a, b])
+    bad = [(a, [400]), (b, [50])]
+    collection, reports = plotting.compare_collection(bad, _spec(bad))
+    assert collection is None and len(reports) == 2
+
+    fig = json.loads(plotting.compare_figure(bad, _spec(bad)))
+    assert fig["data"] == []
+    text = fig["layout"]["annotations"][0]["text"]
+    assert text.startswith("Nothing to draw — ")
+    assert f"{label_a}: cycle 400 not in data (has 1–304)" in text
+    assert f"{label_b}: cycle 50 not in data (has 1–21)" in text
+    assert "Could not render" not in text
+    assert len(_warnings(fig)) == 2
+
+
+def test_compare_export_all_missing_says_why(picks):
+    a, b = (rec for rec, _ in picks)
+    bad = [(a, [400]), (b, [50])]
+    with pytest.raises(ValueError, match="Nothing to export — .*cycle 400 not in data"):
+        export.compare_export(bad, _spec(bad), "csv")
+
+
+def test_compare_reports_unreadable_cycles(picks, monkeypatch):
+    """A cycle the cell *has* but that collects to no rows is 'could not be
+    read', distinct from 'not in data'. Simulated by emptying one pair."""
+    a, b = (rec for rec, _ in picks)
+    label_a, label_b = collect.batch_keys([a, b])
+    real = collect.restrict_to_cycle_pairs
+
+    def drop_a3(collection, pairs):
+        return real(collection, pairs - {(label_a, 3)})
+
+    monkeypatch.setattr(collect, "restrict_to_cycle_pairs", drop_a3)
+    bad = [(a, [1, 3]), (b, [7, 50])]
+    _, reports = plotting.compare_collection(bad, _spec(bad))
+    by_cell = {r.cell: r for r in reports}
+    assert by_cell[label_a].unreadable == (3,) and by_cell[label_a].missing == ()
+    assert by_cell[label_a].message() == f"{label_a}: cycle 3 could not be read"
+    assert by_cell[label_b].missing == (50,) and by_cell[label_b].unreadable == ()
+
+
+@pytest.mark.essential
+def test_api_compare_missing_cycles_are_reported(client):
+    a, b = _ids(client)
+    name_b = client.get(f"/api/cells/{b}/cycles").json()
+    assert name_b["max"] == 21
+
+    r = client.post(
+        "/api/plots/compare",
+        json={"picks": [{"cell_id": a, "cycles": [1, 3]}, {"cell_id": b, "cycles": [50]}]},
+    )
+    assert r.status_code == 200
+    fig = r.json()
+    assert len(fig["data"]) == 2
+    (note,) = _warnings(fig)
+    assert note.endswith(": cycle 50 not in data (has 1–21)")
+
+    r = client.post(
+        "/api/plots/compare",
+        json={"picks": [{"cell_id": a, "cycles": [400]}, {"cell_id": b, "cycles": [50]}]},
+    )
+    assert r.status_code == 200
+    fig = r.json()
+    assert fig["data"] == []
+    assert fig["layout"]["annotations"][0]["text"].startswith("Nothing to draw — ")
+    assert len(_warnings(fig)) == 2
+
+    r = client.post(
+        "/api/export/compare?fmt=csv",
+        json={"picks": [{"cell_id": a, "cycles": [400]}, {"cell_id": b, "cycles": [50]}]},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"].startswith("Nothing to export — ")
+
+
+@pytest.mark.essential
+def test_api_single_cell_explorer_reports_missing_cycles(client):
+    """The one-cell explorer views (curves / dQ/dV / dV/dQ) report too, and an
+    all-missing request is an explanation rather than cellpy's KeyError."""
+    _, b = _ids(client)
+    for url, body in (
+        ("/api/plots/cycles", {"cell_id": b, "cycles": [1, 50]}),
+        ("/api/plots/ica", {"cell_id": b, "cycles": [2, 50]}),
+        ("/api/plots/dva", {"cell_id": b, "cycles": [2, 50]}),
+    ):
+        fig = client.post(url, json=body).json()
+        assert len(fig["data"]) >= 1, url
+        (note,) = _warnings(fig)
+        assert note.endswith(": cycle 50 not in data (has 1–21)"), note
+
+    for url, body in (
+        ("/api/plots/cycles", {"cell_id": b, "cycles": [50, 51]}),
+        ("/api/plots/ica", {"cell_id": b, "cycles": [50]}),
+        ("/api/plots/dva", {"cell_id": b, "cycles": [50]}),
+    ):
+        fig = client.post(url, json=body).json()
+        assert fig["data"] == [], url
+        text = fig["layout"]["annotations"][0]["text"]
+        assert text.startswith("Nothing to draw — "), text
+        assert "Could not render" not in text
+
+
+@pytest.mark.essential
+def test_api_cycles_tab_guards_only_all_missing(client):
+    """Across several selected cells a per-cell gap is expected (no note); only
+    'no cell has any of these' is called out."""
+    fig = client.post("/api/plots/cycles", json={"cycles": [50]}).json()
+    assert len(fig["data"]) >= 1
+    assert _warnings(fig) == []
+
+    fig = client.post("/api/plots/cycles", json={"cycles": [500, 501]}).json()
+    assert fig["data"] == []
+    assert fig["layout"]["annotations"][0]["text"] == (
+        "None of the 2 selected cells has cycles 500–501."
+    )
+    assert len(_warnings(fig)) == 2

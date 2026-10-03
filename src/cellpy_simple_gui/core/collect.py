@@ -592,6 +592,30 @@ def restrict_to_cycle_pairs(collection, pairs: set[tuple[str, int]]):
     return collection
 
 
+def present_cycle_pairs(collection) -> set[tuple[str, int]] | None:
+    """The ``(cell label, cycle)`` pairs that actually have rows (#175).
+
+    The mirror of :func:`restrict_to_cycle_pairs`: after collecting, this says
+    which requested cycles survived, so the ones that did not can be reported
+    as unreadable rather than silently absent. ``None`` when the frame has no
+    cell/cycle columns to judge by (then nothing can be called unreadable).
+    """
+    data = getattr(collection, "data", None)
+    if data is None:
+        return None
+    if getattr(data, "height", 0) == 0:
+        return set()
+    cycle_col = next((c for c in _CYCLE_COLUMNS if c in data.columns), None)
+    if cycle_col is None or "cell" not in data.columns:
+        return None
+    try:
+        rows = data.select(["cell", cycle_col]).unique().rows()
+    except Exception:  # noqa: BLE001
+        log.warning("could not read collected cell/cycle pairs", exc_info=True)
+        return None
+    return {(str(cell), int(cycle)) for cell, cycle in rows if cycle is not None}
+
+
 # --------------------------------------------------------------------------- #
 # Figures (Collection.plot -> cellpy.plotting -> plotly) + app restyle
 # --------------------------------------------------------------------------- #
@@ -813,6 +837,7 @@ def figure_json(
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
     overlay: bool = False,
+    warnings: list[str] | None = None,
     **plot_kwargs,
 ) -> str:
     # spread (mean ± std band) only makes sense once actually group-averaged.
@@ -841,11 +866,28 @@ def figure_json(
             _apply_y_ranges(fig, y_ranges)
         else:
             _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
+        _stamp_warnings(fig, warnings)
         return pio.to_json(fig)
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
-            f"Could not render this plot ({exc}).", figure_theme=figure_theme
+            f"Could not render this plot ({exc}).",
+            figure_theme=figure_theme,
+            warnings=warnings,
         )
+
+
+def _stamp_warnings(fig, warnings: list[str] | None) -> None:
+    """Carry user-facing notes in ``layout.meta.warnings`` (#175).
+
+    Plotly's ``meta`` is free-form and survives ``to_json`` / ``react``, so the
+    figure endpoints keep returning a plain figure while the UI can still show
+    "cell X: cycles 22–24 not in data" next to the chart.
+    """
+    if not warnings:
+        return
+    meta = dict(fig.layout.meta or {}) if isinstance(fig.layout.meta, dict) else {}
+    meta["warnings"] = [str(w) for w in warnings]
+    fig.update_layout(meta=meta)
 
 
 def raw_figure_json(
@@ -1026,7 +1068,9 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
             log.warning("could not apply y_ranges[%r]", variable, exc_info=True)
 
 
-def _empty_figure_json(message: str, *, figure_theme: str = "light") -> str:
+def _empty_figure_json(
+    message: str, *, figure_theme: str = "light", warnings: list[str] | None = None
+) -> str:
     import plotly.graph_objects as go
 
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
@@ -1038,6 +1082,7 @@ def _empty_figure_json(message: str, *, figure_theme: str = "light") -> str:
     )
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
+    _stamp_warnings(fig, warnings)
     return pio.to_json(fig)
 
 

@@ -421,6 +421,69 @@ def test_cycles_figure_empty_selection():
     assert "layout" in fig
 
 
+# ---- cycle report (#175): pure bookkeeping, no cellpy ----
+
+
+def test_compress_ranges():
+    from cellpy_simple_gui.core.cycle_report import compress_ranges
+
+    assert compress_ranges([]) == ""
+    assert compress_ranges([5]) == "5"
+    assert compress_ranges([3, 1, 2]) == "1–3"
+    assert compress_ranges([22, 23, 24, 30, 30, 50, 51]) == "22–24, 30, 50–51"
+
+
+def test_build_reports_splits_missing_from_unreadable():
+    from cellpy_simple_gui.core.cycle_report import CycleReport, build_reports, messages
+
+    requested = {"A": [1, 3, 7], "B": [2, 50], "C": [4]}
+    available = {"A": {1, 2, 3, 4, 5, 6, 7}, "B": set(range(1, 22)), "C": {4}}
+    present = {("A", 1), ("A", 7), ("B", 2), ("C", 4)}
+    reports = build_reports(requested, available, present)
+    assert [r.cell for r in reports] == ["A", "B"]  # C delivered everything
+    assert reports[0] == CycleReport(cell="A", missing=(), unreadable=(3,), available=(1, 7))
+    assert reports[1] == CycleReport(cell="B", missing=(50,), unreadable=(), available=(1, 21))
+    assert messages(reports) == [
+        "A: cycle 3 could not be read",
+        "B: cycle 50 not in data (has 1–21)",
+    ]
+    assert reports[1].dropped == (50,)
+    assert bool(CycleReport(cell="Z")) is False
+
+
+def test_build_reports_without_a_frame_never_calls_cycles_unreadable():
+    from cellpy_simple_gui.core.cycle_report import build_reports
+
+    reports = build_reports({"A": [1, 9]}, {"A": {1, 2}}, None)
+    assert reports[0].missing == (9,) and reports[0].unreadable == ()
+    # A cell with no cycles at all: no "(has …)" hint to give.
+    (empty,) = build_reports({"E": [1]}, {"E": set()}, None)
+    assert empty.message() == "E: cycle 1 not in data"
+    # Both kinds in one cell read as two clauses.
+    (both,) = build_reports({"A": [1, 2, 9]}, {"A": {1, 2}}, {("A", 1)})
+    assert both.message() == "A: cycle 9 not in data (has 1–2); cycle 2 could not be read"
+
+
+def test_single_cell_cycles_figure_reports_missing(loaded_library):
+    """Single-cell explorer: a gap is a note, all-missing is an explanation."""
+    rec = loaded_library.all()[0]
+    (label,) = collect.batch_keys([rec])
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 900], layout="per_cell")
+    fig = json.loads(plotting.cycles_figure([rec], spec))
+    assert len(fig["data"]) >= 1
+    assert fig["layout"]["meta"]["warnings"] == [f"{label}: cycle 900 not in data (has 1–304)"]
+
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[900, 901], layout="per_cell")
+    fig = json.loads(plotting.cycles_figure([rec], spec))
+    assert fig["data"] == []
+    assert fig["layout"]["annotations"][0]["text"] == (
+        f"Nothing to draw — {label}: cycles 900–901 not in data (has 1–304)."
+    )
+
+    clean = json.loads(plotting.cycles_figure([rec], CyclesPlotSpec(cell_id=rec.id, cycles=[1])))
+    assert "warnings" not in (clean["layout"].get("meta") or {})
+
+
 def _ica_y_values(fig: dict) -> list[float]:
     """Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)."""
     import base64

@@ -112,8 +112,13 @@ def compare_export(
     picks: plotting.ComparePicks, spec: ComparePlotSpec, fmt: str
 ) -> tuple[bytes, str]:
     """Rows for exactly the picked ``(cell, cycle)`` pairs the chart shows (#169)."""
-    collection = plotting.compare_collection(picks, spec)
+    collection, reports = plotting.compare_collection(picks, spec)
     if collection is None:
+        if reports:
+            # Same wording as the chart: say which cycles the cells lack (#175).
+            raise ValueError(
+                "Nothing to export — " + "; ".join(r.message() for r in reports) + "."
+            )
         raise ValueError("Pick one or more cycles to export.")
     if spec.curve_kind in ("dqdv", "dvdq"):
         collection = collect.select_ica_direction(collection, spec.direction)
