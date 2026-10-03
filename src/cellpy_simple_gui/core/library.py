@@ -27,6 +27,11 @@ PALETTE = [
 log = logging.getLogger(__name__)
 
 
+def default_group_label(group: int) -> str:
+    """The name a group has until the user gives it one (cellpy's default too)."""
+    return f"group {int(group)}"
+
+
 def file_stat(path: str | Path) -> tuple[int, int] | None:
     """``(size, mtime_ns)`` for ``path``, or ``None`` if it cannot be read.
 
@@ -69,9 +74,18 @@ class CellRecord:
     #: True until we can prove otherwise. New cells have no on-disk copy in the
     #: project yet, so the default is the safe one: write it.
     data_dirty: bool = True
+    #: User-given name of this record's group (#187). Group names are a
+    #: library-level thing; the library stamps this snapshot onto every record
+    #: it hands out so collectors see it without extra plumbing. Empty means
+    #: "unnamed" — :func:`default_group_label` applies.
+    group_label: str = ""
 
     def color(self) -> str:
         return PALETTE[(self.group - 1) % len(PALETTE)]
+
+    def group_name(self) -> str:
+        """The group's display name: the custom label, else ``group <n>``."""
+        return self.group_label or default_group_label(self.group)
 
     def to_meta(self) -> CellMeta:
         return CellMeta(
@@ -85,6 +99,7 @@ class CellRecord:
             cycle_mode=self.cycle_mode,  # type: ignore[arg-type]
             n_cycles=self.n_cycles,
             group=self.group,
+            group_label=self.group_name(),
             label=self.label or self.name,
             selected=self.selected,
             color=self.color(),
@@ -105,6 +120,10 @@ class Library:
 
     def __init__(self) -> None:
         self._records: dict[str, CellRecord] = {}
+        # Custom group names by group number (#187). Only names the user (or a
+        # journal / manifest) set are stored; unnamed groups fall back to
+        # ``default_group_label``.
+        self._group_labels: dict[int, str] = {}
         self._counter = itertools.count(1)
         self._lock = threading.RLock()
         # Current on-disk project this library is associated with (if any).
@@ -259,6 +278,7 @@ class Library:
     def clear(self) -> None:
         with self._lock:
             self._records.clear()
+            self._group_labels.clear()
             self.project_name = None
             self.project_path = None
 
@@ -267,6 +287,45 @@ class Library:
             for r in self._records.values():
                 r.selected = selected
 
+    # -- group names (#187) ----------------------------------------------- #
+    def set_group_label(self, group: int, label: str | None) -> None:
+        """Name ``group``; an empty / whitespace label restores the default."""
+        g = int(group)
+        text = (label or "").strip()
+        with self._lock:
+            if text and text != default_group_label(g):
+                self._group_labels[g] = text
+            else:
+                self._group_labels.pop(g, None)
+
+    def group_label(self, group: int) -> str:
+        """The custom name of ``group`` (empty when it has none)."""
+        with self._lock:
+            return self._group_labels.get(int(group), "")
+
+    def group_labels(self) -> dict[int, str]:
+        """Custom names of the groups that currently hold cells."""
+        with self._lock:
+            in_use = {r.group for r in self._records.values()}
+            return {g: lbl for g, lbl in self._group_labels.items() if g in in_use}
+
+    def groups(self) -> list[dict]:
+        """One row per group in use: id, custom label, display name, size, colour."""
+        with self._lock:
+            counts: dict[int, int] = {}
+            for r in self._records.values():
+                counts[r.group] = counts.get(r.group, 0) + 1
+            return [
+                {
+                    "id": g,
+                    "label": self._group_labels.get(g, ""),
+                    "name": self._group_labels.get(g) or default_group_label(g),
+                    "n_cells": n,
+                    "color": PALETTE[(g - 1) % len(PALETTE)],
+                }
+                for g, n in sorted(counts.items())
+            ]
+
     # -- access ----------------------------------------------------------- #
     def get(self, rid: str) -> CellRecord:
         with self._lock:
@@ -274,11 +333,13 @@ class Library:
 
     def all(self) -> list[CellRecord]:
         with self._lock:
-            return list(self._records.values())
+            records = list(self._records.values())
+            for r in records:
+                r.group_label = self._group_labels.get(r.group, "")
+            return records
 
     def selected(self) -> list[CellRecord]:
-        with self._lock:
-            return [r for r in self._records.values() if r.selected]
+        return [r for r in self.all() if r.selected]
 
     def __len__(self) -> int:
         return len(self._records)

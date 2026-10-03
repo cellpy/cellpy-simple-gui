@@ -59,6 +59,7 @@ function app() {
     figureThemePref: localStorage.getItem("csg-figure-theme") || "match",
     colorScheme: localStorage.getItem("csg-color-scheme") || "cellpy",
     cells: [],
+    groups: [], // {id, label, name, n_cells, color} per group in use (#187)
     examples: [],
     filesMax: 10,
     journalPath: "",
@@ -576,9 +577,15 @@ function app() {
 
     currentCell() { return this.cells.find((c) => c.id === this.cell.cell_id); },
 
+    /** Take the library snapshot every /api/state-shaped response carries. */
+    _applyState(s) {
+      this.cells = s.cells;
+      this.groups = s.groups || [];
+    },
+
     async refreshState() {
       const s = await (await api("/api/state")).json();
-      this.cells = s.cells;
+      this._applyState(s);
       this.project = s.project;
       if (this.project && !this.saveName) this.saveName = this.project;
       // Every load job ends here, so a successful load folds the Data panel
@@ -1013,13 +1020,22 @@ function app() {
         }
       }
       const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
-      this.cells = r.state.cells;
+      this._applyState(r.state);
       this.markDirty();
       if (plot) this._replotAfterEdit();
     },
+    /** Name a group (#187); an empty name restores the default "group n". */
+    async renameGroup(id, label) {
+      const current = this.groups.find((g) => g.id === id);
+      if (current && (current.label || "") === (label || "").trim()) return;
+      const s = await (await api(`/api/groups/${id}`, { method: "POST", body: { label } })).json();
+      this._applyState(s);
+      this.markDirty();
+      this._replotAfterEdit();
+    },
     async selectAll(v) {
       const s = await (await api(`/api/cells/select?value=${v}`, { method: "POST" })).json();
-      this.cells = s.cells;
+      this._applyState(s);
       this.markDirty();
       this._replotAfterEdit();
     },
@@ -1038,7 +1054,7 @@ function app() {
     },
     async removeCell(id) {
       const s = await (await api(`/api/cells/${id}`, { method: "DELETE" })).json();
-      this.cells = s.cells;
+      this._applyState(s);
       this.markDirty();
       if (this.cell.cell_id === id) this.cell.cell_id = "";
       if (!this.cells.length) this.dataCollapsed = false;
@@ -1046,7 +1062,7 @@ function app() {
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
-      this.cells = s.cells; this.cell.cell_id = ""; this.project = s.project;
+      this._applyState(s); this.cell.cell_id = ""; this.project = s.project;
       this.dirty = false;
       this.dataCollapsed = false;
       this.dismissResult();

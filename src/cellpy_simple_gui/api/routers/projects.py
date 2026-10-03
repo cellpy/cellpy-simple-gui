@@ -134,7 +134,7 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
     try:
         # Long cellpy call — cancel cannot interrupt mid-cell; UI has Dismiss.
         # Adapter reports from_journal / per-cell batch.load progress + logs.
-        triples = cellpy_adapter.load_journal_cells(
+        triples, group_labels = cellpy_adapter.load_journal(
             path,
             progress=lambda f, m: progress.update(f, m),
         )
@@ -168,6 +168,9 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
         except Exception as exc:  # noqa: BLE001
             log.error("Journal job: failed “%s”: %s", label, exc)
             errors.append(f"{label}: {exc}")
+    # The journal's group_label column names the groups it just populated (#187).
+    for group, label in group_labels.items():
+        lib.set_group_label(group, label)
     log.info(
         "Journal job: done “%s” — %d added, %d error(s)",
         name,

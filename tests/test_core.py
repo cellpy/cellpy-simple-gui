@@ -1235,6 +1235,88 @@ def test_summary_figure_y_ranges_one_sided_with_spread(loaded_library):
     assert hi > lo
 
 
+# --------------------------------------------------------------------------- #
+# #187 — group names
+# --------------------------------------------------------------------------- #
+
+
+def test_library_group_names(loaded_library):
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    other = lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    lib.update(other.id, group=1)
+    assert lib.groups() == [
+        {"id": 1, "label": "", "name": "group 1", "n_cells": 2, "color": lib.all()[0].color()}
+    ]
+    assert all(rec.group_name() == "group 1" for rec in lib.all())
+
+    lib.set_group_label(1, "  Anodes ")
+    assert lib.group_label(1) == "Anodes"
+    assert lib.groups()[0]["label"] == "Anodes"
+    assert [rec.group_label for rec in lib.all()] == ["Anodes", "Anodes"]
+    assert [m.group_label for m in lib.metas()] == ["Anodes", "Anodes"]
+
+    # The default spelling and blanks both mean "unnamed".
+    lib.set_group_label(1, "group 1")
+    assert lib.group_label(1) == ""
+    lib.set_group_label(1, "Anodes")
+    lib.set_group_label(1, "   ")
+    assert lib.group_label(1) == ""
+
+    # Names of groups that hold no cells are not reported (nothing to save).
+    lib.set_group_label(9, "Empty")
+    assert lib.group_labels() == {}
+    lib.update(other.id, group=9)
+    assert lib.group_labels() == {9: "Empty"}
+    assert lib.metas()[1].group_label == "Empty"
+
+    lib.clear()
+    assert lib.group_label(9) == ""
+
+
+def test_group_names_reach_grouped_legend(loaded_library):
+    """cellpy names group-averaged traces after the label ``_batch`` hands it."""
+    lib = _spread_library(loaded_library)
+    lib.set_group_label(1, "Anodes")
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(plot_type="charge_capacity", group_average=True),
+        )
+    )
+    names = {tr.get("name") for tr in fig["data"]}
+    assert "Anodes" in names
+    assert "group 1" not in names
+    assert "group 2" in names  # unnamed singleton keeps cellpy's default
+
+
+def test_group_names_caption_ungrouped_legend(loaded_library):
+    """Per-cell traces of a named group get that name as legend-group title."""
+    lib = _spread_library(loaded_library)
+    lib.set_group_label(1, "Anodes")
+    records = lib.selected()
+    assert collect.group_titles(records) == {"1": "Anodes"}
+
+    fig = json.loads(
+        plotting.summary_figure(records, SummaryPlotSpec(plot_type="charge_capacity"))
+    )
+    by_group: dict[str, set[str | None]] = {}
+    for tr in fig["data"]:
+        title = (tr.get("legendgrouptitle") or {}).get("text")
+        by_group.setdefault(str(tr.get("legendgroup")), set()).add(title)
+    assert by_group["1"] == {"Anodes"}
+    assert by_group["2"] == {None}
+
+    fig = json.loads(plotting.cycles_figure(records, CyclesPlotSpec(cycles=[1])))
+    titles = {
+        (tr.get("legendgrouptitle") or {}).get("text")
+        for tr in fig["data"]
+        if str(tr.get("legendgroup")) == "1"
+    }
+    assert titles == {"Anodes"}
+
+
 def test_summary_panels_for_capacity_ce():
     panels = collect.summary_panels_for("capacity_ce", "gravimetric")
     ids = [p["id"] for p in panels]

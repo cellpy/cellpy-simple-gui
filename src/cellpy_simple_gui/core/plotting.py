@@ -66,6 +66,8 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         match_axes=spec.share_y,
         y_ranges=y_ranges,
         group_legend_muting=spec.group_legend_muting,
+        # Named groups caption their cells in the legend (#187).
+        group_titles=collect.group_titles(records),
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         # Unit-bearing titles; cellpy defaults are pretty but unit-less (§18 / #38).
@@ -178,6 +180,7 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
     common = dict(
         family_kind=_CURVE_FAMILIES.get(spec.curve_kind, "cycles"),
         group_legend_muting=spec.group_legend_muting,
+        group_titles=collect.group_titles(records),
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         x_range=spec.x_range,

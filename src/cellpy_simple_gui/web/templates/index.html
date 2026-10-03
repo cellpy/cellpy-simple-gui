@@ -180,7 +180,7 @@
                 <div class="cell-meta">
                   <span x-text="c.n_cycles + ' cyc'"></span>
                   <span x-text="fmt(c.mass) + ' mg'"></span>
-                  <span class="grp">
+                  <span class="grp" :title="c.group_label">
                     grp
                     <input type="number" min="1" class="grp-input" :value="c.group"
                            @change="updateCell(c.id, {group: parseInt($event.target.value)||1})" />
@@ -970,6 +970,19 @@
         </div>
       </div>
       <div class="modal-body">
+        <div class="mgr-groups" x-show="groups.length">
+          <span class="mgr-groups-title" title="Group names appear in plot legends and are saved with the project">Groups</span>
+          <template x-for="g in groups" :key="'grp-' + g.id">
+            <label class="mgr-group" title="Name this group — shown in plot legends, saved with the project">
+              <span class="swatch" :style="`background:${g.color}`"></span>
+              <span class="mgr-group-id" x-text="g.id"></span>
+              <input class="group-name-input" type="text" :value="g.label"
+                     :placeholder="'group ' + g.id" :data-group="g.id"
+                     @change="renameGroup(g.id, $event.target.value)" />
+              <span class="mgr-group-n" x-text="g.n_cells + (g.n_cells === 1 ? ' cell' : ' cells')"></span>
+            </label>
+          </template>
+        </div>
         <table class="cells-table">
           <thead>
             <tr>
@@ -999,7 +1012,7 @@
                          @change="updateCell(c.id, {label: $event.target.value})" />
                 </td>
                 <td class="col-num">
-                  <input type="number" min="1" class="grp-input" :value="c.group"
+                  <input type="number" min="1" class="grp-input" :value="c.group" :title="c.group_label"
                          @change="updateCell(c.id, {group: parseInt($event.target.value)||1})" />
                 </td>
                 <td class="col-num">
