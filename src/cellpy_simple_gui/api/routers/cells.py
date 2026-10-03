@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from ...core import cellpy_adapter, cellpy_config
 from ...core.library import get_library
 from ...core.models import (
+    GroupLabelUpdate,
     JournalRowUpdate,
     LoadExampleRequest,
     LoadFilesRequest,
@@ -28,6 +29,7 @@ def _state() -> dict:
         "n_cells": len(lib),
         "n_selected": len(lib.selected()),
         "n_groups": lib.n_groups(),
+        "groups": lib.groups(),
         "empty": lib.is_empty(),
         "project": lib.project_name,
     }
@@ -143,6 +145,15 @@ def update_cell(cell_id: str, update: JournalRowUpdate) -> dict:
     except KeyError:
         raise HTTPException(404, "No such cell")
     return {"cell": rec.to_meta().model_dump(), "state": _state()}
+
+
+@router.post("/groups/{group}")
+def rename_group(group: int, update: GroupLabelUpdate) -> dict:
+    """Name a group (#187). Groups are implicit — any positive number works."""
+    if group < 1:
+        raise HTTPException(400, "Group numbers start at 1")
+    get_library().set_group_label(group, update.label)
+    return _state()
 
 
 @router.post("/cells/select")

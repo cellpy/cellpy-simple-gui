@@ -129,8 +129,8 @@ FILE: README.md
 - **Cycle summary** — capacity, CE, cumulated CE, end voltages, internal resistance, C-rate, capacity loss. Gravimetric, areal, or absolute. Group mean ± std. Shared or independent y-scales.
 - **Cell explorer** — voltage–capacity, dQ/dV, dV/dQ. Compare cells, overlaid or side by side.
 - **Cycles collector** — per cycle, per cell, or film plot.
-- **Cell list** — rename, group, select, filter, sort, remove.
-- **Projects** — save and reopen the loaded cells, grouping, labels, and selection. Unsaved edits show as `name*`.
+- **Cell list** — rename, group, name the groups, select, filter, sort, remove.
+- **Projects** — save and reopen the loaded cells, grouping, group names, labels, and selection. Unsaved edits show as `name*`.
 - **Export** — CSV, Excel, Parquet, JSON; figures as PNG, SVG, PDF.
 - **Light and dark themes.**
 - **Background loading** with progress.
@@ -279,7 +279,7 @@ A project is a portable folder — move it, zip it, share it:
 
 ```
 <project>/
-├── project.json      # manifest: name, timestamps, versions, per-cell grouping/labels/selection
+├── project.json      # manifest: name, timestamps, versions, per-cell grouping/labels/selection, group names
 ├── cellpy.toml       # optional: cellpy settings pinned to this project
 └── data/
     ├── c1.cellpy     # every loaded cell saved as a self-contained cellpy file

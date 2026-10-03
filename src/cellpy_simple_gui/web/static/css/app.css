@@ -539,6 +539,30 @@ input:focus, select:focus { border-color: var(--accent); }
 .mgr-remove-all { margin-left: auto; }
 .mgr-foot-hint { margin: 0 auto 0 0; font-size: 12px; }
 .modal-body { overflow: auto; padding: 0 8px 8px; min-height: 0; flex: 1; }
+/* Group names strip (#187): one chip per group in use, name editable inline. */
+.mgr-groups {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 8px; border-bottom: 1px solid var(--line);
+}
+.mgr-groups-title {
+  font-size: 11px; color: var(--text-faint); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .4px; margin-right: 4px;
+}
+.mgr-group {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px 3px 6px; border: 1px solid var(--line); border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 80%, var(--input));
+}
+.mgr-group-id {
+  font-size: 11px; font-weight: 700; color: var(--text-faint);
+  font-variant-numeric: tabular-nums; min-width: 1.2em; text-align: right;
+}
+.mgr-group-n { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.group-name-input {
+  width: 130px; background: var(--input); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); color: var(--text); padding: 3px 8px; font-size: 13px;
+}
+.group-name-input::placeholder { color: var(--text-faint); font-style: italic; }
 .cells-table {
   width: 100%; border-collapse: collapse; font-size: 13px;
 }

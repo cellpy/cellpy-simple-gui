@@ -61,6 +61,45 @@ def test_save_open_roundtrip(loaded_library, temp_projects_root):
     assert fresh.project_name == "Round Trip"
 
 
+def test_group_names_saved_and_restored(loaded_library, temp_projects_root):
+    """Group names live in the manifest and survive save → open (#187)."""
+    import json
+
+    lib = loaded_library
+    lib.set_group_label(1, "Anodes")
+    lib.set_group_label(4, "Nobody here")  # no cell uses group 4 → not saved
+
+    manifest = projects.save_project(lib, "Named Groups")
+    assert [(g.id, g.label) for g in manifest.groups] == [(1, "Anodes")]
+    on_disk = json.loads((temp_projects_root / "named_groups" / "project.json").read_text())
+    assert on_disk["groups"] == [{"id": 1, "label": "Anodes"}]
+
+    fresh = Library()
+    projects.open_project(fresh, "Named Groups")
+    assert fresh.group_label(1) == "Anodes"
+    assert fresh.group_label(4) == ""
+    assert fresh.metas()[0].group_label == "Anodes"
+
+
+def test_manifest_without_groups_still_opens(loaded_library, temp_projects_root):
+    """Projects saved before group names existed have no ``groups`` key."""
+    import json
+
+    lib = loaded_library
+    lib.set_group_label(1, "Anodes")
+    projects.save_project(lib, "Legacy")
+    manifest_path = temp_projects_root / "legacy" / "project.json"
+    raw = json.loads(manifest_path.read_text())
+    del raw["groups"]
+    manifest_path.write_text(json.dumps(raw))
+
+    fresh = Library()
+    projects.open_project(fresh, "Legacy")
+    assert len(fresh) == 1
+    assert fresh.group_label(1) == ""
+    assert fresh.metas()[0].group_label == "group 1"
+
+
 def test_failed_resave_keeps_previous_project(loaded_library, temp_projects_root, monkeypatch):
     """Interrupted save must not wipe or corrupt the previous project on disk."""
     lib = loaded_library

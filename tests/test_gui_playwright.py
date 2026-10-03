@@ -275,3 +275,65 @@ def test_cells_modal_defers_plot_refresh_until_close(browser_page):
     modal.wait_for(state="hidden", timeout=5_000)
     page.wait_for_timeout(500)
     assert len(plot_requests) == 1, plot_requests
+
+
+# --------------------------------------------------------------------------- #
+# #187 — group names
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.e2e
+def test_cells_modal_names_groups(browser_page):
+    """The Groups strip names a group; the name reaches state and the legend."""
+    page = browser_page
+    get_library().clear()
+    page.reload(wait_until="load")
+    page.wait_for_selector(".brand-title", timeout=15_000)
+    _load_bundled_cell(page)
+
+    page.get_by_role("button", name="Manage", exact=True).click()
+    modal = page.locator(".modal[aria-labelledby='cells-manager-title']")
+    modal.wait_for(state="visible", timeout=5_000)
+    chip = modal.locator(".mgr-group").first
+    chip.wait_for(state="visible", timeout=5_000)
+    group_id = chip.locator(".mgr-group-id").inner_text().strip()
+    name_input = chip.locator(".group-name-input")
+    assert name_input.get_attribute("placeholder") == f"group {group_id}"
+    assert name_input.input_value() == ""
+
+    name_input.fill("Anodes")
+    name_input.press("Enter")
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('.cells-table .grp-input')]"
+        ".some(i => i.title === 'Anodes')",
+        timeout=10_000,
+    )
+    lib = get_library()
+    assert lib.group_label(int(group_id)) == "Anodes"
+    assert all(m.group_label == "Anodes" for m in lib.metas())
+    assert "Edits saved" in modal.locator(".mgr-foot-hint").inner_text()
+
+    # Closing redraws the summary; the named group captions its legend entry.
+    modal.get_by_role("button", name="Close", exact=True).click()
+    modal.wait_for(state="hidden", timeout=5_000)
+    page.wait_for_function(
+        "() => { const d = document.getElementById('summaryChart').data || [];"
+        " return d.some(t => t.legendgrouptitle && t.legendgrouptitle.text === 'Anodes'); }",
+        timeout=60_000,
+    )
+
+    # Blank restores the default name.
+    page.get_by_role("button", name="Manage", exact=True).click()
+    modal.wait_for(state="visible", timeout=5_000)
+    name_input = modal.locator(".mgr-group").first.locator(".group-name-input")
+    assert name_input.input_value() == "Anodes"
+    name_input.fill("")
+    name_input.press("Enter")
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('.cells-table .grp-input')]"
+        ".every(i => i.title.startsWith('group '))",
+        timeout=10_000,
+    )
+    assert lib.group_label(int(group_id)) == ""
+    modal.get_by_role("button", name="Close", exact=True).click()
+    modal.wait_for(state="hidden", timeout=5_000)

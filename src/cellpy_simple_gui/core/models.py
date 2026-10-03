@@ -81,9 +81,17 @@ class CellMeta(BaseModel):
     cycle_mode: CycleMode | None = None
     n_cycles: int = 0
     group: int = 1
+    #: Display name of the cell's group — the user's name, else ``group <n>``.
+    group_label: str = ""
     label: str = ""
     selected: bool = True
     color: str | None = None
+
+
+class GroupLabelUpdate(BaseModel):
+    """Rename one group (#187); an empty label restores ``group <n>``."""
+
+    label: str = ""
 
 
 class SummaryPlotSpec(BaseModel):

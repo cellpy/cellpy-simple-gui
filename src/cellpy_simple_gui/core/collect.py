@@ -92,8 +92,29 @@ def _batch(records: list[CellRecord]):
         cells[key] = rec.cell
         groups[key] = rec.group
         selected[key] = rec.selected
-        group_labels[rec.group] = f"group {rec.group}"
+        # cellpy names group-averaged traces after this (#187).
+        group_labels[rec.group] = rec.group_name()
     return from_cells(cells, groups=groups, selected=selected, group_labels=group_labels)
+
+
+def group_titles(records: list[CellRecord]) -> dict[str, str]:
+    """``legendgroup`` → user-given group name, for the groups that have one.
+
+    Ungrouped cellpy plots keep one trace per cell but put the group *number*
+    on ``legendgroup`` (that is what group legend muting toggles). Plotly can
+    caption such a legend group, so a named group shows its name above its
+    cells without re-plotting (#187). Unnamed groups get no caption — the
+    number alone adds nothing the swatch does not already say.
+    """
+    return {str(rec.group): rec.group_label for rec in records if rec.group_label}
+
+
+def _apply_group_titles(fig, titles: dict[str, str]) -> None:
+    for tr in fig.data:
+        group = getattr(tr, "legendgroup", None)
+        text = titles.get(str(group)) if group is not None else None
+        if text:
+            tr.legendgrouptitle = {"text": _truncate_label(text)}
 
 
 # --------------------------------------------------------------------------- #
@@ -856,6 +877,7 @@ def figure_json(
     color_scheme: str = "cellpy",
     overlay: bool = False,
     warnings: list[str] | None = None,
+    group_titles: dict[str, str] | None = None,
     **plot_kwargs,
 ) -> str:
     # spread (mean ± std band) only makes sense once actually group-averaged.
@@ -884,6 +906,8 @@ def figure_json(
                 fig, height=opts["height_per_panel"] + opts["figure_border_height"]
             )
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        if group_titles and not is_grouped(collection):
+            _apply_group_titles(fig, group_titles)
         if y_ranges:
             _apply_y_ranges(fig, y_ranges, var_to_axes=var_to_axes)
         else:
