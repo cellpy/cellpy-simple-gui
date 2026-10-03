@@ -103,6 +103,14 @@ function app() {
     job: { active: false, id: "", progress: 0, message: "", error: "" },
     _jobEs: null,
     plotBusy: { summary: false, cycles: false, cell: false },
+    // In-flight plot requests per chart (#184): the spinner stays up until the
+    // last one settles, and only the newest request may draw — a response
+    // overtaken by a later request is dropped, so a burst of edits no longer
+    // replays every intermediate figure.
+    _plotInflight: { summary: 0, cycles: 0, cell: 0 },
+    _plotSeq: { summary: 0, cycles: 0, cell: 0 },
+    // The Manage cells modal defers redraws until it closes (#184).
+    _replotOnClose: false,
     summary: {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
@@ -895,10 +903,25 @@ function app() {
     // ---- editing ----
     openCellsManager() {
       this.cellsManagerOpen = true;
+      this._replotOnClose = false;
       this.$nextTick(() => this.$refs.cellsManagerFilter?.focus());
     },
     closeCellsManager() {
+      if (!this.cellsManagerOpen) return;
       this.cellsManagerOpen = false;
+      // One redraw for the whole editing session, not one per edit (#184).
+      if (this._replotOnClose) {
+        this._replotOnClose = false;
+        this.replotCurrent();
+      }
+    },
+    /** The library changed: redraw now, or once the Manage cells modal closes. */
+    _replotAfterEdit() {
+      if (this.cellsManagerOpen) {
+        this._replotOnClose = true;
+        return;
+      }
+      this.replotCurrent();
     },
     async openCellpyConfig() {
       this.cellpyConfigOpen = true;
@@ -992,13 +1015,13 @@ function app() {
       const r = await (await api(`/api/cells/${id}/update`, { method: "POST", body })).json();
       this.cells = r.state.cells;
       this.markDirty();
-      if (plot) this.replotCurrent();
+      if (plot) this._replotAfterEdit();
     },
     async selectAll(v) {
       const s = await (await api(`/api/cells/select?value=${v}`, { method: "POST" })).json();
       this.cells = s.cells;
       this.markDirty();
-      this.replotCurrent();
+      this._replotAfterEdit();
     },
     async selectGroup() {
       const g = Number(this.cellsManagerGroup);
@@ -1011,7 +1034,7 @@ function app() {
           await this.updateCell(c.id, { selected: want }, { plot: false });
         }
       }
-      this.replotCurrent();
+      this._replotAfterEdit();
     },
     async removeCell(id) {
       const s = await (await api(`/api/cells/${id}`, { method: "DELETE" })).json();
@@ -1019,7 +1042,7 @@ function app() {
       this.markDirty();
       if (this.cell.cell_id === id) this.cell.cell_id = "";
       if (!this.cells.length) this.dataCollapsed = false;
-      this.replotCurrent();
+      this._replotAfterEdit();
     },
     async clearAll() {
       const s = await (await api("/api/cells/clear", { method: "POST" })).json();
@@ -1028,6 +1051,7 @@ function app() {
       this.dataCollapsed = false;
       this.dismissResult();
       this.cellsManagerOpen = false;
+      this._replotOnClose = false;
       Plotly.purge("summaryChart"); Plotly.purge("cyclesChart"); Plotly.purge("cellChart");
       this.replotCurrent();
     },
@@ -1049,21 +1073,37 @@ function app() {
       };
     },
     async _withPlotBusy(kind, fn) {
+      // Counted, not boolean: with several requests in flight the spinner
+      // used to vanish when the *first* one came back (#184).
+      this._plotInflight[kind]++;
       this.plotBusy[kind] = true;
       try {
         await fn();
       } catch (e) {
         console.error(e);
       } finally {
-        this.plotBusy[kind] = false;
+        this._plotInflight[kind]--;
+        if (this._plotInflight[kind] <= 0) {
+          this._plotInflight[kind] = 0;
+          this.plotBusy[kind] = false;
+        }
       }
+    },
+    /** Fetch a figure; resolves to it, or to null when a newer request for the same chart has since started (#184). */
+    async _fetchFigure(kind, url, body) {
+      const seq = ++this._plotSeq[kind];
+      const fig = await (await api(url, { method: "POST", body })).json();
+      return this._plotSeq[kind] === seq ? fig : null;
+    },
+    _drawFigure(id, fig) {
+      Plotly.react(id, fig.data, fig.layout, PLOTLY_CONFIG);
+      this._applyFigureHeight(id, fig);
+      requestAnimationFrame(() => this.relayoutCharts());
     },
     async plotSummary() {
       await this._withPlotBusy("summary", async () => {
-        const fig = await (await api("/api/plots/summary", { method: "POST", body: this.summarySpec() })).json();
-        Plotly.react("summaryChart", fig.data, fig.layout, PLOTLY_CONFIG);
-        this._applyFigureHeight("summaryChart", fig);
-        requestAnimationFrame(() => this.relayoutCharts());
+        const fig = await this._fetchFigure("summary", "/api/plots/summary", this.summarySpec());
+        if (fig) this._drawFigure("summaryChart", fig);
       });
     },
 
@@ -1118,10 +1158,8 @@ function app() {
         Plotly.purge("cyclesChart");
         return;
       }
-      const fig = await (await api("/api/plots/cycles", { method: "POST", body: this.cyclesSpec() })).json();
-      Plotly.react("cyclesChart", fig.data, fig.layout, PLOTLY_CONFIG);
-      this._applyFigureHeight("cyclesChart", fig);
-      requestAnimationFrame(() => this.relayoutCharts());
+      const fig = await this._fetchFigure("cycles", "/api/plots/cycles", this.cyclesSpec());
+      if (fig) this._drawFigure("cyclesChart", fig);
     },
     async plotCycles() {
       if (!this.nSelected) {
@@ -1324,11 +1362,10 @@ function app() {
     async _plotCellFigure() {
       if (!this.cell.cell_id) return;
       if (this.cellCompareActive) {
-        const fig = await (await api("/api/plots/compare", { method: "POST", body: this.compareSpec() })).json();
+        const fig = await this._fetchFigure("cell", "/api/plots/compare", this.compareSpec());
+        if (!fig) return;
         this.cell.notes = this._figureNotes(fig);
-        Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
-        this._applyFigureHeight("cellChart", fig);
-        requestAnimationFrame(() => this.relayoutCharts());
+        this._drawFigure("cellChart", fig);
         return;
       }
       const kind = this.cell.plotKind;
@@ -1342,11 +1379,10 @@ function app() {
         : kind === "raw" ? this.rawSpec()
         : kind === "cycleinfo" ? this.cycleInfoSpec()
         : this.cellSpec();
-      const fig = await (await api(url, { method: "POST", body })).json();
+      const fig = await this._fetchFigure("cell", url, body);
+      if (!fig) return;
       this.cell.notes = this._figureNotes(fig);
-      Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
-      this._applyFigureHeight("cellChart", fig);
-      requestAnimationFrame(() => this.relayoutCharts());
+      this._drawFigure("cellChart", fig);
     },
     async plotCell() {
       if (!this.cell.cell_id) return;
