@@ -279,6 +279,12 @@ current set there and **Open** restores it (physical quantities come from the
 `.cellpy` files, organisational metadata from the manifest). Changes in the UI
 are **not** written until you Save.
 
+Open **replaces** whatever is loaded (it asks first when cells are loaded). Tick
+**Append to the loaded cells** to add a project or batch journal to the current
+set instead: its groups are renumbered to start after the highest group already
+in use, group names travel along, and the current project stays the one you
+Save to. The journal tab of *Add cells…* always appends.
+
 That split is also why Save is quick. Re-saving reuses a `.cellpy` file whenever
 the cell it holds provably has not changed — nothing edited it since it was
 read, the file is still there, and its size and timestamp still match. Renaming

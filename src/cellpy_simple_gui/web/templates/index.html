@@ -65,7 +65,11 @@
                 <option :value="p.slug" x-text="`${p.name} · ${p.n_cells} cells`"></option>
               </template>
             </select>
-            <button class="btn btn-ghost sm" @click="openProject()" :disabled="job.active || !openTarget">Open</button>
+            <button class="btn btn-ghost sm" @click="openProject()" :disabled="job.active || !openTarget"
+                    x-text="_openMode() === 'append' ? 'Append' : 'Open'"
+                    :title="_openMode() === 'append'
+                      ? 'Add this project\'s cells to the loaded ones'
+                      : 'Replace the loaded cells with this project'">Open</button>
             <button class="btn btn-ghost sm icon" @click="refreshProjects()" :disabled="job.active"
                     title="Refresh project list" aria-label="Refresh project list">↻</button>
           </div>
@@ -74,8 +78,15 @@
                    placeholder="project.json, folder, or batch journal path" @keydown.enter="loadImportPath()" />
             <button class="btn btn-ghost sm icon" x-show="canPick" @click="pickImportFile()" :disabled="job.active"
                     title="Browse…" aria-label="Browse for a project.json or batch journal">📁</button>
-            <button class="btn btn-ghost sm" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()">Open path</button>
+            <button class="btn btn-ghost sm" @click="loadImportPath()" :disabled="job.active || !journalPath.trim()"
+                    x-text="_openMode() === 'append' ? 'Append path' : 'Open path'">Open path</button>
           </div>
+          <!-- Opening replaces the loaded cells unless told otherwise (#174). -->
+          <label class="proj-append" x-show="cells.length" x-cloak
+                 title="Keep the loaded cells and add the opened project or journal to them. Its groups are numbered after the ones already in use.">
+            <input type="checkbox" x-model="openAppend" />
+            Append to the loaded cells
+          </label>
         </div>
         <div class="proj-row">
           <span class="proj-lbl">Save</span>
@@ -87,7 +98,8 @@
           </div>
         </div>
         <p class="hint">Save writes every loaded cell into a portable project folder. Open takes a saved
-          project, a <code>project.json</code> / folder path, or a cellpy batch journal.</p>
+          project, a <code>project.json</code> / folder path, or a cellpy batch journal, and replaces the
+          loaded cells unless <i>Append</i> is ticked.</p>
       </section>
 
       <section class="panel" :class="{collapsed: dataCollapsed}">

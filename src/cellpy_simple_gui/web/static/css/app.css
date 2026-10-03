@@ -165,6 +165,12 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 .proj-ctl { display: flex; gap: 6px; align-items: center; }
 .proj-ctl select, .proj-ctl input[type="text"] { flex: 1; min-width: 0; }
+/* Open mode (#174): replace is the default; this opts into appending. */
+.proj-append {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-dim); cursor: pointer; user-select: none;
+}
+.proj-append input { margin: 0; accent-color: var(--accent); }
 .btn.sm { padding: 8px 10px; font-size: 12.5px; flex: none; white-space: nowrap; }
 .btn.sm.icon { padding: 8px 9px; font-size: 14px; }
 /* Data panel folded after a load: one line, Cells gets the height. */
