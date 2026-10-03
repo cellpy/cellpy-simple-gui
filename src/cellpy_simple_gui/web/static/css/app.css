@@ -2,43 +2,43 @@
    cellpy simple gui — design system
    ============================================================ */
 :root {
-  --accent: #4c8bf5;
-  --accent-2: #2fb6a3;
+  --accent: #1f8f6b;
+  --accent-2: #178066;
   --danger: #e4574f;
-  --radius: 12px;
-  --radius-sm: 8px;
+  --radius: 8px;
+  --radius-sm: 6px;
   --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --shadow: 0 6px 24px rgba(8, 12, 24, 0.28);
-  --shadow-sm: 0 2px 8px rgba(8, 12, 24, 0.18);
+  --shadow: 0 1px 2px rgba(16, 18, 20, 0.18);
+  --shadow-sm: none;
 }
 
-/* dark (default) */
+/* dark (default) — neutral, one teal accent (#177) */
 :root[data-theme="dark"] {
-  --bg: #0f1420;
-  --bg-2: #151c2c;
-  --panel: #1a2233;
-  --panel-2: #202b40;
-  --line: #2a3550;
-  --text: #e8edf6;
-  --text-dim: #9aa7be;
-  --text-faint: #6b7793;
-  --chip: #212c42;
-  --input: #131a28;
+  --bg: #141618;
+  --bg-2: #1b1e21;
+  --panel: #1e2124;
+  --panel-2: #262a2e;
+  --line: #34383d;
+  --text: #e7e6e4;
+  --text-dim: #a4a8ad;
+  --text-faint: #7c8186;
+  --chip: #2a2e32;
+  --input: #121416;
 }
 /* light */
 :root[data-theme="light"] {
-  --bg: #eef1f6;
-  --bg-2: #e6eaf1;
+  --bg: #f3f4f5;
+  --bg-2: #e8eaec;
   --panel: #ffffff;
-  --panel-2: #f4f6fa;
-  --line: #dfe4ec;
-  --text: #1b2333;
-  --text-dim: #5b6678;
-  --text-faint: #8b95a7;
-  --chip: #eef1f6;
+  --panel-2: #f7f8f8;
+  --line: #e1e3e5;
+  --text: #1c1f22;
+  --text-dim: #5c636b;
+  --text-faint: #8b929a;
+  --chip: #eef0f1;
   --input: #ffffff;
-  --shadow: 0 6px 20px rgba(40, 55, 90, 0.12);
-  --shadow-sm: 0 2px 8px rgba(40, 55, 90, 0.08);
+  --shadow: 0 1px 2px rgba(28, 31, 34, 0.08);
+  --shadow-sm: none;
 }
 
 * { box-sizing: border-box; }
@@ -46,7 +46,7 @@
 html, body { height: 100%; margin: 0; }
 body {
   font-family: var(--font);
-  background: radial-gradient(1200px 600px at 80% -10%, var(--bg-2), var(--bg)) fixed;
+  background: var(--bg);
   color: var(--text);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
@@ -56,8 +56,7 @@ body {
 .topbar {
   height: 56px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 18px; border-bottom: 1px solid var(--line);
-  /* Transparent so the body gradient shows through (#58). */
-  background: transparent;
+  background: var(--panel);
   position: sticky; top: 0; z-index: 20;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
@@ -83,7 +82,7 @@ body {
 .layout { display: grid; grid-template-columns: 330px 1fr; height: calc(100vh - 56px); }
 .sidebar {
   border-right: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column;
-  gap: 14px; overflow-y: auto; background: color-mix(in srgb, var(--panel) 40%, transparent);
+  gap: 14px; overflow-y: auto; background: var(--bg);
   min-height: 0;
 }
 /* min-width: 0 — allow the grid main column to shrink so a wide Plotly
@@ -104,8 +103,8 @@ body {
   flex-direction: column;
   min-height: 220px;
 }
-.panel-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--text-faint); margin: 0 0 10px; font-weight: 700; }
+.panel-title { font-size: 13px; text-transform: none; letter-spacing: 0;
+  color: var(--text); margin: 0 0 10px; font-weight: 600; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; flex: none; }
 .panel-actions { display: flex; gap: 4px; }
 
@@ -118,8 +117,8 @@ body {
 .btn:hover { border-color: var(--accent); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  border: none; color: #fff; box-shadow: var(--shadow-sm);
+  background: var(--accent);
+  border: none; color: #fff; box-shadow: none;
 }
 .btn-primary:hover { filter: brightness(1.06); }
 .btn-ghost { background: transparent; }
@@ -300,7 +299,7 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 .job-actions { display: flex; gap: 6px; flex: none; margin-left: auto; }
 .progress { height: 6px; background: var(--chip); border-radius: 999px; margin-top: 10px; overflow: hidden; }
-.progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+.progress-bar { height: 100%; background: var(--accent); transition: width .3s; }
 .spinner {
   width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--line);
   border-top-color: var(--accent); animation: spin .7s linear infinite; flex: none;
@@ -344,7 +343,7 @@ input:focus, select:focus { border-color: var(--accent); }
 .stat-lbl { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
 
 /* ---------- tabs ---------- */
-.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
 .tabs button {
   background: transparent; border: none; color: var(--text-dim); padding: 10px 16px;
   font-weight: 600; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent;
@@ -352,16 +351,16 @@ input:focus, select:focus { border-color: var(--accent); }
 .tabs button:hover { color: var(--text); }
 .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
 
-.tabpane { display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; }
+.tabpane { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
 
 /* ---------- controls row ---------- */
 .controls {
-  display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
+  display: flex; align-items: flex-end; gap: 8px 10px; flex-wrap: wrap;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 12px 14px; box-shadow: var(--shadow-sm);
+  padding: 8px 10px; box-shadow: var(--shadow-sm);
 }
-.ctl { display: flex; flex-direction: column; gap: 5px; }
-.ctl label { font-size: 11px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.ctl { display: flex; flex-direction: column; gap: 2px; }
+.ctl label { font-size: 11px; color: var(--text-faint); font-weight: 600; text-transform: none; letter-spacing: 0; }
 .ctl select, .ctl .num { min-width: 90px; }
 .num { width: 84px; }
 .yrange-inputs { display: flex; align-items: center; gap: 4px; }
@@ -416,8 +415,8 @@ input:focus, select:focus { border-color: var(--accent); }
   max-height: calc(100vh - 56px - 24px); overflow-y: auto;
 }
 .plot-sidepane-title {
-  margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
-  text-transform: uppercase; color: var(--text-faint);
+  margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--text);
 }
 .plot-sidepane .ctl { width: 100%; }
 .plot-sidepane .ctl select, .plot-sidepane .ctl .num { min-width: 0; width: 100%; }

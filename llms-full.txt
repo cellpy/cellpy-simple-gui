@@ -61,7 +61,7 @@ FILE: README.md
   <a href="https://pywebview.flowrl.com/">pywebview</a> window (or your browser).
 </sub></p>
 
-## A tour in screenshots
+## Some examples
 
 <table>
   <tr>
@@ -122,53 +122,21 @@ FILE: README.md
 
 ## Features
 
-- **Zero-setup demo** — one click loads three bundled example cells (no files needed).
-- **Load your own** `.cellpy` / legacy `.h5` files.
-- **Import raw instrument files** — Arbin `.res`, Maccor (text), Neware, PEC and more are
-  processed into cellpy cells with a metadata step (mass / area / nominal capacity / cycle
-  mode). One-click bundled raw demos too.
-- **Save & reopen projects** — explicit Save (not autosave) writes the loaded set plus
-  grouping / labels / selection into a portable project folder; reopen later. The project
-  tag shows when you have unsaved edits (`name*`), and **Close** clears the current
-  session after confirmation. Re-saving only rewrites cells whose *data* changed —
-  renaming or regrouping is roughly **10× faster** than a full write, because
-  those live in the manifest, not in the `.cellpy` files.
-- **Cycle summary** across many cells — built with cellpy's own
-  `collect_summaries` + plotting, with a **plot-type selector** (capacity + CE,
-  capacity, coulombic efficiency, cumulated CE, end voltages, internal
-  resistance, C-rate, capacity loss), a gravimetric / areal / absolute basis,
-  optional group averaging with a mean ± std spread band, and independent or
-  shared y-scales.
-- **Cell explorer** — cellpy's `collect_cycles` voltage–capacity curves for any
-  set of cycles (gravimetric / areal / absolute, method), with per-cell metric
-  tiles. Switch the same cycles to **dQ/dV** (incremental capacity) or
-  **dV/dQ** (differential voltage), charge / discharge / both. Tick **Compare
-  cells** to pick several cells, each with its own cycles (`3` here, `7, 12`
-  there), and draw them **overlaid** on one axis or side by side — same
-  controls, same exports.
-- **Cycles collector** — the same three curve types across *every selected
-  cell*, laid out per cycle or per cell, or as a **film** (density) plot.
-- **Load data lots of ways** through one **Add cells…** dialog: drop files,
-  **Browse…** (desktop) or **Upload…** (served), paste paths or **glob
-  patterns** (`*si*.h5`, capped at a configurable max), or **Find in a remote
-  folder…** — every source lands in a **staged list** you review (ready /
-  not found / check type) before one button loads it. Tabs for `.cellpy` /
-  `.h5` files, raw instrument files, and **native cellpy batch journals**
-  (`.json`); project folders open from the Project panel. Recent paths are
-  offered as suggestions. The Data panel folds away once cells are loaded.
-- **Editable cell list** (the "journal"): rename, group, select/deselect, remove —
-  plus a **Manage cells** modal (filter/sort, select-by-group, remove all).
-- **Instruments discovered from cellpy** at runtime (not hard-coded), with each
-  loader's sub-models.
-- **Clear feedback**: a result card for loads (`Loaded 3 cells · 1 skipped ▸
-  details`) and toast notifications for saves, opens, exports, and errors
-  (including corrupt journals).
-- **Background loading** with live progress (SSE) — the UI never freezes.
-- **Export** collected data to **CSV / Excel / Parquet / JSON**, and charts as
-  **PNG / SVG / PDF** from **Export ▾** (server-side via kaleido — install with
-  `uv sync --extra export`); the chart toolbar camera still saves a quick PNG.
-- **Light & dark themes.**
-- **Colorized terminal logging** via loguru (`CSG_LOG_LEVEL`, default `INFO`).
+- **Demo cells** — three bundled examples, plus bundled raw-file demos.
+- **`.cellpy` and legacy `.h5` files.**
+- **Raw instrument files** — Arbin `.res`, Maccor (text), Neware, PEC, and others. Mass, area, nominal capacity, cycle mode.
+- **Add cells** — drop, browse, upload, pasted paths, globs, or a remote folder. Staged list before load. Batch journals (`.json`).
+- **Cycle summary** — capacity, CE, cumulated CE, end voltages, internal resistance, C-rate, capacity loss. Gravimetric, areal, or absolute. Group mean ± std. Shared or independent y-scales.
+- **Cell explorer** — voltage–capacity, dQ/dV, dV/dQ. Compare cells, overlaid or side by side.
+- **Cycles collector** — per cycle, per cell, or film plot.
+- **Cell list** — rename, group, select, filter, sort, remove.
+- **Projects** — save and reopen the loaded cells, grouping, labels, and selection. Unsaved edits show as `name*`.
+- **Export** — CSV, Excel, Parquet, JSON; figures as PNG, SVG, PDF.
+- **Light and dark themes.**
+- **Background loading** with progress.
+- **Instruments** from the installed cellpy, including each loader's sub-models.
+- **Developer mode** — every summary family cellpy registers, raw traces, diagnostics (`run --dev`).
+- **Logging** — `CSG_LOG_LEVEL`, default `INFO`.
 
 ## Install
 
