@@ -48,6 +48,12 @@ Two installers are kept on the
 | **Released** | [latest release](https://github.com/cellpy/cellpy-simple-gui/releases/latest) → `cellpy-simple-gui-<version>-setup.exe` | A tagged version, also on PyPI and GHCR. Start here. |
 | **Newest** | [`continuous`](https://github.com/cellpy/cellpy-simple-gui/releases/tag/continuous) → [`cellpy-simple-gui-continuous-setup.exe`](https://github.com/cellpy/cellpy-simple-gui/releases/download/continuous/cellpy-simple-gui-continuous-setup.exe) | Whatever is on `main` right now, rebuilt on every code change. It passed the same smoke test a release does, but nobody has used it for a week yet. |
 
+Each of those downloads is also published as a `.zip` with the same name
+(`cellpy-simple-gui-<version>-setup.zip`, and
+`cellpy-simple-gui-continuous-setup.zip`). The zip contains that same
+installer. Use it when a download of `.exe` files is blocked, then extract
+and run the `.exe` inside.
+
 The newest build shows up in *Add or remove programs* as e.g.
 `0.1.1+main.abc1234` — the released version it was built on, plus the commit.
 Its release notes name the commit and date.

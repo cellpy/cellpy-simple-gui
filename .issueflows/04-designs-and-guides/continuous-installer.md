@@ -14,7 +14,8 @@ easily downloaded from GitHub".
 
 A **single rolling prerelease** under the tag `continuous`, refreshed by
 `.github/workflows/continuous.yml` on every code-affecting push to `main`,
-carrying one fixed-name asset `cellpy-simple-gui-continuous-setup.exe` plus
+carrying one fixed-name asset `cellpy-simple-gui-continuous-setup.exe`,
+the same installer as `cellpy-simple-gui-continuous-setup.zip` (#173), plus
 `SHA256SUMS`. The build itself was extracted from `release.yml` into a reusable
 `workflow_call` workflow (`windows-installer.yml`) so the tagged and the rolling
 installer share one recipe, including the #117 smoke-test gate.

@@ -11,6 +11,7 @@ import fnmatch
 import importlib.util
 import os
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -360,3 +361,42 @@ def test_release_and_continuous_share_one_installer_build():
     # The gate, not just the build.
     assert "packaging/smoke_test.py" in steps
     assert "installer.iss" in steps
+
+
+def _load_zip_installer():
+    spec = importlib.util.spec_from_file_location(
+        "_csg_zip_installer", PACKAGING / "zip_installer.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_zip_installer_wraps_each_exe(tmp_path):
+    """The zip is the installer, not a second build (#173)."""
+    exe = tmp_path / "cellpy-simple-gui-0.2.0-setup.exe"
+    exe.write_bytes(b"MZ-not-a-real-installer")
+    (tmp_path / "notes.txt").write_text("leave me", encoding="utf-8")
+
+    written = _load_zip_installer().zip_installers(tmp_path)
+
+    assert written == [tmp_path / "cellpy-simple-gui-0.2.0-setup.zip"]
+    with zipfile.ZipFile(written[0]) as archive:
+        assert archive.namelist() == ["cellpy-simple-gui-0.2.0-setup.exe"]
+        assert archive.read("cellpy-simple-gui-0.2.0-setup.exe") == b"MZ-not-a-real-installer"
+    assert (tmp_path / "notes.txt").read_text(encoding="utf-8") == "leave me"
+
+
+def test_zip_installer_refuses_a_directory_with_no_exe(tmp_path):
+    with pytest.raises(SystemExit, match="no installer exe"):
+        _load_zip_installer().zip_installers(tmp_path)
+
+
+def test_release_and_continuous_publish_the_installer_zip():
+    """Both downloadable installers offer a .zip of the same .exe (#173)."""
+    for name, job in (("release.yml", "release"), ("continuous.yml", "publish")):
+        steps = " ".join(
+            str(s.get("run", "")) for s in _workflow(name)["jobs"][job]["steps"]
+        )
+        assert "packaging/zip_installer.py release" in steps
+        assert ".zip" in steps

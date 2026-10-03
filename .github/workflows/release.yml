@@ -107,6 +107,8 @@ jobs:
           mkdir -p release
           find artifacts -type f \( -name '*.exe' -o -name '*.whl' -o -name '*.tar.gz' \) \
             -exec cp {} release/ \;
+          # Same installer, as a zip, for machines that refuse an .exe download (#173).
+          python packaging/zip_installer.py release
           cd release
           sha256sum * > SHA256SUMS
           echo "--- release payload ---"
@@ -120,6 +122,7 @@ jobs:
           set -euo pipefail
           version="${TAG#v}"
           installer="$(cd release && ls *.exe)"
+          installer_zip="${installer%.exe}.zip"
           cat > notes.md <<EOF
           ## Install
 
@@ -130,7 +133,9 @@ jobs:
           cellpy-simple-gui
           \`\`\`
 
-          **Windows, no Python needed:** download \`${installer}\` below.
+          **Windows, no Python needed:** download \`${installer}\` below,
+          or \`${installer_zip}\` when a download of \`.exe\` files is blocked.
+          The zip contains that same installer — extract it and run the \`.exe\`.
           It installs per-user — no admin prompt — and uninstalls cleanly without
           touching your projects. It is **unsigned**, so SmartScreen will warn on
           first run: *More info → Run anyway*. See
