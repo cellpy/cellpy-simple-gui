@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/collect.py": {
-    "mtime": 1791067054.1237276,
-    "seen": 1791067603.3824835,
-    "ast_hash": "d26a3529653cfa7c7fdc3eec75663bb7",
+    "mtime": 1791069990.548745,
+    "seen": 1791070386.840187,
+    "ast_hash": "a12dbd2a22763d7d8042a2374653f2c1",
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/export.py": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/plotting.py": {
-    "mtime": 1791067067.8474472,
-    "seen": 1791067603.3824885,
-    "ast_hash": "1ef99d82e28a213f4174671025f82cb4",
+    "mtime": 1791069960.1565158,
+    "seen": 1791070386.8401935,
+    "ast_hash": "1feb8c9017f9874442de7bb1f241d0b7",
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/core/projects.py": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "tests/test_core.py": {
-    "mtime": 1791067286.00767,
-    "seen": 1791067603.3824987,
-    "ast_hash": "aecb520843fad7e9883d5c3587f328c0",
+    "mtime": 1791070226.8737662,
+    "seen": 1791070386.8402061,
+    "ast_hash": "27e974e5bbf0cb0ee29f1c0299d562c7",
     "semantic_hash": ""
   },
   "tests/test_files.py": {
@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/group-legend-muting.md": {
-    "mtime": 1791060643.0,
-    "seen": 1791065546.3205237,
-    "ast_hash": "1e79847ccc03995fef653cbb68415d1b",
+    "mtime": 1791070323.5018759,
+    "seen": 1791070386.840372,
+    "ast_hash": "726b74a265c597e02fe048e922d07e42",
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/guides-upstream-candidates.md": {
@@ -1434,9 +1434,9 @@
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/plot-appearance.md": {
-    "mtime": 1791060643.0,
-    "seen": 1791065546.3205302,
-    "ast_hash": "9c3e8bff53d9dd7a04c8d8bab8727d2f",
+    "mtime": 1791070315.301872,
+    "seen": 1791070386.84038,
+    "ast_hash": "4a757c1cd15b0d31377cfa12b0d58138",
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/plot-sidepane.md": {
@@ -1500,9 +1500,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1791068806.9425354,
-    "seen": 1791068909.5690734,
-    "ast_hash": "e5bd9acf6481cb6c9f39cafaff5e29c9",
+    "mtime": 1791070341.8818808,
+    "seen": 1791070386.8403883,
+    "ast_hash": "6c5ebb7711cbca8a2ba77f6bed6fc642",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -1602,14 +1602,14 @@
     "semantic_hash": ""
   },
   "llms-full.txt": {
-    "mtime": 1791068828.4062386,
-    "seen": 1791068909.5690856,
-    "ast_hash": "918f709c48c2cab58e6b47fcc65f42b1",
+    "mtime": 1791070359.901881,
+    "seen": 1791070386.840402,
+    "ast_hash": "56d2026e43adcbf40e421ce8a651708c",
     "semantic_hash": ""
   },
   "llms.txt": {
-    "mtime": 1791068828.4062386,
-    "seen": 1791068909.5690866,
+    "mtime": 1791070359.901881,
+    "seen": 1791070386.8404026,
     "ast_hash": "52a82eefd8a8c310c58974d746398432",
     "semantic_hash": ""
   },
@@ -1971,6 +1971,24 @@
     "mtime": 1791068882.077489,
     "seen": 1791068909.5689754,
     "ast_hash": "71b3e28634b15e538c1ca55419e430e1",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue181_original.md": {
+    "mtime": 1791069828.9151945,
+    "seen": 1791070386.8402848,
+    "ast_hash": "179c1605da3dea9e393f2105fc409a7c",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue181_plan.md": {
+    "mtime": 1791069856.2875185,
+    "seen": 1791070386.8402863,
+    "ast_hash": "ca23dc0b460f0bbe058aa7cca3b4c01b",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue181_status.md": {
+    "mtime": 1791070355.1898813,
+    "seen": 1791070386.840287,
+    "ast_hash": "ec765f7e3352c5a86a56a23bf64ea1d8",
     "semantic_hash": ""
   }
 }
