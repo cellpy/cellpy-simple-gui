@@ -100,6 +100,71 @@ def test_manifest_without_groups_still_opens(loaded_library, temp_projects_root)
     assert fresh.metas()[0].group_label == "group 1"
 
 
+def _two_saved_projects(loaded_library, temp_projects_root):
+    """Save the loaded cell as “First” (group 1) and again as “Second” (group 2, named)."""
+    lib = loaded_library
+    rec = lib.all()[0]
+    lib.update(rec.id, group=1, label="first-cell")
+    projects.save_project(lib, "First")
+    lib.update(rec.id, group=2, label="second-cell")
+    lib.set_group_label(2, "Second's group")
+    projects.save_project(lib, "Second")
+
+
+def test_open_replaces_loaded_cells_by_default(loaded_library, temp_projects_root):
+    """Open without a mode clears what was loaded — the long-standing behaviour (#174)."""
+    _two_saved_projects(loaded_library, temp_projects_root)
+
+    lib = Library()
+    projects.open_project(lib, "First")
+    lib.set_group_label(1, "Will be dropped")
+    projects.open_project(lib, "Second")
+    assert [r.label for r in lib.all()] == ["second-cell"]
+    assert [r.group for r in lib.all()] == [2]
+    assert lib.group_label(1) == ""
+    assert lib.group_label(2) == "Second's group"
+    assert lib.project_name == "Second"
+
+
+def test_open_append_keeps_cells_and_renumbers_groups(loaded_library, temp_projects_root):
+    """Append keeps the loaded cells; incoming groups start above the ones in use (#174)."""
+    _two_saved_projects(loaded_library, temp_projects_root)
+
+    lib = Library()
+    projects.open_project(lib, "First")
+    lib.update(lib.all()[0].id, group=3)  # highest group in use is now 3
+    lib.set_group_label(3, "Mine")
+    projects.open_project(lib, "Second", mode="append")
+
+    labels = [r.label for r in lib.all()]
+    assert labels == ["first-cell", "second-cell"]
+    # Second's group 2 lands at 3 + 2 = 5, its name travels with it.
+    assert [r.group for r in lib.all()] == [3, 5]
+    assert lib.group_label(3) == "Mine"
+    assert lib.group_label(5) == "Second's group"
+    assert lib.group_label(2) == ""
+    # The current project association is the one that was already open.
+    assert lib.project_name == "First"
+    assert lib.project_path and lib.project_path.endswith("first")
+
+
+def test_open_append_into_empty_library_is_an_open(loaded_library, temp_projects_root):
+    _two_saved_projects(loaded_library, temp_projects_root)
+
+    lib = Library()
+    projects.open_project(lib, "Second", mode="append")
+    assert [r.group for r in lib.all()] == [2]
+    assert lib.group_label(2) == "Second's group"
+    assert lib.project_name == "Second"
+
+
+def test_group_offset_for_append(loaded_library):
+    lib = loaded_library
+    assert Library().group_offset_for_append() == 0
+    lib.update(lib.all()[0].id, group=7)
+    assert lib.group_offset_for_append() == 7
+
+
 def test_failed_resave_keeps_previous_project(loaded_library, temp_projects_root, monkeypatch):
     """Interrupted save must not wipe or corrupt the previous project on disk."""
     lib = loaded_library
@@ -373,6 +438,48 @@ def test_api_save_and_open(temp_projects_root):
     state = client.get("/api/state").json()
     assert state["n_cells"] == 1
     assert state["project"] == "API Proj"
+
+
+def test_api_open_mode_replace_vs_append(temp_projects_root):
+    """``mode`` decides whether an open replaces or appends; groups renumber (#174)."""
+    get_library().clear()
+    client = TestClient(create_app())
+    client.headers.update({"X-CSG-Token": get_settings().token})
+
+    snap = _wait(client, client.post("/api/load/example", json={"kinds": ["cellpy"]}).json()["job_id"])
+    if snap["status"] != "done":
+        pytest.skip("example data unavailable")
+    cell_id = client.get("/api/state").json()["cells"][0]["id"]
+    client.post(f"/api/cells/{cell_id}/update", json={"id": cell_id, "group": 1})
+    client.post("/api/groups/1", json={"label": "Saved group"})
+    assert _wait(client, client.post("/api/projects/save", json={"name": "Mode Proj"}).json()["job_id"])["status"] == "done"
+
+    # Loaded cell in group 4 + append → the project's group 1 becomes 5.
+    client.post(f"/api/cells/{cell_id}/update", json={"id": cell_id, "group": 4})
+    snap = _wait(client, client.post(
+        "/api/projects/open", json={"target": "Mode Proj", "mode": "append"}
+    ).json()["job_id"])
+    assert snap["status"] == "done"
+    assert snap["result"]["action"] == "appended"
+    state = client.get("/api/state").json()
+    assert state["n_cells"] == 2
+    assert sorted(c["group"] for c in state["cells"]) == [4, 5]
+    assert [(g["id"], g["label"]) for g in state["groups"]] == [(4, ""), (5, "Saved group")]
+    assert state["project"] == "Mode Proj"  # the association already in place
+
+    # Default mode replaces.
+    snap = _wait(client, client.post("/api/projects/open", json={"target": "Mode Proj"}).json()["job_id"])
+    assert snap["status"] == "done"
+    assert snap["result"]["action"] == "opened"
+    state = client.get("/api/state").json()
+    assert state["n_cells"] == 1
+    assert [c["group"] for c in state["cells"]] == [1]
+    assert [(g["id"], g["label"]) for g in state["groups"]] == [(1, "Saved group")]
+
+    assert client.post(
+        "/api/projects/open", json={"target": "Mode Proj", "mode": "merge"}
+    ).status_code == 422
+    get_library().clear()
 
 
 @pytest.mark.essential

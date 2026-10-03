@@ -47,12 +47,14 @@ def _save_job(progress: Progress, name: str) -> dict:
     }
 
 
-def _open_job(progress: Progress, target: str) -> dict:
+def _open_job(progress: Progress, target: str, mode: projects.OpenMode) -> dict:
+    lib = get_library()
+    appending = mode == "append" and not lib.is_empty()
     manifest = projects.open_project(
-        get_library(), target, progress=lambda f, m: progress.update(f, m)
+        lib, target, progress=lambda f, m: progress.update(f, m), mode=mode
     )
     return {
-        "action": "opened",
+        "action": "appended" if appending else "opened",
         "name": manifest.name,
         "slug": manifest.slug,
         "n_cells": len(manifest.cells),
@@ -71,7 +73,11 @@ def save_project(name: str = Body(..., embed=True)) -> dict:
 
 
 @router.post("/projects/open")
-def open_project(target: str = Body(..., embed=True)) -> dict:
+def open_project(
+    target: str = Body(..., embed=True),
+    mode: projects.OpenMode = Body("replace", embed=True),
+) -> dict:
+    """Open a saved project — replacing the loaded cells, or appending (#174)."""
     try:
         pdir = projects.resolve_project_path(target)
     except FileNotFoundError:
@@ -79,12 +85,17 @@ def open_project(target: str = Body(..., embed=True)) -> dict:
     # A slug resolves under the data dir and is always fine; an explicit path
     # has to be checked (#120).
     guard_path(pdir)
-    log.info("Opening project “%s”", target)
-    # Switch cellpy's config here, on the request thread and *before* the load
-    # job starts: the cells must be read under this project's settings, and the
-    # config session is process-global and not thread-safe (cellpy #850).
-    project_config = cellpy_config.activate_project_config(pdir)
-    job = get_job_manager().submit("open-project", _open_job, target)
+    appending = mode == "append" and not get_library().is_empty()
+    log.info("%s project “%s”", "Appending" if appending else "Opening", target)
+    project_config = None
+    if not appending:
+        # Switch cellpy's config here, on the request thread and *before* the
+        # load job starts: the cells must be read under this project's
+        # settings, and the config session is process-global and not
+        # thread-safe (cellpy #850). An append keeps the current project — and
+        # its settings — so the incoming cells are read under those instead.
+        project_config = cellpy_config.activate_project_config(pdir)
+    job = get_job_manager().submit("open-project", _open_job, target, mode)
     return {
         "job_id": job.id,
         "project_config": str(project_config) if project_config else None,
@@ -123,13 +134,15 @@ def classify_import(path: str = Body(..., embed=True)) -> dict:
     return {"kind": kind, "path": path.strip()}
 
 
-def _load_journal_job(progress: Progress, path: str) -> dict:
+def _load_journal_job(
+    progress: Progress, path: str, mode: projects.OpenMode = "replace"
+) -> dict:
     """Always return a toastable result — never leave the UI waiting on a bare raise."""
     from ..jobs import Cancelled
 
     lib = get_library()
     name = Path(path).name
-    log.info("Journal job: start “%s”", name)
+    log.info("Journal job: start “%s” (%s)", name, mode)
     progress.check_cancel()
     try:
         # Long cellpy call — cancel cannot interrupt mid-cell; UI has Dismiss.
@@ -150,6 +163,15 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
             "No cells could be linked from that journal "
             "(are the referenced .cellpy files present?)."
         ]}
+    # Only now — with cells in hand — is it safe to drop what was loaded: a
+    # journal that fails to parse or links nothing must not wipe the library.
+    if mode == "replace":
+        lib.clear()
+        cellpy_config.deactivate_project_config()
+        offset = 0
+    else:
+        # Keep the journal's own grouping, numbered above the groups in use (#174).
+        offset = lib.group_offset_for_append()
     added, errors = [], []
     total = len(triples)
     for i, (label, cell, group) in enumerate(triples):
@@ -162,33 +184,39 @@ def _load_journal_job(progress: Progress, path: str) -> dict:
             log.info("Journal load cancelled after %d cell(s)", len(added))
             raise
         try:
-            rec = lib.restore_cell(cell, source="journal", group=group, label=label, selected=True)
+            rec = lib.restore_cell(
+                cell, source="journal", group=group + offset, label=label, selected=True
+            )
             added.append(rec.id)
-            log.info("Journal job: added %d/%d “%s” (group %s)", i + 1, total, label, group)
+            log.info("Journal job: added %d/%d “%s” (group %s)", i + 1, total, label, rec.group)
         except Exception as exc:  # noqa: BLE001
             log.error("Journal job: failed “%s”: %s", label, exc)
             errors.append(f"{label}: {exc}")
     # The journal's group_label column names the groups it just populated (#187).
     for group, label in group_labels.items():
-        lib.set_group_label(group, label)
+        lib.set_group_label(group + offset, label)
     log.info(
         "Journal job: done “%s” — %d added, %d error(s)",
         name,
         len(added),
         len(errors),
     )
-    return {"added": added, "errors": errors}
+    return {"added": added, "errors": errors, "mode": mode}
 
 
 @router.post("/projects/load-journal")
-def load_journal(path: str = Body(..., embed=True)) -> dict:
+def load_journal(
+    path: str = Body(..., embed=True),
+    mode: projects.OpenMode = Body("replace", embed=True),
+) -> dict:
+    """Load a batch journal — replacing the loaded cells, or appending (#174)."""
     if not path.strip():
         raise HTTPException(400, "A journal file path is required.")
     resolved = guard_path(path)
     if not resolved.is_file():
         raise HTTPException(404, f"No such file: {path}")
-    log.info("Loading journal %s", resolved)
-    job = get_job_manager().submit("load-journal", _load_journal_job, str(resolved))
+    log.info("Loading journal %s (%s)", resolved, mode)
+    job = get_job_manager().submit("load-journal", _load_journal_job, str(resolved), mode)
     return {"job_id": job.id}
 
 
