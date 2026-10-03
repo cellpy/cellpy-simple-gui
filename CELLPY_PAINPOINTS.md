@@ -1014,6 +1014,38 @@ to decide.
 
 ---
 
+### 37. 🟢 Collecting cycles no cell has raises instead of returning an empty frame
+
+Found fixing **missing or bad cycles not reported**
+([#175](https://github.com/cellpy/cellpy-simple-gui/issues/175)). Asking for a
+cycle a cell lacks is silent as long as *some* cell in the batch has *some*
+requested cycle — the missing rows are simply absent, which is reasonable. But
+when none of the requested cycles exist anywhere in the batch, the collectors do
+not return an empty frame; they fail downstream of the empty selection
+(cellpy 2.1.3):
+
+- `collect_cycles(batch, options=CurveOptions(cycles=(50, 51)))` → `KeyError:
+  'cycle_num'` (the frame has no columns to build the plot from);
+- `collect_ica(...)` / `collect_dva(...)` → `AttributeError: 'DataFrame' object
+  has no attribute 'cycle'`.
+
+Neither message says "no such cycle", and nothing tells the caller which cell
+lacked which cycle in the partial case either.
+
+**Workaround (app):** check the request against `cell.get_cycle_numbers()`
+*before* collecting (never collect when nothing exists), then diff the
+collected frame's `(cell, cycle)` pairs against the request afterwards to catch
+cycles that exist but yield no rows. The result is one note per cell
+("cycles 22–24 not in data (has 1–21)" / "cycle 7 could not be read") carried in
+`layout.meta.warnings` — `core/cycle_report.py`.
+
+**Wish:** an empty (correctly typed) frame from the collectors when the cycle
+selection matches nothing, and — nicer — a `collection.missing` /
+`collection.dropped_cycles` record of requested `(cell, cycle)` pairs that did
+not make it, so a UI can say so without a second pass over the data.
+
+---
+
 ## What already works well (thank-you notes)
 
 - `cellpy.get(...)` as a single entry point, with unit-string args

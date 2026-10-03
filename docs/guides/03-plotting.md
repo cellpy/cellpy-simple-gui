@@ -379,6 +379,40 @@ strips and extra axes. The app does exactly this in
 for the decision and [#169](https://github.com/cellpy/cellpy-simple-gui/issues/169)
 for the request.
 
+### Say when a cycle is not there
+
+Narrowing to picked pairs has a trap: a pair that matches nothing just
+disappears. If cell B has 21 cycles and you ask for its cycle 50, the semi-join
+drops it silently, and if *no* requested cycle exists in any cell the
+collectors do not even return an empty frame — `collect_cycles` fails with
+`KeyError('cycle_num')` and `collect_ica` / `collect_dva` with
+`AttributeError('cycle')` further down (painpoint §37). Neither message says
+"no such cycle".
+
+Check before and after collecting:
+
+```python
+requested = {"sf033": [1, 900]}                      # 900 is not in this file
+have = {"sf033": set(cell.get_cycle_numbers())}
+missing = {k: [c for c in v if c not in have[k]] for k, v in requested.items()}
+existing = sorted({c for k, v in requested.items() for c in v if c in have[k]})
+assert existing, "nothing to collect — say so instead of calling cellpy"
+
+collection = collect_cycles(batch, options=CurveOptions(cycles=tuple(existing)))
+present = set(map(tuple, collection.data.select(["cell", "cycle_num"]).unique().rows()))
+unreadable = {
+    k: [c for c in v if c in have[k] and (k, c) not in present] for k, v in requested.items()
+}
+print(missing, unreadable)                            # {'sf033': [900]} {'sf033': []}
+```
+
+"Not in data" and "could not be read" are different diagnoses — the second is a
+cycle the file lists but that yields no curve rows (a truncated or corrupted
+cycle). The app words both per cell (`core/cycle_report.py`), carries them in
+`layout.meta.warnings`, and shows them in a strip above the chart; when
+nothing can be drawn the empty figure says why
+([#175](https://github.com/cellpy/cellpy-simple-gui/issues/175)).
+
 ## Single-cell plots
 
 Two useful ones live outside the collect path, taking a cell directly:

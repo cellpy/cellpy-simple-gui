@@ -58,3 +58,36 @@ already set displays the first option. The pick-row select re-applies the value
 in `x-init="$nextTick(...)"`.
 
 Issue: https://github.com/cellpy/cellpy-simple-gui/issues/169
+
+## Addendum — missing / unreadable cycles are reported (#175)
+
+**Context.** The semi-join silently drops a `(cell, cycle)` pair that matches
+nothing, the client clamped picks to the cell's range before sending, and when
+no requested cycle existed at all cellpy raised (`KeyError('cycle_num')`,
+painpoint §37) → "nothing happened" or `Could not render this plot`.
+
+**Decision.**
+
+- No client-side clamping: `parseCycleList` keeps `≥ 1` and the 40-cap only,
+  so an out-of-range cycle reaches the server and is reported like any other.
+  The cell's range is the cycles input's placeholder instead.
+- `plotting.compare_collection` → `(collection, reports)`. Pre-check against
+  `cellpy_adapter.cycle_numbers` (never collect when nothing exists), post-check
+  `collect.present_cycle_pairs` (mirror of `restrict_to_cycle_pairs`) for
+  cycles that exist but yield no rows. `core/cycle_report.py` words it per cell:
+  `…: cycles 22–24, 50 not in data (has 1–21)` / `…: cycle 7 could not be read`.
+- Transport is `layout.meta.warnings` (Plotly free-form `meta`), so the figure
+  endpoints keep returning a plain figure and the UI reads one place. The
+  explorer shows a persistent `.plot-note` strip above `#cellChart` (a toast
+  would fade); an all-missing request renders the empty figure with
+  `Nothing to draw — …` so the message is inside the chart too.
+- Same for the one-cell explorer views (`cycles_figure` with one record,
+  `ica_figure`, `dva_figure`). The Cycles **tab** (several cells, one shared
+  cycle list) only gets the all-missing guard
+  (`None of the N selected cells has cycles …`): per-cell gaps there are
+  expected, not warnings.
+- Compare CSV: rows that exist are exported silently; all-missing → 400 with
+  the same wording. Not done: figure annotation for static exports, an
+  `X-CSG-Warnings` header for partial CSVs.
+
+Issue: https://github.com/cellpy/cellpy-simple-gui/issues/175
