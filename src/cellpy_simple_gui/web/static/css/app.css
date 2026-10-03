@@ -447,6 +447,22 @@ input:focus, select:focus { border-color: var(--accent); }
 }
 /* min-width keeps the figure readable; parent .chart-card scrolls when narrower (#63). */
 .chart { width: 100%; min-width: 560px; min-height: 420px; }
+/* Persistent "cell X: cycles 22–24 not in data" strip above the figure (#175). */
+.plot-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 0 8px; padding: 8px 12px; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.45; color: var(--text);
+  border: 1px solid color-mix(in srgb, #e0a52e 45%, var(--line));
+  background: color-mix(in srgb, #e0a52e 10%, var(--panel));
+}
+.plot-note-icon {
+  flex: none; width: 18px; height: 18px; border-radius: 50%; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #e0a52e; color: #fff; font-size: 12px; font-weight: 700;
+}
+.plot-note ul { margin: 0; padding: 0; list-style: none; min-width: 0; }
+.plot-note li { overflow-wrap: anywhere; }
+.plot-note li + li { margin-top: 2px; }
 .chart-busy {
   position: absolute; inset: 0; z-index: 2;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;

@@ -120,6 +120,8 @@ function app() {
       yRange: { min: "", max: "" },
       // Compare mode (#169): picks = [{key, cell_id, cyclesText, min, max}].
       compare: false, compareLayout: "overlay", picks: [],
+      // Server-side notes about the last figure, e.g. cycles a cell lacks (#175).
+      notes: [],
     },
     cycles: {
       layout: "per_cycle", from: 1, to: 10, maxCurves: 8, min: 1, max: 1,
@@ -1152,12 +1154,12 @@ function app() {
     },
 
     // ---- compare mode (#169) ----
-    parseCycleList(text, min, max, limit = 40) {
-      // "1, 3, 5-9" → [1, 3, 5, 6, 7, 8, 9]; clamped to the cell's cycles,
-      // de-duplicated, sorted, capped so one pick cannot flood the figure.
+    parseCycleList(text, limit = 40) {
+      // "1, 3, 5-9" → [1, 3, 5, 6, 7, 8, 9]; de-duplicated, sorted, capped so
+      // one pick cannot flood the figure. Deliberately *not* clamped to the
+      // cell's cycle range: a cycle the cell lacks must reach the server so
+      // the figure can say so, instead of vanishing on the way out (#175).
       const out = new Set();
-      const lo = Number.isFinite(min) ? min : -Infinity;
-      const hi = Number.isFinite(max) ? max : Infinity;
       for (const tok of String(text || "").split(/[,\s;]+/)) {
         if (!tok) continue;
         const m = /^(\d+)\s*[-–:]\s*(\d+)$/.exec(tok);
@@ -1166,11 +1168,14 @@ function app() {
         else if (/^\d+$/.test(tok)) { a = b = Number(tok); }
         else continue;
         if (a > b) [a, b] = [b, a];
-        a = Math.max(a, lo); b = Math.min(b, hi);
+        a = Math.max(a, 1);
         for (let c = a; c <= b && out.size < limit; c++) out.add(c);
         if (out.size >= limit) break;
       }
       return [...out].sort((x, y) => x - y);
+    },
+    pickRangeHint(p) {
+      return p.min ? `${p.min}–${p.max}` : "1, 3, 5-9";
     },
     _newPick(cell_id, cyclesText) {
       return {
@@ -1240,7 +1245,7 @@ function app() {
       return {
         picks: this.cell.picks.map((p) => ({
           cell_id: p.cell_id,
-          cycles: this.parseCycleList(p.cyclesText, p.min || undefined, p.max || undefined),
+          cycles: this.parseCycleList(p.cyclesText),
         })),
         curve_kind: kind === "dqdv" || kind === "dvdq" ? kind : "voltage",
         mode: this.cell.mode, method: this.cell.method,
@@ -1311,10 +1316,16 @@ function app() {
         ...this.appearanceFields(),
       };
     },
+    _figureNotes(fig) {
+      // Core stamps user-facing notes in layout.meta.warnings (#175).
+      const w = fig?.layout?.meta?.warnings;
+      return Array.isArray(w) ? w.map(String) : [];
+    },
     async _plotCellFigure() {
       if (!this.cell.cell_id) return;
       if (this.cellCompareActive) {
         const fig = await (await api("/api/plots/compare", { method: "POST", body: this.compareSpec() })).json();
+        this.cell.notes = this._figureNotes(fig);
         Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
         this._applyFigureHeight("cellChart", fig);
         requestAnimationFrame(() => this.relayoutCharts());
@@ -1332,6 +1343,7 @@ function app() {
         : kind === "cycleinfo" ? this.cycleInfoSpec()
         : this.cellSpec();
       const fig = await (await api(url, { method: "POST", body })).json();
+      this.cell.notes = this._figureNotes(fig);
       Plotly.react("cellChart", fig.data, fig.layout, PLOTLY_CONFIG);
       this._applyFigureHeight("cellChart", fig);
       requestAnimationFrame(() => this.relayoutCharts());
