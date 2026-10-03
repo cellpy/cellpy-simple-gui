@@ -73,6 +73,10 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         # Honour column order on long (group-avg) frames; cellpy otherwise
         # lets Plotly unique-order facets (#81 / painpoint §20).
         category_orders={"variable": list(columns)},
+        # cellpy ≥2.1.5 draws charge and discharge of one quantity on one
+        # panel. This app's y-range widgets and facet order are one panel
+        # per summary column, so keep that layout.
+        combine_directions=False,
     )
 
 

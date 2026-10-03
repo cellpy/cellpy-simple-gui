@@ -1191,28 +1191,28 @@ Crossing it is explicit and cheap — `collection.data.to_pandas()` — but do i
 the edge of your code rather than in the middle of it. The failure mode is a
 `.iloc` on a polars frame twenty minutes into a debugging session.
 
-## Two things that fail quietly
+## Two things that go wrong
 
-**A value that is not a cell is silently dropped.** `from_cells` accepts the
-mapping without validating it, and the non-cell simply does not appear
-downstream — no exception, no warning, a plot with one fewer line than you have
-cells:
+**A value that is not a cell raises.** `from_cells` refuses the mapping and
+names the bad keys ([cellpy#939](https://github.com/jepegit/cellpy/issues/939)).
+Older cellpy dropped that value with no exception, which showed up later as a
+plot with one fewer line than you have cells:
 
 ```python
-oops = from_cells({"good": cells["sf033"], "oops": example_data.rate_file()})
-collected = collect_summaries(oops, columns=("discharge_capacity_gravimetric",))
-print(collected.data["cell"].unique().to_list())
+try:
+    from_cells({"good": cells["sf033"], "oops": example_data.rate_file()})
+except ValueError as exc:
+    print(type(exc).__name__)
 ```
 
 ```text
-['good']
+ValueError
 ```
 
 `example_data.rate_file()` returns a *path*, not a cell — an easy mistake, since
-its sibling `example_data.cellpy_file()` returns a cell. A plain `42` is dropped
-just as quietly, so what you get is a chart with fewer lines than you have cells,
-which reads as a data problem rather than a type error. If you build the mapping
-from anything dynamic, check it yourself:
+its sibling `example_data.cellpy_file()` returns a cell. A plain `42` raises the
+same way. If you build the mapping from anything dynamic, check it before the
+call:
 
 ```python
 from cellpy.readers.cellreader import CellpyCell   # note: not cellpy.cellreader
@@ -3190,19 +3190,25 @@ def collection_for(plot: str, *, cycles: tuple[int, ...] = (1, 5, 10, 20)):
     if not CELLS:
         raise HTTPException(400, "Load a cell first.")
 
-    batch = from_cells(CELLS)
+    if plot == CYCLE_CURVES:
+        columns = None
+    else:
+        columns = SUMMARY_PLOTS.get(plot)
+        if columns is None:
+            raise HTTPException(404, f"No plot called {plot!r}.")
+        missing = _missing(columns)
+        if missing:
+            # Collecting a column the summary does not carry draws an empty chart
+            # rather than raising, so say it here instead.
+            raise HTTPException(400, "These cells have no " + ", ".join(missing) + ".")
+
+    try:
+        batch = from_cells(CELLS)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     if plot == CYCLE_CURVES:
         return collect_cycles(batch, options=CurveOptions(cycles=cycles))
-
-    columns = SUMMARY_PLOTS.get(plot)
-    if columns is None:
-        raise HTTPException(404, f"No plot called {plot!r}.")
-    missing = _missing(columns)
-    if missing:
-        # Collecting a column the summary does not carry draws an empty chart
-        # rather than raising, so say it here instead.
-        raise HTTPException(400, "These cells have no " + ", ".join(missing) + ".")
     return collect_summaries(batch, columns=columns)
 
 
@@ -3222,7 +3228,11 @@ def figure_json(plot: str, **kwargs) -> str:
     Two knobs worth knowing: ``group_it=True`` on the collect call averages
     cells that share a group, and ``spread=True`` here draws the ±1σ band.
     """
-    figure = collection_for(plot, **kwargs).plot()
+    # One facet per summary column, matching the two-trace walkthrough.
+    # cellpy ≥2.1.5 otherwise stacks charge and discharge on one panel and
+    # adds a Direction legend.
+    extra = {} if plot == CYCLE_CURVES else {"combine_directions": False}
+    figure = collection_for(plot, **kwargs).plot(**extra)
     return pio.to_json(figure)
 
 

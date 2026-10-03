@@ -675,7 +675,9 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
     axes = {tr.get("yaxis") or "y" for tr in fig["data"]}
     assert len(axes) >= 3
 
-    # Every facet row shows both the averaged group (1) and the singleton (2).
+    # Every facet row shows both the averaged group and the singleton.
+    # cellpy ≥2.1.5 labels those "group 1" / "group 2" when no custom
+    # group label is set; older builds used the bare id.
     groups_by_axis: dict[str, set[str]] = {}
     for tr in fig["data"]:
         lg = tr.get("legendgroup")
@@ -685,7 +687,8 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
         groups_by_axis.setdefault(ax, set()).add(str(lg))
     assert groups_by_axis
     for ax, groups in groups_by_axis.items():
-        assert {"1", "2"} <= groups, (ax, groups)
+        assert any(g in groups for g in ("1", "group 1")), (ax, groups)
+        assert any(g in groups for g in ("2", "group 2")), (ax, groups)
 
 
 def _yaxis_titles(fig: dict) -> list[str]:

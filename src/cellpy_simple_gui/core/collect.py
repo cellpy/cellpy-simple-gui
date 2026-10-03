@@ -191,10 +191,28 @@ def _family_required_columns(family: str, hdr) -> tuple[str, ...]:
 
     fam = registry.get(family)
     try:
-        return tuple(fam.summary_options(hdr).columns)
+        requested = tuple(fam.summary_options(hdr).columns)
     except Exception:  # noqa: BLE001 - fall back to the drawn names
         log.warning("family %r has no summary_options; using columns()", family, exc_info=True)
-        return tuple(fam.columns(hdr))
+        requested = tuple(fam.columns(hdr))
+    # cellpy ≥2.1.5 asks for the drawn names (``*_cv`` / ``*_non_cv``).
+    # Collect manufactures those from the base summary column, so availability
+    # is the base name (#1009).
+    inputs: list[str] = []
+    for name in requested:
+        source = _pre_collect_column(name)
+        if source not in inputs:
+            inputs.append(source)
+    return tuple(inputs)
+
+
+def _pre_collect_column(name: str) -> str:
+    """Summary column that must already exist before collect derives ``name``."""
+    if name.endswith("_non_cv"):
+        return name[: -len("_non_cv")]
+    if name.endswith("_cv"):
+        return name[: -len("_cv")]
+    return name
 
 
 def family_summary_options(family: str, records: list[CellRecord] | None = None):
