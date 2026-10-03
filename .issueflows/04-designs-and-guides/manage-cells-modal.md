@@ -21,6 +21,23 @@
   (`POST /api/export/cells?fmt=cellpy|csv|xlsx`). One cellpy/xlsx file is returned bare;
   csv (multi-file) and multi-cell exports are zipped. Reuses `download()` (desktop Save As).
 
+## Plot refresh timing (issue #184)
+
+- Edits made **inside the modal** do not redraw the chart. `updateCell` /
+  `selectAll` / `removeCell` / `selectGroup` go through `_replotAfterEdit()`,
+  which only flags `_replotOnClose` while `cellsManagerOpen`; `closeCellsManager()`
+  then calls `replotCurrent()` once. The footer says so ("Plots refresh when
+  this dialog closes." / "Edits saved — …"). Sidebar edits still redraw at once.
+- **Stale plot responses are dropped.** Each chart (`summary` / `cycles` /
+  `cell`) carries a request sequence (`_plotSeq`); `_fetchFigure` returns `null`
+  for a response overtaken by a newer request, so a burst of edits no longer
+  replays every intermediate figure. `plotBusy` is backed by an in-flight
+  counter (`_plotInflight`), so the spinner stays until the last request settles.
+- Alternatives considered: debouncing per-edit requests (still redraws while
+  the modal covers the chart; timing-dependent) and cancelling in-flight
+  fetches with `AbortController` (the server would keep computing the figure
+  anyway; sequence numbers give the same visible result with less machinery).
+
 ## UI location
 
 - Markup: `web/templates/index.html` (modal after `.layout`)

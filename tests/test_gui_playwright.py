@@ -204,3 +204,74 @@ def test_add_cells_modal_stages_and_loads(browser_page):
     page.keyboard.press("Escape")
     modal.wait_for(state="hidden", timeout=5_000)
     assert page.locator(".cell-card").count() == 1
+
+
+# --------------------------------------------------------------------------- #
+# #184 — Manage cells modal defers plot refreshes until it closes
+# --------------------------------------------------------------------------- #
+
+
+def _load_bundled_cell(page) -> None:
+    """Stage + load the bundled rate file through the Add cells modal (no network)."""
+    page.locator(".add-cells-btn").click()
+    modal = page.locator(".modal.add-cells")
+    modal.wait_for(state="visible", timeout=5_000)
+    typed = modal.get_by_label("cellpy file path or glob")
+    typed.fill(_bundled_cellpy_file())
+    typed.press("Enter")
+    modal.locator(".staged-table tbody tr").first.wait_for(state="visible", timeout=10_000)
+    modal.locator(".add-cells-foot .btn-primary").click()
+    page.wait_for_selector(".cell-card", timeout=120_000)
+    modal.wait_for(state="hidden", timeout=10_000)
+    page.wait_for_selector("#summaryChart .plot-container.plotly", timeout=60_000)
+
+
+@pytest.mark.e2e
+def test_cells_modal_defers_plot_refresh_until_close(browser_page):
+    """Edits inside Manage cells issue no plot request; Close issues exactly one."""
+    page = browser_page
+    get_library().clear()
+    page.reload(wait_until="load")
+    page.wait_for_selector(".brand-title", timeout=15_000)
+    _load_bundled_cell(page)
+
+    plot_requests: list[str] = []
+    page.on("request", lambda req: plot_requests.append(req.url) if "/api/plots/" in req.url else None)
+
+    page.get_by_role("button", name="Manage", exact=True).click()
+    modal = page.locator(".modal[aria-labelledby='cells-manager-title']")
+    modal.wait_for(state="visible", timeout=5_000)
+    assert "refresh when this dialog closes" in modal.locator(".mgr-foot-hint").inner_text()
+
+    row = modal.locator(".cells-table tbody tr").first
+    row.locator(".cell-label").fill("renamed in modal")
+    row.locator(".cell-label").press("Enter")
+    row.locator(".grp-input").fill("3")
+    row.locator(".grp-input").press("Enter")
+    modal.get_by_role("button", name="none", exact=True).click()
+    modal.get_by_role("button", name="all", exact=True).click()
+    # Every edit above is a round-trip; wait for the last to land.
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('.cell-card .cell-label')].some(i => i.value === 'renamed in modal')",
+        timeout=10_000,
+    )
+    page.wait_for_timeout(500)
+    assert plot_requests == [], plot_requests
+    assert "Edits saved" in modal.locator(".mgr-foot-hint").inner_text()
+
+    modal.get_by_role("button", name="Close", exact=True).click()
+    modal.wait_for(state="hidden", timeout=5_000)
+    for _ in range(40):
+        if plot_requests:
+            break
+        page.wait_for_timeout(250)
+    page.wait_for_timeout(1_000)
+    assert len(plot_requests) == 1 and "/api/plots/summary" in plot_requests[0], plot_requests
+
+    # Reopening without editing does not schedule a redraw.
+    page.get_by_role("button", name="Manage", exact=True).click()
+    modal.wait_for(state="visible", timeout=5_000)
+    modal.get_by_role("button", name="Close", exact=True).click()
+    modal.wait_for(state="hidden", timeout=5_000)
+    page.wait_for_timeout(500)
+    assert len(plot_requests) == 1, plot_requests
