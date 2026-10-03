@@ -1317,6 +1317,149 @@ def test_group_names_caption_ungrouped_legend(loaded_library):
     assert titles == {"Anodes"}
 
 
+# --------------------------------------------------------------------------- #
+# #181 — colour by group, shade by member, whatever legend muting does
+# --------------------------------------------------------------------------- #
+
+
+def _hue(color: str) -> float:
+    """Hue in [0, 1)."""
+    import colorsys
+
+    rgb = collect._parse_color(color)
+    assert rgb is not None, color
+    return colorsys.rgb_to_hls(*(v / 255 for v in rgb))[0]
+
+
+def _same_hue(a: str, b: str, tol: float = 0.03) -> bool:
+    """Hue equality with wraparound and slack for 8-bit hex rounding of dark/light shades."""
+    d = abs(_hue(a) - _hue(b))
+    return min(d, 1 - d) < tol
+
+
+def _line_colors(fig: dict) -> dict[str, str]:
+    """Trace name → line colour (first trace per name)."""
+    out: dict[str, str] = {}
+    for tr in fig["data"]:
+        color = (tr.get("line") or {}).get("color")
+        if tr.get("name") and color and tr["name"] not in out:
+            out[tr["name"]] = color
+    return out
+
+
+def _three_cells_two_groups(loaded_library):
+    """cellA1 + cellA2 in group 1, cellB in group 2."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    a = lib.all()[0]
+    b = lib.add_cell(cellpy_adapter.load_example("cellpy"), source="example:cellpy2")
+    c = lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    lib.update(a.id, group=1, label="cellA1")
+    lib.update(b.id, group=1, label="cellA2")
+    lib.update(c.id, group=2, label="cellB")
+    return lib
+
+
+def test_cell_groups_map(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    lib.set_group_label(2, "Cathodes")
+    assert collect.cell_groups(lib.selected()) == {
+        "cellA1": 1, "cellA2": 1, "group 1": 1, "cellB": 2, "Cathodes": 2,
+    }
+
+
+def test_shade_series():
+    assert collect._shade_series("#4C78A8", 1) == ["#4C78A8"]
+    shades = collect._shade_series("#4C78A8", 3)
+    assert len(shades) == 3 and len(set(shades)) == 3
+    assert shades[1] == "#4c78a8"  # the middle member keeps the base
+    assert all(_same_hue(s, shades[0]) for s in shades)  # same hue throughout
+    # rgb() input is understood; garbage is passed through untouched
+    assert len(set(collect._shade_series("rgb(76, 120, 168)", 2))) == 2
+    assert collect._shade_series("not-a-colour", 2) == ["not-a-colour"] * 2
+
+
+@pytest.mark.parametrize("muting", [True, False])
+@pytest.mark.parametrize("scheme", ["safe", "muted", "cellpy"])
+def test_summary_colours_follow_groups_regardless_of_muting(loaded_library, muting, scheme):
+    """Cells of one group share a hue; members are distinct shades; groups differ (#181)."""
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="charge_capacity", group_legend_muting=muting, color_scheme=scheme
+            ),
+        )
+    )
+    colors = _line_colors(fig)
+    assert set(colors) == {"cellA1", "cellA2", "cellB"}
+    assert colors["cellA1"] != colors["cellA2"]
+    assert _same_hue(colors["cellA1"], colors["cellA2"])
+    assert not _same_hue(colors["cellB"], colors["cellA1"])
+    if scheme != "cellpy":
+        palette = collect.COLOR_SCHEMES[scheme]
+        # The singleton group is painted exactly its swatch colour (group 2 → index 1).
+        assert colors["cellB"] == palette[1]
+        assert _same_hue(colors["cellA1"], palette[0])
+
+
+def test_summary_colours_identical_for_both_muting_modes(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    figs = [
+        json.loads(
+            plotting.summary_figure(
+                lib.selected(),
+                SummaryPlotSpec(
+                    plot_type="charge_capacity", group_legend_muting=muting, color_scheme="safe"
+                ),
+            )
+        )
+        for muting in (True, False)
+    ]
+    assert _line_colors(figs[0]) == _line_colors(figs[1])
+
+
+def test_cycles_pane_colours_follow_groups(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.cycles_figure(
+            lib.selected(),
+            CyclesPlotSpec(cycles=[1], group_legend_muting=False, color_scheme="safe"),
+        )
+    )
+    colors = _line_colors(fig)
+    assert _same_hue(colors["cellA1"], colors["cellA2"])
+    assert not _same_hue(colors["cellA1"], colors["cellB"])
+    assert colors["cellA1"] != colors["cellA2"]
+
+    # per_cell facets are coloured by cycle — untouched by the group pass.
+    fig = json.loads(
+        plotting.cycles_figure(
+            lib.selected(),
+            CyclesPlotSpec(cycles=[1, 2], layout="per_cell", color_scheme="safe"),
+        )
+    )
+    by_cycle = _line_colors(fig)
+    assert set(by_cycle) == {"1", "2"}
+    assert by_cycle["1"] != by_cycle["2"]
+
+
+def test_group_average_colours_match_swatches(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(plot_type="charge_capacity", group_average=True, color_scheme="safe"),
+        )
+    )
+    colors = _line_colors(fig)
+    palette = collect.COLOR_SCHEMES["safe"]
+    assert colors["group 1"] == palette[0]
+    assert colors["group 2"] == palette[1]
+
+
 def test_summary_panels_for_capacity_ce():
     panels = collect.summary_panels_for("capacity_ce", "gravimetric")
     ids = [p["id"] for p in panels]

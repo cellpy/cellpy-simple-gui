@@ -68,6 +68,8 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         group_legend_muting=spec.group_legend_muting,
         # Named groups caption their cells in the legend (#187).
         group_titles=collect.group_titles(records),
+        # One colour per group, shaded per cell, whatever legend muting does (#181).
+        cell_groups=collect.cell_groups(records),
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         # Unit-bearing titles; cellpy defaults are pretty but unit-less (§18 / #38).
@@ -181,6 +183,9 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         family_kind=_CURVE_FAMILIES.get(spec.curve_kind, "cycles"),
         group_legend_muting=spec.group_legend_muting,
         group_titles=collect.group_titles(records),
+        # per_cell facets colour by cycle and film is a heatmap; only the
+        # per-cycle layout has one series per cell to colour by group (#181).
+        cell_groups=collect.cell_groups(records) if spec.layout == "per_cycle" else None,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
         x_range=spec.x_range,

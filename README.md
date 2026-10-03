@@ -120,7 +120,7 @@
 - **Cell list** — rename, group, name the groups, select, filter, sort, remove.
 - **Projects** — save and reopen the loaded cells, grouping, group names, labels, and selection. Unsaved edits show as `name*`.
 - **Export** — CSV, Excel, Parquet, JSON; figures as PNG, SVG, PDF.
-- **Light and dark themes.**
+- **Light and dark themes.** Plot colour schemes colour by group (one hue per group, a shade per cell) whether or not legend muting is by group.
 - **Background loading** with progress.
 - **Instruments** from the installed cellpy, including each loader's sub-models.
 - **Developer mode** — every summary family cellpy registers, raw traces, diagnostics (`run --dev`).
