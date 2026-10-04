@@ -32,6 +32,7 @@ def _state() -> dict:
         "groups": lib.groups(),
         "empty": lib.is_empty(),
         "project": lib.project_name,
+        "revision": lib.revision,
     }
 
 

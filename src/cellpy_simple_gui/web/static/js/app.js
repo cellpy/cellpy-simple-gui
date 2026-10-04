@@ -122,6 +122,10 @@ function app() {
     // replays every intermediate figure.
     _plotInflight: { summary: 0, cycles: 0, cell: 0 },
     _plotSeq: { summary: 0, cycles: 0, cell: 0 },
+    // Library generation from /api/state. A change drops the figure memo so a
+    // tab switch cannot replay a plot from before the edit (#180).
+    revision: 0,
+    _figureMemo: { summary: null, cycles: null, cell: null },
     // The Manage cells modal defers redraws until it closes (#184).
     _replotOnClose: false,
     summary: {
@@ -597,6 +601,11 @@ function app() {
 
     /** Take the library snapshot every /api/state-shaped response carries. */
     _applyState(s) {
+      const next = Number.isFinite(s.revision) ? s.revision : this.revision;
+      if (next !== this.revision) {
+        this.revision = next;
+        this._figureMemo = { summary: null, cycles: null, cell: null };
+      }
       this.cells = s.cells;
       this.groups = s.groups || [];
     },
@@ -1147,9 +1156,18 @@ function app() {
     },
     /** Fetch a figure; resolves to it, or to null when a newer request for the same chart has since started (#184). */
     async _fetchFigure(kind, url, body) {
+      // Bump first so an in-flight response for a different body cannot draw
+      // over a memo hit. The key is the full body: colour changes still go to
+      // the server, and the server policy decides restyle versus rebuild.
       const seq = ++this._plotSeq[kind];
+      const key = this.revision + "\n" + JSON.stringify(body);
+      const hit = this._figureMemo[kind];
+      if (hit && hit.key === key) return JSON.parse(JSON.stringify(hit.fig));
       const fig = await (await api(url, { method: "POST", body })).json();
-      return this._plotSeq[kind] === seq ? fig : null;
+      if (this._plotSeq[kind] !== seq) return null;
+      const copy = JSON.parse(JSON.stringify(fig));
+      this._figureMemo[kind] = { key, fig: copy };
+      return copy;
     },
     _drawFigure(id, fig) {
       Plotly.react(id, fig.data, fig.layout, PLOTLY_CONFIG);

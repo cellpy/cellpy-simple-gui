@@ -314,6 +314,7 @@ def raw_figure(record: CellRecord, spec: RawPlotSpec) -> str:
         color_scheme=spec.color_scheme,
         x_range=spec.x_range,
         y_range=spec.y_range,
+        cache_token=(record.cache_revision, id(record.cell)),
     )
 
 
@@ -330,6 +331,7 @@ def cycle_info_figure(record: CellRecord, spec: CycleInfoPlotSpec) -> str:
         cycles=cycles,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
+        cache_token=(record.cache_revision, id(record.cell)),
     )
 
 
