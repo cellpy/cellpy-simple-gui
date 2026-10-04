@@ -894,6 +894,8 @@ def figure_json(
     warnings: list[str] | None = None,
     group_titles: dict[str, str] | None = None,
     cell_groups: dict[str, int] | None = None,
+    group_shade: bool = True,
+    shade_spread: float = 1.0,
     **plot_kwargs,
 ) -> str:
     # spread (mean ± std band) only makes sense once actually group-averaged.
@@ -926,6 +928,8 @@ def figure_json(
             figure_theme=figure_theme,
             color_scheme=color_scheme,
             cell_groups=cell_groups,
+            group_shade=group_shade,
+            shade_spread=shade_spread,
         )
         if group_titles and not is_grouped(collection):
             _apply_group_titles(fig, group_titles)
@@ -1403,25 +1407,47 @@ def _parse_color(color) -> tuple[int, int, int] | None:
     return None
 
 
-def _shade_series(base: str, n: int) -> list[str]:
+# HLS lightness the generated shades may use. The group's own colour is kept
+# even when it already sits outside the window. Shades may move toward the
+# window, but not further into black on a dark figure or white on a light one.
+_SHADE_WINDOW: dict[str, tuple[float, float]] = {
+    "light": (0.28, 0.68),
+    "dark": (0.45, 0.88),
+}
+
+
+def _shade_series(
+    base: str, n: int, *, spread: float = 1.0, theme: str = "light"
+) -> list[str]:
     """``n`` shades of ``base`` — same hue, lightness spread around it (#181).
 
     One member keeps the base colour exactly, so a singleton group matches
     its sidebar swatch. Several members fan out from darker to lighter, the
-    span growing with the count and clamped so no shade turns black or white.
+    span growing with the count. ``spread`` is ``0``–``1`` times that span
+    (``0`` paints every member the base colour). Each step is then held
+    inside the figure theme's lightness window (``_SHADE_WINDOW``) so a
+    dark shade stays visible on a dark plot and a light shade stays visible
+    on a white one.
     """
     if n <= 1:
         return [base]
+    if spread <= 0:
+        return [base] * n
     rgb = _parse_color(base)
     if rgb is None:
         return [base] * n
     h, lum, sat = colorsys.rgb_to_hls(*(v / 255 for v in rgb))
-    span = min(0.55, 0.22 * (n - 1))
+    span = min(0.55, 0.22 * (n - 1)) * min(1.0, spread)
+    lo, hi = _SHADE_WINDOW.get(theme, _SHADE_WINDOW["light"])
     out: list[str] = []
     for i in range(n):
         t = i / (n - 1)
-        l_i = min(0.86, max(0.2, lum + (t - 0.5) * span))
-        r, g, b = colorsys.hls_to_rgb(h, l_i, sat)
+        delta = (t - 0.5) * span
+        if delta < 0:
+            delta = max(delta, min(0.0, lo - lum))
+        else:
+            delta = min(delta, max(0.0, hi - lum))
+        r, g, b = colorsys.hls_to_rgb(h, lum + delta, sat)
         out.append(f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}")
     return out
 
@@ -1452,7 +1478,13 @@ def _paint(tr, color: str) -> None:
 
 
 def _apply_colorway(
-    fig, color_scheme: str, *, cell_groups: dict[str, int] | None = None
+    fig,
+    color_scheme: str,
+    *,
+    cell_groups: dict[str, int] | None = None,
+    group_shade: bool = True,
+    shade_spread: float = 1.0,
+    figure_theme: str = "light",
 ) -> None:
     """Colour legend series: by group when the groups are known, else per series.
 
@@ -1461,8 +1493,10 @@ def _apply_colorway(
     is set: the scheme colour at ``group - 1`` (so ``safe`` matches the sidebar
     swatches) or, for the ``cellpy`` scheme, the colour cellpy already gave the
     group. Members of a multi-cell group become shades of that colour so they
-    stay distinguishable. Traces outside any group cycle the scheme in order
-    of appearance, as before; without a scheme they are left to cellpy.
+    stay distinguishable, unless ``group_shade`` is off or ``shade_spread``
+    is ``0``. The fan is held inside the figure theme's lightness window.
+    Traces outside any group cycle the scheme in order of appearance, as
+    before; without a scheme they are left to cellpy.
     """
     colors = COLOR_SCHEMES.get(color_scheme)
     if not colors and not cell_groups:
@@ -1502,7 +1536,9 @@ def _apply_colorway(
             base = next((c for traces in members.values() for tr in traces if (c := _trace_color(tr))), None)
             if base is None:
                 continue
-        for shade, traces in zip(_shade_series(base, len(members)), members.values(), strict=True):
+        spread = shade_spread if group_shade else 0.0
+        shades = _shade_series(base, len(members), spread=spread, theme=figure_theme)
+        for shade, traces in zip(shades, members.values(), strict=True):
             for tr in traces:
                 _paint(tr, shade)
 
@@ -1521,6 +1557,8 @@ def _restyle(
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
     cell_groups: dict[str, int] | None = None,
+    group_shade: bool = True,
+    shade_spread: float = 1.0,
 ) -> None:
     """Post-plot polish: legend truncation, colorway, margins, soft axes.
 
@@ -1531,7 +1569,14 @@ def _restyle(
     # Colour first, while trace names are still the full batch keys the
     # group lookup needs (#181); truncation must not share fate with the
     # best-effort cosmetics below.
-    _apply_colorway(fig, color_scheme, cell_groups=cell_groups)
+    _apply_colorway(
+        fig,
+        color_scheme,
+        cell_groups=cell_groups,
+        group_shade=group_shade,
+        shade_spread=shade_spread,
+        figure_theme=figure_theme,
+    )
     longest = _shorten_legend(fig)
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     try:

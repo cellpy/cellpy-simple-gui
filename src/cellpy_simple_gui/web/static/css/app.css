@@ -374,6 +374,9 @@ input:focus, select:focus { border-color: var(--accent); }
 .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); cursor: pointer; }
 .chk input { accent-color: var(--accent); width: 15px; height: 15px; }
 .chk:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.shade-spread input[type="range"] {
+  width: 120px; accent-color: var(--accent); margin: 0; height: 22px;
+}
 .spacer { flex: 1; }
 
 /* export dropdown */

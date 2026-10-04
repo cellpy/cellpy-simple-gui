@@ -281,6 +281,15 @@
               <option value="muted">Muted</option>
             </select>
           </div>
+          <label class="chk" title="Cells in one group share its hue. Turn off to paint every cell in the group the same colour.">
+            <input type="checkbox" x-model="groupShade" @change="onAppearanceChange()" /> Shade within group
+          </label>
+          <div class="ctl shade-spread" x-show="groupShade" x-cloak
+               title="How far lightness may move from the group colour. Lower keeps neighbouring groups from looking alike. The ends also stay inside a range that remains visible for the current figure theme.">
+            <label>Shade spread <span x-text="shadeSpread + '%'"></span></label>
+            <input type="range" min="0" max="100" step="5" x-model.number="shadeSpread"
+                   @change="onAppearanceChange()" aria-label="Shade spread" />
+          </div>
           <div class="spacer"></div>
           <!-- export menu -->
           <div class="export" @click.outside="exportOpen=false">
@@ -341,6 +350,15 @@
               <option value="safe">Safe</option>
               <option value="muted">Muted</option>
             </select>
+          </div>
+          <label class="chk" title="Cells in one group share its hue. Turn off to paint every cell in the group the same colour. Used by the per-cycle layout.">
+            <input type="checkbox" x-model="groupShade" @change="onAppearanceChange()" /> Shade within group
+          </label>
+          <div class="ctl shade-spread" x-show="groupShade" x-cloak
+               title="How far lightness may move from the group colour. Lower keeps neighbouring groups from looking alike. The ends also stay inside a range that remains visible for the current figure theme.">
+            <label>Shade spread <span x-text="shadeSpread + '%'"></span></label>
+            <input type="range" min="0" max="100" step="5" x-model.number="shadeSpread"
+                   @change="onAppearanceChange()" aria-label="Shade spread" />
           </div>
           <div class="spacer"></div>
           <div class="export" @click.outside="exportCyclesOpen=false">

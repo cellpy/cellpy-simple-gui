@@ -114,6 +114,10 @@ class SummaryPlotSpec(BaseModel):
     y_ranges: Optional[dict[str, list[Optional[float]]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
+    # Lightness fan for cells that share a group. Off paints every member
+    # the group colour. ``shade_spread`` is 0–1 times the automatic fan.
+    group_shade: bool = True
+    shade_spread: float = Field(default=1.0, ge=0.0, le=1.0)
     title: str = "Cycle summary"
 
     @field_validator("y_ranges")
@@ -155,6 +159,10 @@ class CyclesPlotSpec(BaseModel):
     y_range: Optional[list[Optional[float]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
+    # Same within-group fan as :class:`SummaryPlotSpec`. Only the per-cycle
+    # layout has one series per cell; other layouts ignore it.
+    group_shade: bool = True
+    shade_spread: float = Field(default=1.0, ge=0.0, le=1.0)
     title: str = ""
 
     @field_validator("x_range", "y_range")

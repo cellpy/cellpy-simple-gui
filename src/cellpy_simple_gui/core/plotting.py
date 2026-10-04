@@ -72,6 +72,8 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         cell_groups=collect.cell_groups(records),
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
+        group_shade=spec.group_shade,
+        shade_spread=spec.shade_spread,
         # Unit-bearing titles; cellpy defaults are pretty but unit-less (§18 / #38).
         y_label_mapper=collect.summary_y_label_mapper(columns),
         # Honour column order on long (group-avg) frames; cellpy otherwise
@@ -188,6 +190,8 @@ def cycles_figure(records: list[CellRecord], spec: CyclesPlotSpec) -> str:
         cell_groups=collect.cell_groups(records) if spec.layout == "per_cycle" else None,
         figure_theme=spec.figure_theme,
         color_scheme=spec.color_scheme,
+        group_shade=spec.group_shade,
+        shade_spread=spec.shade_spread,
         x_range=spec.x_range,
         y_range=spec.y_range,
         # Straight through: cellpy ≥2.1.3 accepts layout="film" as an alias for

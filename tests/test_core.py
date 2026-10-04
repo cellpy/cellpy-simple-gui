@@ -1369,6 +1369,15 @@ def test_cell_groups_map(loaded_library):
     }
 
 
+def _lightness(color: str) -> float:
+    """HLS lightness in [0, 1]."""
+    import colorsys
+
+    rgb = collect._parse_color(color)
+    assert rgb is not None, color
+    return colorsys.rgb_to_hls(*(v / 255 for v in rgb))[1]
+
+
 def test_shade_series():
     assert collect._shade_series("#4C78A8", 1) == ["#4C78A8"]
     shades = collect._shade_series("#4C78A8", 3)
@@ -1378,6 +1387,28 @@ def test_shade_series():
     # rgb() input is understood; garbage is passed through untouched
     assert len(set(collect._shade_series("rgb(76, 120, 168)", 2))) == 2
     assert collect._shade_series("not-a-colour", 2) == ["not-a-colour"] * 2
+
+
+def test_shade_series_spread_and_theme_window():
+    """Spread scales the fan; theme windows stop shades disappearing into the background."""
+    base = "#4C78A8"
+    base_l = _lightness(base)
+    full = collect._shade_series(base, 4, spread=1.0, theme="light")
+    tight = collect._shade_series(base, 4, spread=0.25, theme="light")
+    assert abs(_lightness(tight[0]) - base_l) < abs(_lightness(full[0]) - base_l)
+    assert collect._shade_series(base, 4, spread=0) == [base] * 4
+
+    # 8-bit hex rounding can land a hair outside the window.
+    dark = collect._shade_series(base, 4, spread=1.0, theme="dark")
+    assert min(_lightness(s) for s in dark) >= collect._SHADE_WINDOW["dark"][0] - 0.01
+    light = collect._shade_series(base, 4, spread=1.0, theme="light")
+    assert max(_lightness(s) for s in light) <= collect._SHADE_WINDOW["light"][1] + 0.01
+
+    # A colour already lighter than the light-theme ceiling is not pushed lighter.
+    pale = "#FF9DA6"
+    pale_l = _lightness(pale)
+    pale_shades = collect._shade_series(pale, 3, spread=1.0, theme="light")
+    assert max(_lightness(s) for s in pale_shades) <= pale_l + 1e-6
 
 
 @pytest.mark.parametrize("muting", [True, False])
@@ -1403,6 +1434,60 @@ def test_summary_colours_follow_groups_regardless_of_muting(loaded_library, muti
         # The singleton group is painted exactly its swatch colour (group 2 → index 1).
         assert colors["cellB"] == palette[1]
         assert _same_hue(colors["cellA1"], palette[0])
+
+
+def test_summary_group_shade_off_uses_one_colour(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="charge_capacity", color_scheme="safe", group_shade=False
+            ),
+        )
+    )
+    colors = _line_colors(fig)
+    palette = collect.COLOR_SCHEMES["safe"]
+    assert colors["cellA1"] == colors["cellA2"] == palette[0]
+    assert colors["cellB"] == palette[1]
+
+
+def test_summary_shade_spread_tightens_the_fan(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+
+    def drift(spread: float) -> float:
+        fig = json.loads(
+            plotting.summary_figure(
+                lib.selected(),
+                SummaryPlotSpec(
+                    plot_type="charge_capacity", color_scheme="safe", shade_spread=spread
+                ),
+            )
+        )
+        colors = _line_colors(fig)
+        base = _lightness(collect.COLOR_SCHEMES["safe"][0])
+        return max(abs(_lightness(colors[name]) - base) for name in ("cellA1", "cellA2"))
+
+    assert drift(0.2) < drift(1.0)
+
+
+def test_summary_dark_theme_shades_stay_above_the_floor(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="charge_capacity",
+                color_scheme="safe",
+                figure_theme="dark",
+                shade_spread=1,
+            ),
+        )
+    )
+    colors = _line_colors(fig)
+    floor = collect._SHADE_WINDOW["dark"][0]
+    assert _lightness(colors["cellA1"]) >= floor - 0.01
+    assert _lightness(colors["cellA2"]) >= floor - 0.01
 
 
 def test_summary_colours_identical_for_both_muting_modes(loaded_library):

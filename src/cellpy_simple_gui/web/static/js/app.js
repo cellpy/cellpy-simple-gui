@@ -43,6 +43,14 @@ const RECENT_KEY = "csg.recent";
 const RECENT_CAP = 8;
 const RECENT_KINDS = ["cellpy", "raw", "journal", "remoteDir"];
 
+function storedShadeSpread() {
+  const raw = localStorage.getItem("csg-shade-spread");
+  if (raw === null || raw === "") return 100;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 100;
+  return Math.min(100, Math.max(0, n));
+}
+
 function loadRecent() {
   const out = {};
   let saved = {};
@@ -58,6 +66,8 @@ function app() {
     theme: localStorage.getItem("csg-theme") || "dark",
     figureThemePref: localStorage.getItem("csg-figure-theme") || "match",
     colorScheme: localStorage.getItem("csg-color-scheme") || "cellpy",
+    groupShade: localStorage.getItem("csg-group-shade") !== "0",
+    shadeSpread: storedShadeSpread(),
     cells: [],
     groups: [], // {id, label, name, n_cells, color} per group in use (#187)
     examples: [],
@@ -194,14 +204,19 @@ function app() {
       return this.figureThemePref === "dark" ? "dark" : "light";
     },
     appearanceFields() {
+      const spread = Number(this.shadeSpread);
       return {
         figure_theme: this.resolvedFigureTheme(),
         color_scheme: this.colorScheme || "cellpy",
+        group_shade: !!this.groupShade,
+        shade_spread: Number.isFinite(spread) ? Math.min(1, Math.max(0, spread / 100)) : 1,
       };
     },
     onAppearanceChange() {
       localStorage.setItem("csg-figure-theme", this.figureThemePref);
       localStorage.setItem("csg-color-scheme", this.colorScheme);
+      localStorage.setItem("csg-group-shade", this.groupShade ? "1" : "0");
+      localStorage.setItem("csg-shade-spread", String(this.shadeSpread));
       this.replotCurrent();
     },
     replotCurrent() {
