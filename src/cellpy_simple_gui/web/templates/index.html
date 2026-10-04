@@ -1046,6 +1046,9 @@
         <p class="empty" x-show="cells.length && !filteredSortedCells.length">No cells match the filter.</p>
       </div>
       <div class="modal-foot">
+        <span class="hint mgr-foot-hint" x-text="_replotOnClose
+          ? 'Edits saved — the plots refresh when this dialog closes.'
+          : 'Plots refresh when this dialog closes.'"></span>
         <button class="btn" type="button" @click="closeCellsManager()">Close</button>
       </div>
     </div>
