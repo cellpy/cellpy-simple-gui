@@ -1148,6 +1148,93 @@ def test_summary_figure_y_ranges_charge_on_multipart_group_avg(loaded_library):
     assert fig["layout"][ce_axis].get("range") == ce
 
 
+def _spread_library(loaded_library):
+    """Two demo cells in one group (so Group avg averages) plus a singleton."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    lib.add_cell(cellpy_adapter.load_example("cellpy"), source="example:cellpy2")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    recs = lib.all()
+    recs[0].group = 1
+    recs[1].group = 1
+    recs[2].group = 2
+    for rec in recs:
+        rec.selected = True
+    return lib
+
+
+def _yaxis_for_title_text(fig: dict, needle: str) -> str | None:
+    """Layout y-axis whose title contains ``needle`` (case-insensitive)."""
+    for key, axis in fig.get("layout", {}).items():
+        if not str(key).startswith("yaxis"):
+            continue
+        title = axis.get("title")
+        if isinstance(title, dict):
+            title = title.get("text")
+        if isinstance(title, str) and needle.lower() in title.lower():
+            return key
+    return None
+
+
+def test_summary_figure_y_ranges_apply_with_group_avg_and_spread(loaded_library):
+    """Group avg + Spread must honour per-panel y_ranges (#186).
+
+    The spread hover (#40) rewrites ``variable=<column id>`` into the pretty
+    axis title; the range lookup used to run after that and never matched.
+    """
+    lib = _spread_library(loaded_library)
+    charge = [0.0, 200.0]
+    ce = [90.0, 101.0]
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                group_average=True,
+                spread=True,
+                y_ranges={
+                    "charge_capacity_gravimetric": charge,
+                    "coulombic_efficiency": ce,
+                },
+            ),
+        )
+    )
+    # Spread really was drawn (band traces present), so this is the #186 path.
+    assert any(str(tr.get("name", "")).lower().startswith("upper bound") for tr in fig["data"])
+    charge_axis = _yaxis_for_title_text(fig, "charge capacity")
+    ce_axis = _yaxis_for_title_text(fig, "coulombic efficiency")
+    discharge_axis = _yaxis_for_title_text(fig, "discharge capacity")
+    assert charge_axis and ce_axis and discharge_axis
+    assert fig["layout"][charge_axis].get("range") == charge
+    assert fig["layout"][charge_axis].get("autorange") is False
+    assert fig["layout"][ce_axis].get("range") == ce
+    assert fig["layout"][ce_axis].get("autorange") is False
+    # The panel without a range stays autoscaled.
+    assert fig["layout"][discharge_axis].get("range") is None
+
+
+def test_summary_figure_y_ranges_one_sided_with_spread(loaded_library):
+    """A blank end is filled from the spread panel's own extent (#186)."""
+    lib = _spread_library(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                group_average=True,
+                spread=True,
+                y_ranges={"charge_capacity_gravimetric": [0.0, None]},
+            ),
+        )
+    )
+    axis = _yaxis_for_title_text(fig, "charge capacity")
+    assert axis is not None
+    lo, hi = fig["layout"][axis]["range"]
+    assert lo == 0.0
+    assert hi > lo
+
+
 def test_summary_panels_for_capacity_ce():
     panels = collect.summary_panels_for("capacity_ce", "gravimetric")
     ids = [p["id"] for p in panels]
