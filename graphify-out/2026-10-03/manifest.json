@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/web/static/js/app.js": {
-    "mtime": 1791060643.0,
-    "seen": 1791065546.3203897,
-    "ast_hash": "e66075c4c37965398dd4930e261ad51e",
+    "mtime": 1791065900.1998394,
+    "seen": 1791066515.7277255,
+    "ast_hash": "48753f2f7e2e5599600e4cfb4c2eb499",
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/web/static/js/plotly.min.js": {
@@ -300,9 +300,9 @@
     "semantic_hash": ""
   },
   "tests/test_gui_playwright.py": {
-    "mtime": 1791060643.0,
-    "seen": 1791065546.3203962,
-    "ast_hash": "afa1386fdb31076887ff752b3e569391",
+    "mtime": 1791065876.852518,
+    "seen": 1791066515.7277324,
+    "ast_hash": "569e797e4061aade92a02610d5deee85",
     "semantic_hash": ""
   },
   "tests/test_guides.py": {
@@ -1404,9 +1404,9 @@
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/manage-cells-modal.md": {
-    "mtime": 1791060643.0,
-    "seen": 1791065546.320527,
-    "ast_hash": "b4f915cfd6ff2b9e5cd08517910a0560",
+    "mtime": 1791066442.463957,
+    "seen": 1791066515.7278786,
+    "ast_hash": "d9ae75c590f4e782ee532bfb24c4f9a3",
     "semantic_hash": ""
   },
   ".issueflows/04-designs-and-guides/mcp-server-design.md": {
@@ -1638,9 +1638,9 @@
     "semantic_hash": ""
   },
   "src/cellpy_simple_gui/web/templates/index.html": {
-    "mtime": 1791060643.0,
-    "seen": 1791065546.320552,
-    "ast_hash": "4f45e8ce2be3b8736ceded28311b6bd2",
+    "mtime": 1791065834.841673,
+    "seen": 1791066515.7279058,
+    "ast_hash": "a66e02dd9d8f9b9da94cba63dba30c37",
     "semantic_hash": ""
   },
   "assets/cellpy-icon-bw.png": {
@@ -1853,18 +1853,6 @@
     "ast_hash": "fa6a36a1d97b1a897f84889147c11619",
     "semantic_hash": ""
   },
-  ".issueflows/01-current-issues/issue186_original.md": {
-    "mtime": 1791065421.3608186,
-    "seen": 1791065546.32043,
-    "ast_hash": "ce10b9dcf5eb40fa209d00cecfc46fe2",
-    "semantic_hash": ""
-  },
-  ".issueflows/01-current-issues/issue186_plan.md": {
-    "mtime": 1791065433.1966095,
-    "seen": 1791065546.320431,
-    "ast_hash": "56a9666cdc45f6401a531a4294c8904b",
-    "semantic_hash": ""
-  },
   ".issueflows/03-solved-issues/issue173_original.md": {
     "mtime": 1791060643.0,
     "seen": 1791065546.3204515,
@@ -1911,6 +1899,42 @@
     "mtime": 1791060643.0,
     "seen": 1791065546.3204553,
     "ast_hash": "16076aed0e04c9a86040b080b48cd143",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue184_original.md": {
+    "mtime": 1791065746.0076878,
+    "seen": 1791066515.7277706,
+    "ast_hash": "b483ff80c288e8696ed39f372e43454f",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue184_plan.md": {
+    "mtime": 1791065763.8073456,
+    "seen": 1791066515.7277718,
+    "ast_hash": "00553469235a2b17de1193b31e754d47",
+    "semantic_hash": ""
+  },
+  ".issueflows/01-current-issues/issue184_status.md": {
+    "mtime": 1791066454.5959675,
+    "seen": 1791066515.7277725,
+    "ast_hash": "c9c175bb780e1fc771c14bd59d3d98fc",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue186_original.md": {
+    "mtime": 1791065421.3608186,
+    "seen": 1791066515.7278008,
+    "ast_hash": "ce10b9dcf5eb40fa209d00cecfc46fe2",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue186_plan.md": {
+    "mtime": 1791065433.1966095,
+    "seen": 1791066515.7278016,
+    "ast_hash": "56a9666cdc45f6401a531a4294c8904b",
+    "semantic_hash": ""
+  },
+  ".issueflows/03-solved-issues/issue186_status.md": {
+    "mtime": 1791065565.6602807,
+    "seen": 1791066515.727802,
+    "ast_hash": "09a2311e0ce760529092e6197de9bb53",
     "semantic_hash": ""
   }
 }

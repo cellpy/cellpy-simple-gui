@@ -238,6 +238,33 @@ def test_edit_cell(client):
     assert out["state"]["n_selected"] == 0
 
 
+def test_rename_group(client):
+    """Groups are named through their own endpoint; state carries them (#187)."""
+    r = client.post("/api/load/example", json={"kinds": ["cellpy"]})
+    snap = _wait_for_job(client, r.json()["job_id"])
+    if snap["status"] != "done":
+        pytest.skip("example data unavailable")
+    state = client.get("/api/state").json()
+    cell = state["cells"][0]
+    g = cell["group"]  # new cells start in their own (counter-numbered) group
+    assert state["groups"] == [
+        {"id": g, "label": "", "name": f"group {g}", "n_cells": 1, "color": cell["color"]}
+    ]
+    assert cell["group_label"] == f"group {g}"
+
+    state = client.post(f"/api/groups/{g}", json={"label": "Anodes"}).json()
+    assert state["groups"][0]["label"] == "Anodes"
+    assert state["groups"][0]["name"] == "Anodes"
+    assert state["cells"][0]["group_label"] == "Anodes"
+
+    # Blank restores the default; naming an unused group is allowed but silent.
+    state = client.post(f"/api/groups/{g}", json={"label": "  "}).json()
+    assert state["groups"][0]["label"] == ""
+    state = client.post(f"/api/groups/{g + 1000}", json={"label": "Later"}).json()
+    assert [grp["id"] for grp in state["groups"]] == [g]
+    assert client.post("/api/groups/0", json={"label": "x"}).status_code == 400
+
+
 def test_export_cells_requires_selection(client):
     r = client.post("/api/export/cells?fmt=cellpy", json={})
     assert r.status_code == 400

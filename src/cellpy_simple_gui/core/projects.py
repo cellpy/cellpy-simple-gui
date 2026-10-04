@@ -61,6 +61,13 @@ class CellEntry(BaseModel):
     n_cycles: int = 0
 
 
+class GroupEntry(BaseModel):
+    """A user-named group (#187). Unnamed groups are not listed."""
+
+    id: int
+    label: str
+
+
 class ProjectManifest(BaseModel):
     schema_version: int = SCHEMA_VERSION
     name: str
@@ -70,6 +77,8 @@ class ProjectManifest(BaseModel):
     cellpy_version: str = ""
     app_version: str = APP_VERSION
     cells: list[CellEntry] = Field(default_factory=list)
+    # Optional so manifests written before group names existed still open.
+    groups: list[GroupEntry] = Field(default_factory=list)
 
 
 class ProjectSummary(BaseModel):
@@ -211,6 +220,10 @@ def save_project(library: Library, name: str, progress: ProgressFn = None) -> Pr
         manifest = ProjectManifest(
             name=name, slug=slug, created=created, modified=_now(),
             cellpy_version=_safe_cellpy_version(), cells=entries,
+            groups=[
+                GroupEntry(id=g, label=lbl)
+                for g, lbl in sorted(library.group_labels().items())
+            ],
         )
         staging_manifest = staging / "project.json"
         staging_manifest.write_text(json.dumps(manifest.model_dump(), indent=2))
@@ -280,6 +293,8 @@ def open_project(library: Library, path_or_slug: str, progress: ProgressFn = Non
             data_path=data_path,
         )
         log.info("Project open: loaded %d/%d “%s”", i + 1, total, label)
+    for entry in manifest.groups:
+        library.set_group_label(entry.id, entry.label)
 
     library.project_name = manifest.name
     library.project_path = str(pdir)
