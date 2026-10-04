@@ -20,6 +20,7 @@ import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_ica, collect_summaries, from_cells
 from cellpy.collect.options import CurveOptions, IcaOptions
 
+from . import plot_cache
 from .library import PALETTE, CellRecord
 
 log = logging.getLogger(__name__)
@@ -503,6 +504,7 @@ def summary_collection(
     group_it: bool = False,
     max_cycle: int | None = None,
     options=None,
+    use_cache: bool = True,
 ):
     """Collect summaries, optionally under a family's own :class:`SummaryOptions`.
 
@@ -511,21 +513,36 @@ def summary_collection(
     own grouping and cycle cap on top (#868). Without it this is the plain
     column collect the curated plot types use.
     """
-    if options is not None:
+
+    def build():
+        if options is not None:
+            return collect_summaries(
+                _batch(records),
+                options=options.replace(
+                    only_selected=False,  # records handed in are already the selected set
+                    group_it=group_it,
+                    max_cycle=max_cycle,
+                ),
+            )
         return collect_summaries(
             _batch(records),
-            options=options.replace(
-                only_selected=False,  # records handed in are already the selected set
-                group_it=group_it,
-                max_cycle=max_cycle,
-            ),
+            columns=columns,
+            only_selected=False,
+            group_it=group_it,
+            max_cycle=max_cycle,
         )
-    return collect_summaries(
-        _batch(records),
-        columns=columns,
-        only_selected=False,
-        group_it=group_it,
-        max_cycle=max_cycle,
+
+    return plot_cache.cached_collect(
+        "summary_collection",
+        records,
+        {
+            "columns": columns,
+            "group_it": group_it,
+            "max_cycle": max_cycle,
+            "options": options,
+        },
+        build,
+        use_cache=use_cache,
     )
 
 
@@ -535,16 +552,26 @@ def cycles_collection(
     cycles: tuple[int, ...],
     mode: str | None = None,
     method: str | None = None,
+    use_cache: bool = True,
 ):
-    opts = CurveOptions(cycles=cycles)
-    changes = {}
-    if mode:
-        changes["mode"] = mode
-    if method:
-        changes["method"] = method
-    if changes:
-        opts = opts.replace(**changes)
-    return collect_cycles(_batch(records), options=opts)
+    def build():
+        opts = CurveOptions(cycles=cycles)
+        changes = {}
+        if mode:
+            changes["mode"] = mode
+        if method:
+            changes["method"] = method
+        if changes:
+            opts = opts.replace(**changes)
+        return collect_cycles(_batch(records), options=opts)
+
+    return plot_cache.cached_collect(
+        "cycles_collection",
+        records,
+        {"cycles": cycles, "mode": mode, "method": method},
+        build,
+        use_cache=use_cache,
+    )
 
 
 def ica_collection(
@@ -552,6 +579,7 @@ def ica_collection(
     *,
     cycles: tuple[int, ...],
     voltage_resolution: float | None = 0.005,
+    use_cache: bool = True,
 ):
     """Collect ICA (dQ/dV) curves, both half-cycles (``direction`` column kept).
 
@@ -559,8 +587,17 @@ def ica_collection(
     ``ica_plotter`` (#821), and exports use :func:`select_ica_direction` to match
     the chart. No app-side half-cycle filter on the collect step.
     """
-    opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-    return collect_ica(_batch(records), options=opts)
+    def build():
+        opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
+        return collect_ica(_batch(records), options=opts)
+
+    return plot_cache.cached_collect(
+        "ica_collection",
+        records,
+        {"cycles": cycles, "voltage_resolution": voltage_resolution},
+        build,
+        use_cache=use_cache,
+    )
 
 
 def dva_collection(
@@ -568,6 +605,7 @@ def dva_collection(
     *,
     cycles: tuple[int, ...],
     voltage_resolution: float | None = None,
+    use_cache: bool = True,
 ):
     """Collect DVA (dV/dQ) curves — the sibling of :func:`ica_collection`.
 
@@ -578,8 +616,17 @@ def dva_collection(
     """
     from cellpy.collect import collect_dva
 
-    opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-    return collect_dva(_batch(records), options=opts)
+    def build():
+        opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
+        return collect_dva(_batch(records), options=opts)
+
+    return plot_cache.cached_collect(
+        "dva_collection",
+        records,
+        {"cycles": cycles, "voltage_resolution": voltage_resolution},
+        build,
+        use_cache=use_cache,
+    )
 
 
 def select_ica_direction(collection, direction: str):
@@ -598,9 +645,15 @@ def select_ica_direction(collection, direction: str):
         log.warning("no 'direction' column in ICA frame - export filter skipped")
         return collection
     try:
+        import copy
+
         import polars as pl
 
-        collection.data = data.filter(pl.col("direction").str.to_lowercase() == want)
+        # The collect memo hands back the same collection. Filtering in place
+        # would empty the next export that asks for the other half-cycle.
+        filtered = data.filter(pl.col("direction").str.to_lowercase() == want)
+        collection = copy.copy(collection)
+        collection.data = filtered
     except Exception:  # noqa: BLE001 - export stays best-effort
         log.warning("could not filter ICA export by direction=%s", want, exc_info=True)
     return collection
@@ -896,26 +949,27 @@ def figure_json(
     cell_groups: dict[str, int] | None = None,
     group_shade: bool = True,
     shade_spread: float = 1.0,
+    use_cache: bool = True,
     **plot_kwargs,
 ) -> str:
-    # spread (mean ± std band) only makes sense once actually group-averaged.
-    if spread and not is_grouped(collection):
-        spread = False
-    try:
-        x_range = plot_kwargs.pop("x_range", None)
-        y_range = plot_kwargs.pop("y_range", None)
-        # Per-facet summary limits (#60/#54); applied post-plot so they win over
-        # any ``share_y`` axis matching cellpy set on the collection.
-        y_ranges = plot_kwargs.pop("y_ranges", None)
-        opts = _inject_app_chrome(figure_theme, plot_kwargs)
+    # Ranges stay out of ``collection.plot`` so they win over any share_y
+    # matching cellpy already applied (#60/#54).
+    incoming = dict(plot_kwargs)
+    x_range = incoming.pop("x_range", None)
+    y_range = incoming.pop("y_range", None)
+    y_ranges = incoming.pop("y_ranges", None)
+    # Spread only means something once the collection is actually grouped.
+    draw_spread = bool(spread) and is_grouped(collection)
+
+    def build_base():
+        opts = _inject_app_chrome(figure_theme, incoming)
         # cellpy ≥2.1.2 honours share_y / match_axes on the collection itself,
         # incl. the group-avg + spread path (#816/#817), so no app re-link here.
-        fig = collection.plot(spread=spread, **opts)
-        # Resolve which facet axis each summary column lives on *now*: the
-        # spread hover below rewrites ``variable=<column id>`` into the pretty
-        # axis title, after which the ids are gone from the figure (#186).
+        fig = collection.plot(spread=draw_spread, **opts)
+        # Facet axes before the spread hover rewrites ``variable=<column id>``
+        # into the pretty title (#186).
         var_to_axes = _variable_axis_map(fig) if y_ranges else None
-        if spread:
+        if draw_spread:
             _add_spread_hover(fig)
         if overlay:
             # Before _restyle so legend truncation and the colorway see the
@@ -923,6 +977,9 @@ def figure_json(
             fig = _overlay_facets(
                 fig, height=opts["height_per_panel"] + opts["figure_border_height"]
             )
+        return fig, var_to_axes
+
+    def finish(fig, var_to_axes):
         _restyle(
             fig,
             figure_theme=figure_theme,
@@ -939,6 +996,27 @@ def figure_json(
             _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
         _stamp_warnings(fig, warnings)
         return pio.to_json(fig)
+
+    try:
+        return plot_cache.cached_figure(
+            {
+                "kind": "figure_json",
+                "collection": id(collection),
+                "spread": spread,
+                "figure_theme": figure_theme,
+                "overlay": overlay,
+                "warnings": warnings,
+                "group_titles": group_titles,
+                "cell_groups": cell_groups,
+                "x_range": x_range,
+                "y_range": y_range,
+                "y_ranges": y_ranges,
+                **incoming,
+            },
+            build_base,
+            finish,
+            use_cache=use_cache,
+        )
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
             f"Could not render this plot ({exc}).",
@@ -970,6 +1048,8 @@ def raw_figure_json(
     color_scheme: str = "cellpy",
     x_range=None,
     y_range=None,
+    cache_token: tuple | None = None,
+    use_cache: bool = True,
 ) -> str:
     """Raw time-series traces for one cell, via cellpy's ``raw_plot``.
 
@@ -979,14 +1059,35 @@ def raw_figure_json(
     """
     from cellpy.utils.plotutils import raw_plot
 
-    try:
+    token = cache_token if cache_token is not None else id(cell)
+
+    def build_base():
         fig = raw_plot(
             cell, plot_type=plot_type, backend="plotly", max_points=max_points
         )
+        return fig, None
+
+    def finish(fig, _extra):
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
         _note_downsampling(fig, cell)
         return pio.to_json(fig)
+
+    try:
+        return plot_cache.cached_figure(
+            {
+                "kind": "raw",
+                "token": token,
+                "plot_type": plot_type,
+                "max_points": max_points,
+                "figure_theme": figure_theme,
+                "x_range": x_range,
+                "y_range": y_range,
+            },
+            build_base,
+            finish,
+            use_cache=use_cache,
+        )
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
             f"Could not render raw data ({exc}).", figure_theme=figure_theme
@@ -999,6 +1100,8 @@ def cycle_info_figure_json(
     cycles: tuple[int, ...],
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
+    cache_token: tuple | None = None,
+    use_cache: bool = True,
 ) -> str:
     """Raw traces annotated with step/cycle info, via cellpy's ``cycle_info_plot``.
 
@@ -1007,19 +1110,36 @@ def cycle_info_figure_json(
     """
     from cellpy.utils.plotutils import cycle_info_plot
 
-    try:
+    token = cache_token if cache_token is not None else id(cell)
+
+    def build_base():
         # get_axes=True is what returns the *figure* on the plotly backend;
         # without it cycle_info_plot returns None.
         fig = cycle_info_plot(
             cell, cycle=list(cycles), backend="plotly", get_axes=True
         )
         if fig is None:
-            return _empty_figure_json(
-                "cellpy returned no cycle-info figure for this selection.",
-                figure_theme=figure_theme,
-            )
+            raise RuntimeError("cellpy returned no cycle-info figure for this selection.")
+        return fig, None
+
+    def finish(fig, _extra):
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         return pio.to_json(fig)
+
+    try:
+        return plot_cache.cached_figure(
+            {
+                "kind": "cycle_info",
+                "token": token,
+                "cycles": cycles,
+                "figure_theme": figure_theme,
+            },
+            build_base,
+            finish,
+            use_cache=use_cache,
+        )
+    except RuntimeError as exc:
+        return _empty_figure_json(str(exc), figure_theme=figure_theme)
     except Exception as exc:  # noqa: BLE001
         return _empty_figure_json(
             f"Could not render cycle info ({exc}).", figure_theme=figure_theme

@@ -79,6 +79,9 @@ class CellRecord:
     #: it hands out so collectors see it without extra plumbing. Empty means
     #: "unnamed" — :func:`default_group_label` applies.
     group_label: str = ""
+    #: Copy of ``Library.revision`` after the last touch. Plot-cache keys
+    #: include it so a data edit misses without hashing the cell frame.
+    cache_revision: int = 0
 
     def color(self) -> str:
         return PALETTE[(self.group - 1) % len(PALETTE)]
@@ -129,6 +132,22 @@ class Library:
         # Current on-disk project this library is associated with (if any).
         self.project_name: str | None = None
         self.project_path: str | None = None
+        # Bumped by every mutator that can change a plot. ``mark_saved`` does
+        # not. Plot cache keys and ``/api/state`` both read this.
+        self.revision: int = 0
+
+    def _touch(self) -> None:
+        """Invalidate plot caches and stamp every record with the new revision.
+
+        Call this from a mutator, inside the library lock. The names that must
+        call it are ``plot_cache.BUMPS``.
+        """
+        from . import plot_cache
+
+        self.revision += 1
+        for record in self._records.values():
+            record.cache_revision = self.revision
+        plot_cache.invalidate()
 
     # -- mutation --------------------------------------------------------- #
     def add_cell(self, cell: Any, *, source: str = "example") -> CellRecord:
@@ -152,6 +171,7 @@ class Library:
                 selected=True,
             )
             self._records[rid] = record
+            self._touch()
             return record
 
     def restore_cell(
@@ -197,6 +217,7 @@ class Library:
             self._records[rid] = record
             if data_path is not None:
                 self._mark_clean(record, data_path)
+            self._touch()
             return record
 
     def update(
@@ -236,6 +257,7 @@ class Library:
                 record.data_dirty = True
                 record.data_path = None
                 record.data_stat = None
+            self._touch()
             return record
 
     # -- save provenance (#29) -------------------------------------------- #
@@ -274,6 +296,7 @@ class Library:
     def remove(self, rid: str) -> None:
         with self._lock:
             self._records.pop(rid, None)
+            self._touch()
 
     def clear(self) -> None:
         with self._lock:
@@ -281,11 +304,13 @@ class Library:
             self._group_labels.clear()
             self.project_name = None
             self.project_path = None
+            self._touch()
 
     def set_selection(self, selected: bool) -> None:
         with self._lock:
             for r in self._records.values():
                 r.selected = selected
+            self._touch()
 
     # -- group names (#187) ----------------------------------------------- #
     def set_group_label(self, group: int, label: str | None) -> None:
@@ -297,6 +322,7 @@ class Library:
                 self._group_labels[g] = text
             else:
                 self._group_labels.pop(g, None)
+            self._touch()
 
     def group_label(self, group: int) -> str:
         """The custom name of ``group`` (empty when it has none)."""
