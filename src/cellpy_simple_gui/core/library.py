@@ -353,6 +353,16 @@ class Library:
     def n_groups(self) -> int:
         return len({r.group for r in self.all()})
 
+    def group_offset_for_append(self) -> int:
+        """Add this to incoming group numbers so they land above every group in use.
+
+        Appending a project or journal keeps its internal grouping (1, 2, …
+        become offset+1, offset+2, …) without colliding with the groups already
+        loaded (#174). Zero when the library is empty.
+        """
+        with self._lock:
+            return max((r.group for r in self._records.values()), default=0)
+
 
 _LIBRARY: Library | None = None
 

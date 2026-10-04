@@ -337,3 +337,66 @@ def test_cells_modal_names_groups(browser_page):
     assert lib.group_label(int(group_id)) == ""
     modal.get_by_role("button", name="Close", exact=True).click()
     modal.wait_for(state="hidden", timeout=5_000)
+
+
+# --------------------------------------------------------------------------- #
+# #174 — Open replaces the loaded cells unless "Append" is ticked
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.e2e
+def test_project_open_replace_vs_append(browser_page, tmp_path, monkeypatch):
+    from cellpy_simple_gui.core import projects
+
+    monkeypatch.setattr(projects, "projects_root", lambda: tmp_path)
+    page = browser_page
+    lib = get_library()
+    lib.clear()
+    page.reload(wait_until="load")
+    page.wait_for_selector(".brand-title", timeout=15_000)
+    _load_bundled_cell(page)
+    first_group = lib.all()[0].group
+
+    # The toggle only appears once something is loaded; default is replace.
+    append = page.locator(".proj-append")
+    append.wait_for(state="visible", timeout=5_000)
+    open_btn = page.locator(".proj-ctl").first.get_by_role("button", name="Open", exact=True)
+    assert open_btn.is_visible()
+
+    page.get_by_label("Project name").fill("E2E Append")
+    page.get_by_role("button", name="Save", exact=True).click()
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('.toast')].some(n => /Saved/.test(n.textContent))",
+        timeout=60_000,
+    )
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('select[aria-label=\"Saved projects\"] option')]"
+        ".some(o => o.textContent.includes('E2E Append'))",
+        timeout=10_000,
+    )
+
+    # Append: the button says so, no confirm, cells double, groups do not collide.
+    append.locator("input").check()
+    page.locator("select[aria-label='Saved projects']").select_option(label=f"E2E Append · 1 cells")
+    append_btn = page.locator(".proj-ctl").first.get_by_role("button", name="Append", exact=True)
+    append_btn.wait_for(state="visible", timeout=5_000)
+    dialogs: list[str] = []
+    page.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
+    append_btn.click()
+    page.wait_for_function(
+        "() => document.querySelectorAll('.cell-card').length === 2", timeout=60_000
+    )
+    assert dialogs == []
+    groups = sorted(r.group for r in lib.all())
+    assert groups[0] == first_group and groups[1] > first_group
+    assert "*" in page.locator(".proj-tag").first.inner_text()  # appended set is unsaved
+
+    # Replace: asks first, then the saved single cell is all that is left.
+    append.locator("input").uncheck()
+    open_btn.wait_for(state="visible", timeout=5_000)
+    open_btn.click()
+    page.wait_for_function(
+        "() => document.querySelectorAll('.cell-card').length === 1", timeout=60_000
+    )
+    assert len(dialogs) == 1 and "Replace the 2 loaded cells" in dialogs[0]
+    assert [r.group for r in lib.all()] == [first_group]

@@ -271,13 +271,43 @@ def save_project(library: Library, name: str, progress: ProgressFn = None) -> Pr
     return manifest
 
 
-def open_project(library: Library, path_or_slug: str, progress: ProgressFn = None) -> ProjectManifest:
+#: How an open treats what is already loaded (#174): ``replace`` clears the
+#: library first; ``append`` keeps it and numbers the incoming groups above the
+#: ones in use.
+OpenMode = Literal["replace", "append"]
+
+
+def open_project(
+    library: Library,
+    path_or_slug: str,
+    progress: ProgressFn = None,
+    *,
+    mode: OpenMode = "replace",
+) -> ProjectManifest:
+    """Load a saved project into ``library``.
+
+    ``mode="replace"`` (the default) clears the loaded cells first and makes
+    this project the current one. ``mode="append"`` adds the project's cells
+    to what is loaded: its groups are renumbered to start after the highest
+    group already in use (their names follow), and the current project
+    association is kept — appending into an empty library is just an open.
+    """
     pdir = resolve_project_path(path_or_slug)
     manifest = ProjectManifest(**json.loads((pdir / "project.json").read_text()))
 
-    library.clear()
+    appending = mode == "append" and not library.is_empty()
+    if appending:
+        offset = library.group_offset_for_append()
+    else:
+        library.clear()
+        offset = 0
     total = max(len(manifest.cells), 1)
-    log.info("Opening project “%s” (%d cell(s)) from %s", manifest.name, len(manifest.cells), pdir)
+    log.info(
+        "%s project “%s” (%d cell(s)) from %s%s",
+        "Appending" if appending else "Opening",
+        manifest.name, len(manifest.cells), pdir,
+        f" (groups +{offset})" if offset else "",
+    )
     for i, entry in enumerate(manifest.cells):
         label = entry.label or entry.name
         data_path = pdir / entry.data_file
@@ -286,7 +316,7 @@ def open_project(library: Library, path_or_slug: str, progress: ProgressFn = Non
             progress(i / total, f"Loading “{label}” ({i + 1}/{total}) …")
         cell = adapter.load_file(data_path)
         library.restore_cell(
-            cell, source=entry.source, group=entry.group,
+            cell, source=entry.source, group=entry.group + offset,
             label=entry.label, selected=entry.selected,
             # This app wrote the file, and nothing has touched the cell since,
             # so a Save that changes only labels can reuse it as-is (#29).
@@ -294,13 +324,17 @@ def open_project(library: Library, path_or_slug: str, progress: ProgressFn = Non
         )
         log.info("Project open: loaded %d/%d “%s”", i + 1, total, label)
     for entry in manifest.groups:
-        library.set_group_label(entry.id, entry.label)
+        library.set_group_label(entry.id + offset, entry.label)
 
-    library.project_name = manifest.name
-    library.project_path = str(pdir)
+    if not appending:
+        library.project_name = manifest.name
+        library.project_path = str(pdir)
     if progress:
-        progress(1.0, "Opened")
-    log.info("Opened project “%s” (%d cell(s))", manifest.name, len(manifest.cells))
+        progress(1.0, "Appended" if appending else "Opened")
+    log.info(
+        "%s project “%s” (%d cell(s))",
+        "Appended" if appending else "Opened", manifest.name, len(manifest.cells),
+    )
     return manifest
 
 
