@@ -12,6 +12,7 @@ response to issue #787), so we no longer maintain a hand-rolled batch shim.
 
 from __future__ import annotations
 
+import colorsys
 import io
 import logging
 
@@ -107,6 +108,20 @@ def group_titles(records: list[CellRecord]) -> dict[str, str]:
     number alone adds nothing the swatch does not already say.
     """
     return {str(rec.group): rec.group_label for rec in records if rec.group_label}
+
+
+def cell_groups(records: list[CellRecord]) -> dict[str, int]:
+    """Legend key → group number, for colouring traces by group (#181).
+
+    Per-cell traces are named after the batch key; group-averaged traces are
+    named after the group (``group_name``). Both resolve here so the colour
+    pass can find a trace's group whatever ``legendgroup`` carries.
+    """
+    out: dict[str, int] = {}
+    for key, rec in zip(batch_keys(records), records, strict=True):
+        out[key] = rec.group
+        out.setdefault(rec.group_name(), rec.group)
+    return out
 
 
 def _apply_group_titles(fig, titles: dict[str, str]) -> None:
@@ -878,6 +893,7 @@ def figure_json(
     overlay: bool = False,
     warnings: list[str] | None = None,
     group_titles: dict[str, str] | None = None,
+    cell_groups: dict[str, int] | None = None,
     **plot_kwargs,
 ) -> str:
     # spread (mean ± std band) only makes sense once actually group-averaged.
@@ -905,7 +921,12 @@ def figure_json(
             fig = _overlay_facets(
                 fig, height=opts["height_per_panel"] + opts["figure_border_height"]
             )
-        _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        _restyle(
+            fig,
+            figure_theme=figure_theme,
+            color_scheme=color_scheme,
+            cell_groups=cell_groups,
+        )
         if group_titles and not is_grouped(collection):
             _apply_group_titles(fig, group_titles)
         if y_ranges:
@@ -1366,30 +1387,132 @@ def _hex_to_rgba(color: str, alpha: float = 0.28) -> str:
     return color
 
 
-def _apply_colorway(fig, color_scheme: str) -> None:
-    """Cycle a discrete colorway across legend series (name / legendgroup)."""
+def _parse_color(color) -> tuple[int, int, int] | None:
+    """``#rrggbb`` / ``rgb(…)`` / ``rgba(…)`` → ``(r, g, b)``; None when unknown."""
+    if not isinstance(color, str):
+        return None
+    c = color.strip()
+    try:
+        if c.startswith("#") and len(c) == 7:
+            return tuple(int(c[i : i + 2], 16) for i in (1, 3, 5))  # type: ignore[return-value]
+        if c.startswith("rgb"):
+            parts = c[c.index("(") + 1 : c.rindex(")")].split(",")[:3]
+            return tuple(int(float(p)) for p in parts)  # type: ignore[return-value]
+    except (ValueError, IndexError):
+        return None
+    return None
+
+
+def _shade_series(base: str, n: int) -> list[str]:
+    """``n`` shades of ``base`` — same hue, lightness spread around it (#181).
+
+    One member keeps the base colour exactly, so a singleton group matches
+    its sidebar swatch. Several members fan out from darker to lighter, the
+    span growing with the count and clamped so no shade turns black or white.
+    """
+    if n <= 1:
+        return [base]
+    rgb = _parse_color(base)
+    if rgb is None:
+        return [base] * n
+    h, lum, sat = colorsys.rgb_to_hls(*(v / 255 for v in rgb))
+    span = min(0.55, 0.22 * (n - 1))
+    out: list[str] = []
+    for i in range(n):
+        t = i / (n - 1)
+        l_i = min(0.86, max(0.2, lum + (t - 0.5) * span))
+        r, g, b = colorsys.hls_to_rgb(h, l_i, sat)
+        out.append(f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}")
+    return out
+
+
+def _trace_color(tr) -> str | None:
+    line = getattr(tr, "line", None)
+    color = getattr(line, "color", None) if line is not None else None
+    if isinstance(color, str):
+        return color
+    marker = getattr(tr, "marker", None)
+    color = getattr(marker, "color", None) if marker is not None else None
+    return color if isinstance(color, str) else None
+
+
+def _paint(tr, color: str) -> None:
+    try:
+        if getattr(tr, "line", None) is not None:
+            tr.line.color = color
+        if getattr(tr, "marker", None) is not None:
+            tr.marker.color = color
+        # Spread bands need alpha in fillcolor; tr.opacity is ignored for
+        # fills or washes out the mean line when fill+line share a trace.
+        fill = getattr(tr, "fill", None)
+        if fill and fill != "none":
+            tr.fillcolor = _hex_to_rgba(color, 0.28)
+    except Exception:  # noqa: BLE001 - per-trace color is best-effort
+        pass
+
+
+def _apply_colorway(
+    fig, color_scheme: str, *, cell_groups: dict[str, int] | None = None
+) -> None:
+    """Colour legend series: by group when the groups are known, else per series.
+
+    With ``cell_groups`` (#181) every trace that resolves to a group — by name
+    or ``legendgroup`` — takes that group's colour, whichever way legend muting
+    is set: the scheme colour at ``group - 1`` (so ``safe`` matches the sidebar
+    swatches) or, for the ``cellpy`` scheme, the colour cellpy already gave the
+    group. Members of a multi-cell group become shades of that colour so they
+    stay distinguishable. Traces outside any group cycle the scheme in order
+    of appearance, as before; without a scheme they are left to cellpy.
+    """
     colors = COLOR_SCHEMES.get(color_scheme)
+    if not colors and not cell_groups:
+        return
+
+    def series_of(tr) -> str:
+        # A trace named after a cell is that cell's series even when legend
+        # muting puts the whole group on one legendgroup.
+        name = getattr(tr, "name", None)
+        if cell_groups and name is not None and str(name) in cell_groups:
+            return str(name)
+        return str(getattr(tr, "legendgroup", None) or name or id(tr))
+
+    def group_of(tr) -> int | None:
+        if not cell_groups:
+            return None
+        for attr in ("name", "legendgroup"):
+            value = getattr(tr, attr, None)
+            if value is not None and str(value) in cell_groups:
+                return cell_groups[str(value)]
+        return None
+
+    # group → series key → traces, all in order of appearance
+    grouped: dict[int, dict[str, list]] = {}
+    loose: list[tuple[str, object]] = []
+    for tr in fig.data:
+        g = group_of(tr)
+        if g is None:
+            loose.append((series_of(tr), tr))
+        else:
+            grouped.setdefault(g, {}).setdefault(series_of(tr), []).append(tr)
+
+    for g, members in grouped.items():
+        if colors:
+            base = colors[(g - 1) % len(colors)]
+        else:
+            base = next((c for traces in members.values() for tr in traces if (c := _trace_color(tr))), None)
+            if base is None:
+                continue
+        for shade, traces in zip(_shade_series(base, len(members)), members.values(), strict=True):
+            for tr in traces:
+                _paint(tr, shade)
+
     if not colors:
         return
-    series_key: dict[str, int] = {}
-    for tr in fig.data:
-        key = getattr(tr, "legendgroup", None) or getattr(tr, "name", None) or id(tr)
-        key = str(key)
-        if key not in series_key:
-            series_key[key] = len(series_key)
-        color = colors[series_key[key] % len(colors)]
-        try:
-            if getattr(tr, "line", None) is not None:
-                tr.line.color = color
-            if getattr(tr, "marker", None) is not None:
-                tr.marker.color = color
-            # Spread bands need alpha in fillcolor; tr.opacity is ignored for
-            # fills or washes out the mean line when fill+line share a trace.
-            fill = getattr(tr, "fill", None)
-            if fill and fill != "none":
-                tr.fillcolor = _hex_to_rgba(color, 0.28)
-        except Exception:  # noqa: BLE001 - per-trace color is best-effort
-            continue
+    series_index: dict[str, int] = {}
+    for key, tr in loose:
+        if key not in series_index:
+            series_index[key] = len(series_index)
+        _paint(tr, colors[series_index[key] % len(colors)])
 
 
 def _restyle(
@@ -1397,6 +1520,7 @@ def _restyle(
     *,
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
+    cell_groups: dict[str, int] | None = None,
 ) -> None:
     """Post-plot polish: legend truncation, colorway, margins, soft axes.
 
@@ -1404,9 +1528,11 @@ def _restyle(
     ``layout_updates`` / ``height_per_panel`` (#801) in :func:`_inject_app_chrome`.
     This pass keeps app-owned legend/colorway behaviour and axis grid styling.
     """
-    # Name truncation must not share fate with best-effort cosmetics.
+    # Colour first, while trace names are still the full batch keys the
+    # group lookup needs (#181); truncation must not share fate with the
+    # best-effort cosmetics below.
+    _apply_colorway(fig, color_scheme, cell_groups=cell_groups)
     longest = _shorten_legend(fig)
-    _apply_colorway(fig, color_scheme)
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     try:
         strip_pad = _FACET_STRIP_RIGHT_PAD if _has_right_facet_strips(fig) else 0
