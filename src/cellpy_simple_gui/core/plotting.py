@@ -56,7 +56,15 @@ def summary_figure(records: list[CellRecord], spec: SummaryPlotSpec) -> str:
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
         options=collect.summary_options_for(spec.plot_type, records),
+        rate=spec.rate,
+        rate_on=spec.rate_on,
+        rate_std=spec.rate_std,
     )
+    if spec.rate is not None and collect.collection_is_empty(collection):
+        return collect._empty_figure_json(
+            collect.no_matching_cycles_message(spec.rate),
+            figure_theme=spec.figure_theme,
+        )
     y_ranges = spec.y_ranges or {}
     return collect.figure_json(
         collection,

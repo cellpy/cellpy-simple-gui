@@ -141,6 +141,88 @@ def test_summary_figure_via_plotting(loaded_library):
     assert len(fig["data"]) >= 1
 
 
+def test_summary_spec_rejects_negative_rate():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        SummaryPlotSpec(rate=-0.1)
+    with pytest.raises(ValidationError):
+        SummaryPlotSpec(rate=0.1, rate_std=-0.01)
+    spec = SummaryPlotSpec(rate=0.05, rate_on=["discharge", "charge", "charge"])
+    assert spec.rate_on == ("discharge", "charge")
+
+
+def test_summary_collection_layers_rate_on_family_options(monkeypatch):
+    """A registry family's SummaryOptions still receives the C-rate filter (#197)."""
+    from cellpy.collect.options import SummaryOptions
+
+    captured: dict = {}
+
+    def spy(batch, options=None, **overrides):
+        captured["options"] = options
+        captured["overrides"] = overrides
+
+        class _Dummy:
+            data = None
+
+        return _Dummy()
+
+    monkeypatch.setattr(collect, "collect_summaries", spy)
+    base = SummaryOptions(columns=("coulombic_efficiency",))
+    collect.summary_collection(
+        [],
+        columns=("coulombic_efficiency",),
+        options=base,
+        rate=0.05,
+        rate_on=("discharge",),
+        rate_std=0.01,
+        use_cache=False,
+    )
+    assert captured["options"].rate == 0.05
+    assert captured["options"].rate_on == ("discharge",)
+    assert captured["options"].rate_std == 0.01
+    assert captured["overrides"] == {}
+
+
+def test_summary_rate_filter_keeps_matching_cycles(loaded_library):
+    """The least-common charge C-rate keeps only the cycles that ran at it (#197)."""
+    import polars as pl
+
+    recs = loaded_library.selected()
+    steps = recs[0].cell.data.steps
+    frame = steps if isinstance(steps, pl.DataFrame) else pl.from_pandas(steps)
+    charge = frame.filter(pl.col("step_type") == "charge")
+    counts = charge.group_by("c_rate").len().sort("len")
+    rate = float(counts["c_rate"][0])
+    std = 0.1 * rate
+    expected = set(
+        charge.filter((pl.col("c_rate") > rate - std) & (pl.col("c_rate") < rate + std))[
+            "cycle_num"
+        ]
+        .unique()
+        .to_list()
+    )
+    cols = collect.summary_columns_for("capacity_ce", "gravimetric")
+    full = collect.summary_collection(recs, columns=cols)
+    filtered = collect.summary_collection(
+        recs, columns=cols, rate=rate, rate_on=("charge",)
+    )
+    full_cycles = set(full.data["cycle_num"].unique().to_list())
+    kept = set(filtered.data["cycle_num"].unique().to_list())
+    assert expected
+    assert kept == expected
+    assert kept < full_cycles
+
+
+def test_summary_rate_filter_miss_is_explicit(loaded_library):
+    recs = loaded_library.selected()
+    spec = SummaryPlotSpec(rate=99)
+    fig = json.loads(plotting.summary_figure(recs, spec))
+    assert fig["layout"]["annotations"][0]["text"] == "No cycles match C-rate 99."
+    with pytest.raises(ValueError, match="No cycles match C-rate 99"):
+        export.summary_export(recs, spec, "csv")
+
+
 @pytest.mark.essential
 def test_summary_figure_empty():
     fig = json.loads(plotting.summary_figure([], SummaryPlotSpec()))

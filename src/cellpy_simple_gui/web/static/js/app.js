@@ -131,6 +131,7 @@ function app() {
     summary: {
       plot_type: "capacity_ce", basis: "gravimetric",
       group_average: false, spread: false, max_cycle: "",
+      rate: "", rate_on: "charge", rate_std: "",
       group_legend_muting: true,
       share_y: false,
       yRanges: {}, // column id → {min, max} strings; either end optional
@@ -1124,6 +1125,11 @@ function app() {
     // ---- summary plot ----
     summarySpec() {
       const y_ranges = this.buildYRanges();
+      const rate = this._num(this.summary.rate);
+      const rate_std = this._num(this.summary.rate_std);
+      const rate_on = this.summary.rate_on === "both"
+        ? ["charge", "discharge"]
+        : [this.summary.rate_on || "charge"];
       return {
         plot_type: this.summary.plot_type,
         basis: this.summary.basis,
@@ -1133,6 +1139,11 @@ function app() {
         max_cycle: this._num(this.summary.max_cycle),
         share_y: !!this.summary.share_y && !y_ranges,
         ...(y_ranges ? { y_ranges } : {}),
+        ...(rate != null ? {
+          rate,
+          rate_on,
+          ...(rate_std != null ? { rate_std } : {}),
+        } : {}),
         title: "Cycle summary",
         ...this.appearanceFields(),
       };

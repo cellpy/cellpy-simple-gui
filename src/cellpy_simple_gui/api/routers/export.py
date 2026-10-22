@@ -76,7 +76,10 @@ def export_summary(spec: SummaryPlotSpec, fmt: str = "csv") -> Response:
             raise _figure_http(exc) from exc
         return _file(data, media, f"summary.{_FIG_EXT[fmt_l]}")
     fmt_l = _check_data_fmt(fmt_l)
-    data, media = export_core.summary_export(records, spec, fmt_l)
+    try:
+        data, media = export_core.summary_export(records, spec, fmt_l)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     return _file(data, media, f"summary.{_DATA_EXT[fmt_l]}")
 
 

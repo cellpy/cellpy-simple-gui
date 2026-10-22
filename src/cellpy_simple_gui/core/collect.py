@@ -497,6 +497,38 @@ def summary_columns(basis: str, charge: bool, discharge: bool, efficiency: bool)
 # --------------------------------------------------------------------------- #
 
 
+def _rate_kwargs(
+    rate: float | None,
+    rate_on: tuple[str, ...] | None,
+    rate_std: float | None,
+) -> dict:
+    """cellpy rate-filter overrides. Omitted keys keep SummaryOptions defaults."""
+    kwargs: dict = {}
+    if rate is not None:
+        kwargs["rate"] = rate
+    if rate_on:
+        kwargs["rate_on"] = tuple(rate_on)
+    if rate_std is not None:
+        kwargs["rate_std"] = rate_std
+    return kwargs
+
+
+def collection_is_empty(collection) -> bool:
+    """True when a collected frame has no rows."""
+    data = getattr(collection, "data", None)
+    if data is None:
+        return True
+    height = getattr(data, "height", None)
+    if height is not None:
+        return height == 0
+    return len(data) == 0
+
+
+def no_matching_cycles_message(rate: float) -> str:
+    """Shared chart and export wording when a C-rate filter matches nothing."""
+    return f"No cycles match C-rate {rate:g}."
+
+
 def summary_collection(
     records: list[CellRecord],
     *,
@@ -504,15 +536,19 @@ def summary_collection(
     group_it: bool = False,
     max_cycle: int | None = None,
     options=None,
+    rate: float | None = None,
+    rate_on: tuple[str, ...] | None = None,
+    rate_std: float | None = None,
     use_cache: bool = True,
 ):
     """Collect summaries, optionally under a family's own :class:`SummaryOptions`.
 
     ``options`` comes from :func:`family_summary_options` and already carries
     the family's ``columns``, CV split and transforms; the app only layers its
-    own grouping and cycle cap on top (#868). Without it this is the plain
-    column collect the curated plot types use.
+    own grouping, cycle cap, and C-rate filter on top (#868, #197). Without it
+    this is the plain column collect the curated plot types use.
     """
+    rate_kwargs = _rate_kwargs(rate, rate_on, rate_std)
 
     def build():
         if options is not None:
@@ -522,6 +558,7 @@ def summary_collection(
                     only_selected=False,  # records handed in are already the selected set
                     group_it=group_it,
                     max_cycle=max_cycle,
+                    **rate_kwargs,
                 ),
             )
         return collect_summaries(
@@ -530,6 +567,7 @@ def summary_collection(
             only_selected=False,
             group_it=group_it,
             max_cycle=max_cycle,
+            **rate_kwargs,
         )
 
     return plot_cache.cached_collect(
@@ -540,6 +578,9 @@ def summary_collection(
             "group_it": group_it,
             "max_cycle": max_cycle,
             "options": options,
+            "rate": rate,
+            "rate_on": rate_on,
+            "rate_std": rate_std,
         },
         build,
         use_cache=use_cache,

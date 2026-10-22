@@ -105,6 +105,12 @@ class SummaryPlotSpec(BaseModel):
     # Meaningless when group_average=True (cellpy forces group_cells=False).
     group_legend_muting: bool = True
     max_cycle: Optional[int] = None
+    # Step-table C-rate filter (cellpy SummaryOptions.rate). None keeps every
+    # cycle. ``rate_on`` defaults to charge inside cellpy when omitted.
+    # ``rate_std`` is an absolute tolerance; None means 10% of ``rate``.
+    rate: Optional[float] = Field(default=None, ge=0)
+    rate_on: Optional[tuple[Literal["charge", "discharge"], ...]] = None
+    rate_std: Optional[float] = Field(default=None, ge=0)
     # Independent y-scales by default so CE outliers don't crush capacity panels.
     # Maps to cellpy ``match_axes`` on the collected summary path.
     share_y: bool = False
@@ -131,6 +137,19 @@ class SummaryPlotSpec(BaseModel):
             if cleaned_pair is not None:
                 cleaned[str(key)] = cleaned_pair
         return cleaned or None
+
+    @field_validator("rate_on", mode="before")
+    @classmethod
+    def _clean_rate_on(cls, value):
+        if value is None or value == "":
+            return None
+        if isinstance(value, str):
+            value = (value,)
+        cleaned: list[str] = []
+        for item in value:
+            if item not in cleaned:
+                cleaned.append(item)
+        return tuple(cleaned) or None
 
 
 class CyclesPlotSpec(BaseModel):
