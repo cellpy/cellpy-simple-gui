@@ -314,8 +314,29 @@
               <span>Updating plot…</span>
             </div>
           </div>
-          <aside class="plot-sidepane" aria-label="Y-axis ranges">
-            <h3 class="plot-sidepane-title">Y ranges</h3>
+          <aside class="plot-sidepane" aria-label="Cycle summary options">
+            <h3 class="plot-sidepane-title">Filter</h3>
+            <div class="ctl" title="Keep cycles whose step ran at this C-rate. Leave blank to keep every cycle.">
+              <label>C-rate</label>
+              <input type="number" class="num" step="any" min="0" placeholder="all"
+                     x-model="summary.rate" @change="plotSummary()" aria-label="C-rate" />
+            </div>
+            <div class="ctl" x-show="summary.rate !== '' && summary.rate != null" x-cloak
+                 title="Which step must sit at that C-rate. Charge is the default.">
+              <label>Step</label>
+              <select x-model="summary.rate_on" @change="plotSummary()" aria-label="C-rate step">
+                <option value="charge">Charge</option>
+                <option value="discharge">Discharge</option>
+                <option value="both">Charge and discharge</option>
+              </select>
+            </div>
+            <div class="ctl" x-show="summary.rate !== '' && summary.rate != null" x-cloak
+                 title="Absolute tolerance around the C-rate. Leave blank for 10% of the rate.">
+              <label>Tolerance</label>
+              <input type="number" class="num" step="any" min="0" placeholder="10%"
+                     x-model="summary.rate_std" @change="plotSummary()" aria-label="C-rate tolerance" />
+            </div>
+            <h3 class="plot-sidepane-title pane-section">Y ranges</h3>
             <template x-for="p in currentSummaryPanels()" :key="p.id">
               <div class="ctl yrange" :title="'Fixed y-range for ' + p.label + ' (leave blank for auto)'">
                 <label x-text="p.label + ' y'"></label>

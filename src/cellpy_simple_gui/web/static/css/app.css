@@ -427,6 +427,9 @@ input:focus, select:focus { border-color: var(--accent); }
   margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0;
   text-transform: none; color: var(--text);
 }
+.plot-sidepane-title.pane-section {
+  margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line);
+}
 .plot-sidepane .ctl { width: 100%; }
 .plot-sidepane .ctl select, .plot-sidepane .ctl .num { min-width: 0; width: 100%; }
 .plot-sidepane .yrange-inputs { width: 100%; }

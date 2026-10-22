@@ -73,7 +73,12 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
         options=collect.summary_options_for(spec.plot_type, records),
+        rate=spec.rate,
+        rate_on=spec.rate_on,
+        rate_std=spec.rate_std,
     )
+    if spec.rate is not None and collect.collection_is_empty(collection):
+        raise ValueError(collect.no_matching_cycles_message(spec.rate))
     return collect.export_bytes(collection, fmt)
 
 
