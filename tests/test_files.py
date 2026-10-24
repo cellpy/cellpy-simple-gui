@@ -36,6 +36,15 @@ def test_glob_match_and_cap(tmp_path):
     exp = expand_paths([str(tmp_path / "*.cellpy")], max_files=3)
     assert len(exp.paths) == 3
     assert exp.notes and "loaded the first 3" in exp.notes[0]
+    # The staged-list preview shows "showing 3 of 5" from this (#136).
+    assert exp.total == 5
+
+
+def test_total_equals_paths_when_not_capped(tmp_path):
+    for i in range(2):
+        (tmp_path / f"cell_{i}.cellpy").write_text("x")
+    exp = expand_paths([str(tmp_path / "*.cellpy")], max_files=10)
+    assert exp.total == len(exp.paths) == 2
 
 
 def test_dedup(tmp_path):

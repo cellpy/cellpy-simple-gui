@@ -344,6 +344,75 @@ One detail that will cost you an afternoon otherwise: hand `customdata` over as 
 tooltip renders `± NaN`. A test asserting "customdata is truthy" passes either
 way — this was caught in a browser.
 
+## Comparing picked cycles across cells
+
+"Cycle 3 of cell A over cycle 7 of cell B" is a natural question and cellpy
+has no direct expression for it — two things stand in the way, and both are
+collect-side facts rather than bugs:
+
+- **One cycle list per batch.** `CurveOptions(cycles=…)` / `IcaOptions(cycles=…)`
+  apply to every cell in the batch. Collect the **union** and narrow afterwards.
+- **Both layouts facet.** `layout="per_cell"` and `layout="per_cycle"` each put
+  one cell or one cycle per panel; there is no `overlay`. And the colours follow
+  the *cycle number*, so cycle 3 of two cells would draw in the same colour if
+  you merely moved the traces onto one axis.
+
+The frame is a plain polars table, so narrowing is one join. The cycle column
+differs by family — `cycle_num` in the cycles frame, `cycle` in ICA / DVA —
+and the `cell` values are the batch keys (label, name or id, de-duplicated):
+
+```python
+import polars as pl
+
+collection = collect_cycles(batch, options=CurveOptions(cycles=(3, 7)))
+wanted = pl.DataFrame({"cell": ["A", "B"], "cycle_num": [3, 7]})
+collection.data = collection.data.join(wanted, on=["cell", "cycle_num"], how="semi")
+figure = collection.plot(layout="per_cell")   # two facets, one curve each
+```
+
+For a true overlay, keep cellpy's traces and rewrite only the presentation:
+point every trace at `x`/`y`, give each its own legend entry (the PX
+hovertemplate already carries `cell=<label>`, so the identity survives the
+rename), recolour **sequentially** rather than by cycle, and drop the facet
+strips and extra axes. The app does exactly this in
+`collect._overlay_facets`; see `.issueflows/04-designs-and-guides/compare-cells.md`
+for the decision and [#169](https://github.com/cellpy/cellpy-simple-gui/issues/169)
+for the request.
+
+### Say when a cycle is not there
+
+Narrowing to picked pairs has a trap: a pair that matches nothing just
+disappears. If cell B has 21 cycles and you ask for its cycle 50, the semi-join
+drops it silently, and if *no* requested cycle exists in any cell the
+collectors do not even return an empty frame — `collect_cycles` fails with
+`KeyError('cycle_num')` and `collect_ica` / `collect_dva` with
+`AttributeError('cycle')` further down (painpoint §37). Neither message says
+"no such cycle".
+
+Check before and after collecting:
+
+```python
+requested = {"sf033": [1, 900]}                      # 900 is not in this file
+have = {"sf033": set(cell.get_cycle_numbers())}
+missing = {k: [c for c in v if c not in have[k]] for k, v in requested.items()}
+existing = sorted({c for k, v in requested.items() for c in v if c in have[k]})
+assert existing, "nothing to collect — say so instead of calling cellpy"
+
+collection = collect_cycles(batch, options=CurveOptions(cycles=tuple(existing)))
+present = set(map(tuple, collection.data.select(["cell", "cycle_num"]).unique().rows()))
+unreadable = {
+    k: [c for c in v if c in have[k] and (k, c) not in present] for k, v in requested.items()
+}
+print(missing, unreadable)                            # {'sf033': [900]} {'sf033': []}
+```
+
+"Not in data" and "could not be read" are different diagnoses — the second is a
+cycle the file lists but that yields no curve rows (a truncated or corrupted
+cycle). The app words both per cell (`core/cycle_report.py`), carries them in
+`layout.meta.warnings`, and shows them in a strip above the chart; when
+nothing can be drawn the empty figure says why
+([#175](https://github.com/cellpy/cellpy-simple-gui/issues/175)).
+
 ## Single-cell plots
 
 Two useful ones live outside the collect path, taking a cell directly:

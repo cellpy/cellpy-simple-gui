@@ -10,9 +10,11 @@ from fastapi import APIRouter, HTTPException
 from ...core import cellpy_adapter, cellpy_config
 from ...core.library import get_library
 from ...core.models import (
+    GroupLabelUpdate,
     JournalRowUpdate,
     LoadExampleRequest,
     LoadFilesRequest,
+    PreviewRequest,
 )
 from ..jobs import Progress, get_job_manager
 
@@ -27,8 +29,10 @@ def _state() -> dict:
         "n_cells": len(lib),
         "n_selected": len(lib.selected()),
         "n_groups": lib.n_groups(),
+        "groups": lib.groups(),
         "empty": lib.is_empty(),
         "project": lib.project_name,
+        "revision": lib.revision,
     }
 
 
@@ -91,6 +95,27 @@ def load_example(req: LoadExampleRequest) -> dict:
     return {"job_id": job.id}
 
 
+@router.post("/files/preview")
+def preview_files(req: PreviewRequest) -> dict:
+    """Expand paths / globs for the staged list, loading nothing (#136).
+
+    Same policy as the load job (sandbox, remote gate, ``max_files`` ceiling),
+    so what the user reviews is exactly what Load would take.
+    """
+    from ...core.files import effective_max_files, expand_paths
+
+    patterns = [p for p in req.patterns if p and p.strip()]
+    if not patterns:
+        raise HTTPException(400, "No paths provided")
+    exp = expand_paths(patterns, max_files=effective_max_files(req.max_files))
+    return {
+        "paths": exp.paths,
+        "errors": exp.errors,
+        "notes": exp.notes,
+        "total": exp.total,
+    }
+
+
 @router.post("/load/files")
 def load_files(req: LoadFilesRequest) -> dict:
     if not req.paths:
@@ -121,6 +146,15 @@ def update_cell(cell_id: str, update: JournalRowUpdate) -> dict:
     except KeyError:
         raise HTTPException(404, "No such cell")
     return {"cell": rec.to_meta().model_dump(), "state": _state()}
+
+
+@router.post("/groups/{group}")
+def rename_group(group: int, update: GroupLabelUpdate) -> dict:
+    """Name a group (#187). Groups are implicit — any positive number works."""
+    if group < 1:
+        raise HTTPException(400, "Group numbers start at 1")
+    get_library().set_group_label(group, update.label)
+    return _state()
 
 
 @router.post("/cells/select")

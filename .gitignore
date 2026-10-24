@@ -60,6 +60,7 @@ cover/
 
 # Django stuff:
 *.log
+*.log.[0-9]*
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -220,6 +221,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# graphify — regenerated AST cache (keep GRAPH_REPORT.md / graph artifacts tracked)
-graphify-out/cache/
+# graphify — regenerated locally; do not commit (the snapshots conflict on every rebase)
+graphify-out/
 local/

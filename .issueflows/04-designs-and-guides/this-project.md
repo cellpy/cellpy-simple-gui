@@ -3,7 +3,7 @@
 ## What this project is
 
 **cellpy-simple-gui** (GitHub: [cellpy/cellpy-simple-gui](https://github.com/cellpy/cellpy-simple-gui))
-is an MVP desktop app for exploring battery cell data with **cellpy ≥ 2.1.1.post4**.
+is an MVP desktop app for exploring battery cell data with **cellpy ≥ 2.1.5.post7**.
 It is the successor to the Streamlit demo in `cell_processor_app`: same local,
 browser-feel workflow, but with a real installable shell, a thin FastAPI backend,
 and a reusable pure-Python core. Intended for single-user / offline lab use.
@@ -17,7 +17,7 @@ friction notes (mostly fixed in 2.1.1) are in repo-root `CELLPY_PAINPOINTS.md`.
 - **Language:** Python **≥ 3.13** (pinned in `.python-version`).
 - **Package manager:** **`uv`** exclusively (`uv.lock`). Never bare `python`,
   `pip`, or `poetry`.
-- **cellpy:** `cellpy>=2.1.1.post4` (needs `pandas>=3.0`). Legacy `.h5` via `tables`.
+- **cellpy:** `cellpy>=2.1.5.post7` (needs `pandas>=3.0`). Legacy `.h5` via `tables`.
   Prefer collect plot chrome knobs (`layout_updates`, pretty labels,
   `height_per_panel`) over growing app `_restyle`; see
   [`cellpy-delegation-inventory.md`](cellpy-delegation-inventory.md).
@@ -80,12 +80,14 @@ No ruff/formatter gate is configured in `pyproject.toml` yet — do not invent o
 
 ## Release & version bump
 
-**Static version (uv).** `[project] version` lives in `pyproject.toml`
-(currently `0.1.0`). Bump with:
-
-```bash
-uv version --bump <level>   # major | minor | patch | alpha | beta | rc | …
-```
+**Static version, single source.** `__version__` in
+`src/cellpy_simple_gui/__init__.py` is the only place the version lives;
+`pyproject.toml` declares `dynamic = ["version"]` and reads it from there
+(`[tool.hatch.version]`), so `uv version --bump` does **not** apply — edit the
+string by hand. The release routine (bump → PR → tag `v<version>` on `main` →
+`publish.yml` / `container.yml` / `release.yml`) is in `docs/releasing.md`;
+`publish.yml` refuses a tag that disagrees with `__version__`. Releases so far:
+0.1.0, 0.1.1, 0.2.0, 0.2.1.
 
 There is no `HISTORY.md` yet — `/iflow-close` changelog updates are skipped
 until one exists at the repo root. No git-tag-derived versioning.

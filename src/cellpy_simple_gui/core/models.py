@@ -81,9 +81,17 @@ class CellMeta(BaseModel):
     cycle_mode: CycleMode | None = None
     n_cycles: int = 0
     group: int = 1
+    #: Display name of the cell's group — the user's name, else ``group <n>``.
+    group_label: str = ""
     label: str = ""
     selected: bool = True
     color: str | None = None
+
+
+class GroupLabelUpdate(BaseModel):
+    """Rename one group (#187); an empty label restores ``group <n>``."""
+
+    label: str = ""
 
 
 class SummaryPlotSpec(BaseModel):
@@ -97,6 +105,12 @@ class SummaryPlotSpec(BaseModel):
     # Meaningless when group_average=True (cellpy forces group_cells=False).
     group_legend_muting: bool = True
     max_cycle: Optional[int] = None
+    # Step-table C-rate filter (cellpy SummaryOptions.rate). None keeps every
+    # cycle. ``rate_on`` defaults to charge inside cellpy when omitted.
+    # ``rate_std`` is an absolute tolerance; None means 10% of ``rate``.
+    rate: Optional[float] = Field(default=None, ge=0)
+    rate_on: Optional[tuple[Literal["charge", "discharge"], ...]] = None
+    rate_std: Optional[float] = Field(default=None, ge=0)
     # Independent y-scales by default so CE outliers don't crush capacity panels.
     # Maps to cellpy ``match_axes`` on the collected summary path.
     share_y: bool = False
@@ -106,6 +120,10 @@ class SummaryPlotSpec(BaseModel):
     y_ranges: Optional[dict[str, list[Optional[float]]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
+    # Lightness fan for cells that share a group. Off paints every member
+    # the group colour. ``shade_spread`` is 0–1 times the automatic fan.
+    group_shade: bool = True
+    shade_spread: float = Field(default=1.0, ge=0.0, le=1.0)
     title: str = "Cycle summary"
 
     @field_validator("y_ranges")
@@ -119,6 +137,19 @@ class SummaryPlotSpec(BaseModel):
             if cleaned_pair is not None:
                 cleaned[str(key)] = cleaned_pair
         return cleaned or None
+
+    @field_validator("rate_on", mode="before")
+    @classmethod
+    def _clean_rate_on(cls, value):
+        if value is None or value == "":
+            return None
+        if isinstance(value, str):
+            value = (value,)
+        cleaned: list[str] = []
+        for item in value:
+            if item not in cleaned:
+                cleaned.append(item)
+        return tuple(cleaned) or None
 
 
 class CyclesPlotSpec(BaseModel):
@@ -147,12 +178,93 @@ class CyclesPlotSpec(BaseModel):
     y_range: Optional[list[Optional[float]]] = None
     figure_theme: FigureTheme = "light"
     color_scheme: ColorScheme = "cellpy"
+    # Same within-group fan as :class:`SummaryPlotSpec`. Only the per-cycle
+    # layout has one series per cell; other layouts ignore it.
+    group_shade: bool = True
+    shade_spread: float = Field(default=1.0, ge=0.0, le=1.0)
     title: str = ""
 
     @field_validator("x_range", "y_range")
     @classmethod
     def _clean_xy_range(cls, value: list[float | None] | None):
         return _clean_axis_range(value)
+
+
+#: Compare mode draws the picked curves on one axis pair, or facets them per
+#: cell (cellpy's own ``per_cell`` layout) for a side-by-side view (#169).
+CompareLayout = Literal["overlay", "per_cell"]
+
+#: Payload guards for compare mode — mirror the explorer's "max curves" cap.
+COMPARE_MAX_PICKS = 8
+COMPARE_MAX_CYCLES_PER_PICK = 40
+COMPARE_MAX_CURVES = 80
+
+
+class ComparePick(BaseModel):
+    """One cell and the cycles to draw from it."""
+
+    cell_id: str
+    cycles: list[int] = Field(default_factory=list, max_length=COMPARE_MAX_CYCLES_PER_PICK)
+
+    @field_validator("cycles")
+    @classmethod
+    def _unique_sorted(cls, value: list[int]) -> list[int]:
+        return sorted(set(value))
+
+
+class ComparePlotSpec(BaseModel):
+    """Several cells, each with its own cycles, in one figure (#169).
+
+    cellpy collects one ``cycles`` list for a whole batch and facets by cell or
+    by cycle, so "cycle 3 of A next to cycle 7 of B" is assembled app-side: the
+    union of cycles is collected, the frame is restricted to the picked
+    ``(cell, cycle)`` pairs, and ``overlay`` folds cellpy's per-cell facets onto
+    one axis pair. Curve-kind controls are the union of :class:`CyclesPlotSpec`
+    and :class:`IcaPlotSpec`; which ones apply follows ``curve_kind``.
+    """
+
+    picks: list[ComparePick] = Field(min_length=1, max_length=COMPARE_MAX_PICKS)
+    curve_kind: CurveKind = "voltage"
+    mode: CapacityMode = "gravimetric"
+    method: CycleMethod = "forth-and-forth"
+    direction: IcaDirection = "charge"
+    voltage_resolution: float = 0.005
+    layout: CompareLayout = "overlay"
+    # Axis limits ``[lo, hi]``; either end may be null (filled from data).
+    x_range: Optional[list[Optional[float]]] = None
+    y_range: Optional[list[Optional[float]]] = None
+    figure_theme: FigureTheme = "light"
+    color_scheme: ColorScheme = "cellpy"
+    title: str = ""
+
+    @field_validator("x_range", "y_range")
+    @classmethod
+    def _clean_xy_range(cls, value: list[float | None] | None):
+        return _clean_axis_range(value)
+
+    @field_validator("picks")
+    @classmethod
+    def _bounded_curves(cls, value: list[ComparePick]) -> list[ComparePick]:
+        # Same cell picked twice merges rather than drawing the curve twice.
+        merged: dict[str, ComparePick] = {}
+        for pick in value:
+            if pick.cell_id in merged:
+                merged[pick.cell_id].cycles = sorted(
+                    set(merged[pick.cell_id].cycles) | set(pick.cycles)
+                )
+            else:
+                merged[pick.cell_id] = pick.model_copy()
+        total = sum(len(p.cycles) for p in merged.values())
+        if total > COMPARE_MAX_CURVES:
+            raise ValueError(
+                f"too many curves ({total}); compare mode draws at most "
+                f"{COMPARE_MAX_CURVES} across all cells"
+            )
+        return list(merged.values())
+
+    def pairs(self) -> set[tuple[str, int]]:
+        """Every ``(cell_id, cycle)`` the spec asks for."""
+        return {(p.cell_id, c) for p in self.picks for c in p.cycles}
 
 
 class IcaPlotSpec(BaseModel):
@@ -259,6 +371,13 @@ class LoadExampleRequest(BaseModel):
 
 class LoadFilesRequest(BaseModel):
     paths: list[str]
+    max_files: int = 10
+
+
+class PreviewRequest(BaseModel):
+    """Expand typed paths / globs without loading anything (#136 staged list)."""
+
+    patterns: list[str]
     max_files: int = 10
 
 

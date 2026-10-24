@@ -150,19 +150,25 @@ def collection_for(plot: str, *, cycles: tuple[int, ...] = (1, 5, 10, 20)):
     if not CELLS:
         raise HTTPException(400, "Load a cell first.")
 
-    batch = from_cells(CELLS)
+    if plot == CYCLE_CURVES:
+        columns = None
+    else:
+        columns = SUMMARY_PLOTS.get(plot)
+        if columns is None:
+            raise HTTPException(404, f"No plot called {plot!r}.")
+        missing = _missing(columns)
+        if missing:
+            # Collecting a column the summary does not carry draws an empty chart
+            # rather than raising, so say it here instead.
+            raise HTTPException(400, "These cells have no " + ", ".join(missing) + ".")
+
+    try:
+        batch = from_cells(CELLS)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     if plot == CYCLE_CURVES:
         return collect_cycles(batch, options=CurveOptions(cycles=cycles))
-
-    columns = SUMMARY_PLOTS.get(plot)
-    if columns is None:
-        raise HTTPException(404, f"No plot called {plot!r}.")
-    missing = _missing(columns)
-    if missing:
-        # Collecting a column the summary does not carry draws an empty chart
-        # rather than raising, so say it here instead.
-        raise HTTPException(400, "These cells have no " + ", ".join(missing) + ".")
     return collect_summaries(batch, columns=columns)
 
 
@@ -182,7 +188,11 @@ def figure_json(plot: str, **kwargs) -> str:
     Two knobs worth knowing: ``group_it=True`` on the collect call averages
     cells that share a group, and ``spread=True`` here draws the ±1σ band.
     """
-    figure = collection_for(plot, **kwargs).plot()
+    # One facet per summary column, matching the two-trace walkthrough.
+    # cellpy ≥2.1.5 otherwise stacks charge and discharge on one panel and
+    # adds a Direction legend.
+    extra = {} if plot == CYCLE_CURVES else {"combine_directions": False}
+    figure = collection_for(plot, **kwargs).plot(**extra)
     return pio.to_json(figure)
 
 

@@ -22,6 +22,25 @@ light/dark shell hook.
 - **Persistence:** `localStorage` keys `csg-figure-theme`, `csg-color-scheme`.
   Existing Light/Dark choices in localStorage stay respected.
 - **Cell-list swatches** stay on `PALETTE` and do not follow the plot scheme (v1).
+- **Colour by group, shade by member (#181):** for per-cell traces
+  `_apply_colorway` takes a `cell_groups` map (`collect.cell_groups(records)`,
+  trace name → group id) and paints every group with one hue — scheme colour
+  index `(group - 1)` (so `safe` matches the sidebar swatches) or, for the
+  `cellpy` scheme, the colour cellpy already gave the group — fanned into
+  lightness shades per member (`_shade_series`). The fan grows with the
+  group size (HLS lightness ±0.11 per extra member, capped at ±0.275) and
+  is then scaled by **Shade spread** (`shade_spread`, 0–1, default 1).
+  **Shade within group** (`group_shade`, default on) turns the fan off.
+  Both live in the Summary and Cycles control bars and persist in
+  `localStorage` (`csg-group-shade`, `csg-shade-spread`). Generated shades
+  stay inside a theme window (`_SHADE_WINDOW`: light 0.28–0.68, dark
+  0.45–0.88) so a dark step does not vanish on a dark figure and a light
+  step does not vanish on white. The group's own colour is never rewritten
+  when it already sits outside that window; shades only move toward it.
+  The result is identical whether **Mute by group** is on or off; muting
+  only decides what a legend click toggles.
+  Group-average traces (`group_cells=False`) and `per_cell` cycle facets
+  (coloured by cycle) are left to the plain order-of-appearance pass.
 - Keep legend truncation + colorway in app `_restyle`. As of cellpy
   **2.1.1.post4** (#801), paper/plot/font colors and panel height go through
   `layout_updates` / `height_per_panel` (`collect._inject_app_chrome`); facet

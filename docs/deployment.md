@@ -232,10 +232,12 @@ it is `10`, or `500` in developer mode.
 
 Two ways, and a served instance needs the first.
 
-**Upload from the browser.** *Add cellpy files → Upload from this computer*.
-Files are written to `CSG_DATA_DIR/uploads/` and then loaded through the same
-path as anything else, so the sandbox stays the only thing deciding what is
-readable. Up to **512 MB** per file by default:
+**Upload from the browser.** *Add cells… → Drop files* on the source zone, or
+*Upload…* (the button only appears on served instances, where *Browse…* makes
+no sense). Files are written to `CSG_DATA_DIR/uploads/` and appear in the
+staged list, then load through the same path as anything else, so the sandbox
+stays the only thing deciding what is readable. Up to **512 MB** per file by
+default:
 
 ```bash
 CSG_MAX_UPLOAD_MB=2048
@@ -246,9 +248,10 @@ with a message, and the others in the same upload still land — five files with
 one oversized leaves you four and a warning, not nothing.
 
 **Mount data at the volume.** Anything already inside `CSG_DATA_DIR` can be
-loaded by path, which is the better route for a directory of existing cells.
-On a served instance the path field is demoted below upload, because it refers
-to a filesystem the browser cannot see.
+loaded by path (or glob), which is the better route for a directory of existing
+cells. On a served instance the path field reads *paste a path inside the data
+directory*; a host path outside it is staged as *refused* with the sandbox
+message, so the mistake is visible before anything runs.
 
 ### Uploads are never deleted automatically
 

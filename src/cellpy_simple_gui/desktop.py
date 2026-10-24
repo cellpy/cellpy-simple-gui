@@ -95,7 +95,7 @@ def run_desktop() -> None:
         width=1360,
         height=900,
         min_size=(1024, 680),
-        background_color="#0f1420",
+        background_color="#141618",
     )
     previous, _win32_keepalive = _install_ctrl_c_close(webview)
     icon = str(_WINDOW_ICON) if _WINDOW_ICON.is_file() else None

@@ -242,11 +242,10 @@ def test_the_tool_surface_is_small_and_named_as_documented(prototype):
 def test_describe_api_follows_the_reference_the_docstring_points_at(prototype):
     """The finding this family turns on.
 
-    `CellpyCell.get_cap` takes 23 arguments, documents none of them, and spends
-    its one-line docstring on ``See :func:`cellpy.readers.capacity_curves.get_cap```.
-    The delegate documents 22 of 24 in a full ``Args:`` block. Following the
-    reference is the difference between an unanswerable call and a documented
-    one, so it is asserted rather than left to be noticed.
+    `CellpyCell.get_cap` points at the implementation with
+    ``See `cellpy.readers.capacity_curves.get_cap` `` (a Sphinx ``:func:`` role
+    on older cellpy). Following that reference is what fills in arguments the
+    wrapper leaves out, so it is asserted rather than left to be noticed.
     """
 
     async def steps(call):

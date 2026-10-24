@@ -20,7 +20,13 @@ from cellpy.plotting import figures as cellpy_figures
 
 from . import cellpy_adapter, collect, plotting
 from .library import CellRecord
-from .models import CyclesPlotSpec, DvaPlotSpec, IcaPlotSpec, SummaryPlotSpec
+from .models import (
+    ComparePlotSpec,
+    CyclesPlotSpec,
+    DvaPlotSpec,
+    IcaPlotSpec,
+    SummaryPlotSpec,
+)
 
 CELL_EXPORT_FORMATS = ("cellpy", "csv", "xlsx")
 _CELL_MEDIA = {
@@ -67,7 +73,12 @@ def summary_export(records: list[CellRecord], spec: SummaryPlotSpec, fmt: str) -
         group_it=spec.group_average,
         max_cycle=spec.max_cycle,
         options=collect.summary_options_for(spec.plot_type, records),
+        rate=spec.rate,
+        rate_on=spec.rate_on,
+        rate_std=spec.rate_std,
     )
+    if spec.rate is not None and collect.collection_is_empty(collection):
+        raise ValueError(collect.no_matching_cycles_message(spec.rate))
     return collect.export_bytes(collection, fmt)
 
 
@@ -100,6 +111,29 @@ def cycles_figure_export(
     records: list[CellRecord], spec: CyclesPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
     return figure_bytes(plotting.cycles_figure(records, spec), fmt)
+
+
+def compare_export(
+    picks: plotting.ComparePicks, spec: ComparePlotSpec, fmt: str
+) -> tuple[bytes, str]:
+    """Rows for exactly the picked ``(cell, cycle)`` pairs the chart shows (#169)."""
+    collection, reports = plotting.compare_collection(picks, spec)
+    if collection is None:
+        if reports:
+            # Same wording as the chart: say which cycles the cells lack (#175).
+            raise ValueError(
+                "Nothing to export — " + "; ".join(r.message() for r in reports) + "."
+            )
+        raise ValueError("Pick one or more cycles to export.")
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        collection = collect.select_ica_direction(collection, spec.direction)
+    return collect.export_bytes(collection, fmt)
+
+
+def compare_figure_export(
+    picks: plotting.ComparePicks, spec: ComparePlotSpec, fmt: str
+) -> tuple[bytes, str]:
+    return figure_bytes(plotting.compare_figure(picks, spec), fmt)
 
 
 def ica_export(record: CellRecord, spec: IcaPlotSpec, fmt: str) -> tuple[bytes, str]:

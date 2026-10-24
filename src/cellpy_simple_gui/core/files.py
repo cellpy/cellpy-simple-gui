@@ -34,6 +34,7 @@ class Expansion:
     paths: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)  # nothing matched / not found
     notes: list[str] = field(default_factory=list)  # informational (e.g. truncation)
+    total: int = 0  # matches before the ``max_files`` cap (#136 preview)
 
 
 def is_glob(pattern: str) -> bool:
@@ -94,6 +95,7 @@ def expand_paths(patterns: list[str], max_files: int = DEFAULT_MAX_FILES) -> Exp
                 exp.errors.append(f"Not found: {pat}")
 
     limit = max_files if max_files and max_files > 0 else DEFAULT_MAX_FILES
+    exp.total = len(exp.paths)
     if len(exp.paths) > limit:
         exp.notes.append(
             f"Matched {len(exp.paths)} files; loaded the first {limit} "

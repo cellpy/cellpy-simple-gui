@@ -16,9 +16,24 @@
 #define AppExe "cellpy-simple-gui.exe"
 #define ConsoleExe "cellpy-simple-gui-console.exe"
 
-; Overridable: ISCC /DAppVersion=1.2.3
+; Overridable: ISCC /DAppVersion=1.2.3 [/DBuildId=main.abc1234] [/DOutputBaseName=...]
+;
+; AppVersion must stay numeric (a.b.c) — it feeds VersionInfoVersion, the Win32
+; version resource, which rejects anything else. A continuous build from main
+; (#168) carries its commit in BuildId instead; that goes into the *display*
+; version only, which is free text: "0.1.1+main.abc1234" is what Add or remove
+; programs shows, while the version resource says 0.1.1.
 #ifndef AppVersion
   #define AppVersion "0.1.0"
+#endif
+#ifdef BuildId
+  #define DisplayVersion AppVersion + "+" + BuildId
+#else
+  #define DisplayVersion AppVersion
+#endif
+; A channel build passes a fixed name so its download URL never changes.
+#ifndef OutputBaseName
+  #define OutputBaseName "cellpy-simple-gui-" + DisplayVersion + "-setup"
 #endif
 
 #define SourceDir "..\dist\cellpy-simple-gui"
@@ -28,12 +43,13 @@
 ; rather than sitting beside it, and what the uninstaller is registered under.
 AppId={{F1D4A423-3214-4BAC-8334-5BF196578FCD}
 AppName={#AppName}
-AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
+AppVersion={#DisplayVersion}
+AppVerName={#AppName} {#DisplayVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}/issues
 AppUpdatesURL={#AppURL}/releases
+; Numeric only — never DisplayVersion (see the defines above).
 VersionInfoVersion={#AppVersion}
 
 ; lowest = never ask for admin. Combined with the {localappdata} target below
@@ -49,7 +65,7 @@ UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExe}
 
 OutputDir=..\dist\installer
-OutputBaseFilename=cellpy-simple-gui-{#AppVersion}-setup
+OutputBaseFilename={#OutputBaseName}
 SetupIconFile=..\src\cellpy_simple_gui\web\static\img\cellpy-icon.ico
 WizardStyle=modern
 Compression=lzma2/max

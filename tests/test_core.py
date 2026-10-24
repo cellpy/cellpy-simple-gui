@@ -141,6 +141,88 @@ def test_summary_figure_via_plotting(loaded_library):
     assert len(fig["data"]) >= 1
 
 
+def test_summary_spec_rejects_negative_rate():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        SummaryPlotSpec(rate=-0.1)
+    with pytest.raises(ValidationError):
+        SummaryPlotSpec(rate=0.1, rate_std=-0.01)
+    spec = SummaryPlotSpec(rate=0.05, rate_on=["discharge", "charge", "charge"])
+    assert spec.rate_on == ("discharge", "charge")
+
+
+def test_summary_collection_layers_rate_on_family_options(monkeypatch):
+    """A registry family's SummaryOptions still receives the C-rate filter (#197)."""
+    from cellpy.collect.options import SummaryOptions
+
+    captured: dict = {}
+
+    def spy(batch, options=None, **overrides):
+        captured["options"] = options
+        captured["overrides"] = overrides
+
+        class _Dummy:
+            data = None
+
+        return _Dummy()
+
+    monkeypatch.setattr(collect, "collect_summaries", spy)
+    base = SummaryOptions(columns=("coulombic_efficiency",))
+    collect.summary_collection(
+        [],
+        columns=("coulombic_efficiency",),
+        options=base,
+        rate=0.05,
+        rate_on=("discharge",),
+        rate_std=0.01,
+        use_cache=False,
+    )
+    assert captured["options"].rate == 0.05
+    assert captured["options"].rate_on == ("discharge",)
+    assert captured["options"].rate_std == 0.01
+    assert captured["overrides"] == {}
+
+
+def test_summary_rate_filter_keeps_matching_cycles(loaded_library):
+    """The least-common charge C-rate keeps only the cycles that ran at it (#197)."""
+    import polars as pl
+
+    recs = loaded_library.selected()
+    steps = recs[0].cell.data.steps
+    frame = steps if isinstance(steps, pl.DataFrame) else pl.from_pandas(steps)
+    charge = frame.filter(pl.col("step_type") == "charge")
+    counts = charge.group_by("c_rate").len().sort("len")
+    rate = float(counts["c_rate"][0])
+    std = 0.1 * rate
+    expected = set(
+        charge.filter((pl.col("c_rate") > rate - std) & (pl.col("c_rate") < rate + std))[
+            "cycle_num"
+        ]
+        .unique()
+        .to_list()
+    )
+    cols = collect.summary_columns_for("capacity_ce", "gravimetric")
+    full = collect.summary_collection(recs, columns=cols)
+    filtered = collect.summary_collection(
+        recs, columns=cols, rate=rate, rate_on=("charge",)
+    )
+    full_cycles = set(full.data["cycle_num"].unique().to_list())
+    kept = set(filtered.data["cycle_num"].unique().to_list())
+    assert expected
+    assert kept == expected
+    assert kept < full_cycles
+
+
+def test_summary_rate_filter_miss_is_explicit(loaded_library):
+    recs = loaded_library.selected()
+    spec = SummaryPlotSpec(rate=99)
+    fig = json.loads(plotting.summary_figure(recs, spec))
+    assert fig["layout"]["annotations"][0]["text"] == "No cycles match C-rate 99."
+    with pytest.raises(ValueError, match="No cycles match C-rate 99"):
+        export.summary_export(recs, spec, "csv")
+
+
 @pytest.mark.essential
 def test_summary_figure_empty():
     fig = json.loads(plotting.summary_figure([], SummaryPlotSpec()))
@@ -421,6 +503,69 @@ def test_cycles_figure_empty_selection():
     assert "layout" in fig
 
 
+# ---- cycle report (#175): pure bookkeeping, no cellpy ----
+
+
+def test_compress_ranges():
+    from cellpy_simple_gui.core.cycle_report import compress_ranges
+
+    assert compress_ranges([]) == ""
+    assert compress_ranges([5]) == "5"
+    assert compress_ranges([3, 1, 2]) == "1–3"
+    assert compress_ranges([22, 23, 24, 30, 30, 50, 51]) == "22–24, 30, 50–51"
+
+
+def test_build_reports_splits_missing_from_unreadable():
+    from cellpy_simple_gui.core.cycle_report import CycleReport, build_reports, messages
+
+    requested = {"A": [1, 3, 7], "B": [2, 50], "C": [4]}
+    available = {"A": {1, 2, 3, 4, 5, 6, 7}, "B": set(range(1, 22)), "C": {4}}
+    present = {("A", 1), ("A", 7), ("B", 2), ("C", 4)}
+    reports = build_reports(requested, available, present)
+    assert [r.cell for r in reports] == ["A", "B"]  # C delivered everything
+    assert reports[0] == CycleReport(cell="A", missing=(), unreadable=(3,), available=(1, 7))
+    assert reports[1] == CycleReport(cell="B", missing=(50,), unreadable=(), available=(1, 21))
+    assert messages(reports) == [
+        "A: cycle 3 could not be read",
+        "B: cycle 50 not in data (has 1–21)",
+    ]
+    assert reports[1].dropped == (50,)
+    assert bool(CycleReport(cell="Z")) is False
+
+
+def test_build_reports_without_a_frame_never_calls_cycles_unreadable():
+    from cellpy_simple_gui.core.cycle_report import build_reports
+
+    reports = build_reports({"A": [1, 9]}, {"A": {1, 2}}, None)
+    assert reports[0].missing == (9,) and reports[0].unreadable == ()
+    # A cell with no cycles at all: no "(has …)" hint to give.
+    (empty,) = build_reports({"E": [1]}, {"E": set()}, None)
+    assert empty.message() == "E: cycle 1 not in data"
+    # Both kinds in one cell read as two clauses.
+    (both,) = build_reports({"A": [1, 2, 9]}, {"A": {1, 2}}, {("A", 1)})
+    assert both.message() == "A: cycle 9 not in data (has 1–2); cycle 2 could not be read"
+
+
+def test_single_cell_cycles_figure_reports_missing(loaded_library):
+    """Single-cell explorer: a gap is a note, all-missing is an explanation."""
+    rec = loaded_library.all()[0]
+    (label,) = collect.batch_keys([rec])
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[1, 900], layout="per_cell")
+    fig = json.loads(plotting.cycles_figure([rec], spec))
+    assert len(fig["data"]) >= 1
+    assert fig["layout"]["meta"]["warnings"] == [f"{label}: cycle 900 not in data (has 1–304)"]
+
+    spec = CyclesPlotSpec(cell_id=rec.id, cycles=[900, 901], layout="per_cell")
+    fig = json.loads(plotting.cycles_figure([rec], spec))
+    assert fig["data"] == []
+    assert fig["layout"]["annotations"][0]["text"] == (
+        f"Nothing to draw — {label}: cycles 900–901 not in data (has 1–304)."
+    )
+
+    clean = json.loads(plotting.cycles_figure([rec], CyclesPlotSpec(cell_id=rec.id, cycles=[1])))
+    assert "warnings" not in (clean["layout"].get("meta") or {})
+
+
 def _ica_y_values(fig: dict) -> list[float]:
     """Flatten Plotly trace y values (list or binary ``{dtype,bdata}``)."""
     import base64
@@ -612,7 +757,9 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
     axes = {tr.get("yaxis") or "y" for tr in fig["data"]}
     assert len(axes) >= 3
 
-    # Every facet row shows both the averaged group (1) and the singleton (2).
+    # Every facet row shows both the averaged group and the singleton.
+    # cellpy ≥2.1.5 labels those "group 1" / "group 2" when no custom
+    # group label is set; older builds used the bare id.
     groups_by_axis: dict[str, set[str]] = {}
     for tr in fig["data"]:
         lg = tr.get("legendgroup")
@@ -622,7 +769,8 @@ def test_group_average_singleton_traces_on_correct_facet(example_cell):
         groups_by_axis.setdefault(ax, set()).add(str(lg))
     assert groups_by_axis
     for ax, groups in groups_by_axis.items():
-        assert {"1", "2"} <= groups, (ax, groups)
+        assert any(g in groups for g in ("1", "group 1")), (ax, groups)
+        assert any(g in groups for g in ("2", "group 2")), (ax, groups)
 
 
 def _yaxis_titles(fig: dict) -> list[str]:
@@ -1080,6 +1228,403 @@ def test_summary_figure_y_ranges_charge_on_multipart_group_avg(loaded_library):
     assert ce_axis is not None
     assert fig["layout"][charge_axis].get("range") == charge
     assert fig["layout"][ce_axis].get("range") == ce
+
+
+def _spread_library(loaded_library):
+    """Two demo cells in one group (so Group avg averages) plus a singleton."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    lib.add_cell(cellpy_adapter.load_example("cellpy"), source="example:cellpy2")
+    lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    recs = lib.all()
+    recs[0].group = 1
+    recs[1].group = 1
+    recs[2].group = 2
+    for rec in recs:
+        rec.selected = True
+    return lib
+
+
+def _yaxis_for_title_text(fig: dict, needle: str) -> str | None:
+    """Layout y-axis whose title contains ``needle`` (case-insensitive)."""
+    for key, axis in fig.get("layout", {}).items():
+        if not str(key).startswith("yaxis"):
+            continue
+        title = axis.get("title")
+        if isinstance(title, dict):
+            title = title.get("text")
+        if isinstance(title, str) and needle.lower() in title.lower():
+            return key
+    return None
+
+
+def test_summary_figure_y_ranges_apply_with_group_avg_and_spread(loaded_library):
+    """Group avg + Spread must honour per-panel y_ranges (#186).
+
+    The spread hover (#40) rewrites ``variable=<column id>`` into the pretty
+    axis title; the range lookup used to run after that and never matched.
+    """
+    lib = _spread_library(loaded_library)
+    charge = [0.0, 200.0]
+    ce = [90.0, 101.0]
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                group_average=True,
+                spread=True,
+                y_ranges={
+                    "charge_capacity_gravimetric": charge,
+                    "coulombic_efficiency": ce,
+                },
+            ),
+        )
+    )
+    # Spread really was drawn (band traces present), so this is the #186 path.
+    assert any(str(tr.get("name", "")).lower().startswith("upper bound") for tr in fig["data"])
+    charge_axis = _yaxis_for_title_text(fig, "charge capacity")
+    ce_axis = _yaxis_for_title_text(fig, "coulombic efficiency")
+    discharge_axis = _yaxis_for_title_text(fig, "discharge capacity")
+    assert charge_axis and ce_axis and discharge_axis
+    assert fig["layout"][charge_axis].get("range") == charge
+    assert fig["layout"][charge_axis].get("autorange") is False
+    assert fig["layout"][ce_axis].get("range") == ce
+    assert fig["layout"][ce_axis].get("autorange") is False
+    # The panel without a range stays autoscaled.
+    assert fig["layout"][discharge_axis].get("range") is None
+
+
+def test_summary_figure_y_ranges_one_sided_with_spread(loaded_library):
+    """A blank end is filled from the spread panel's own extent (#186)."""
+    lib = _spread_library(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="capacity_ce",
+                group_average=True,
+                spread=True,
+                y_ranges={"charge_capacity_gravimetric": [0.0, None]},
+            ),
+        )
+    )
+    axis = _yaxis_for_title_text(fig, "charge capacity")
+    assert axis is not None
+    lo, hi = fig["layout"][axis]["range"]
+    assert lo == 0.0
+    assert hi > lo
+
+
+# --------------------------------------------------------------------------- #
+# #187 — group names
+# --------------------------------------------------------------------------- #
+
+
+def test_library_group_names(loaded_library):
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    other = lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    lib.update(other.id, group=1)
+    assert lib.groups() == [
+        {"id": 1, "label": "", "name": "group 1", "n_cells": 2, "color": lib.all()[0].color()}
+    ]
+    assert all(rec.group_name() == "group 1" for rec in lib.all())
+
+    lib.set_group_label(1, "  Anodes ")
+    assert lib.group_label(1) == "Anodes"
+    assert lib.groups()[0]["label"] == "Anodes"
+    assert [rec.group_label for rec in lib.all()] == ["Anodes", "Anodes"]
+    assert [m.group_label for m in lib.metas()] == ["Anodes", "Anodes"]
+
+    # The default spelling and blanks both mean "unnamed".
+    lib.set_group_label(1, "group 1")
+    assert lib.group_label(1) == ""
+    lib.set_group_label(1, "Anodes")
+    lib.set_group_label(1, "   ")
+    assert lib.group_label(1) == ""
+
+    # Names of groups that hold no cells are not reported (nothing to save).
+    lib.set_group_label(9, "Empty")
+    assert lib.group_labels() == {}
+    lib.update(other.id, group=9)
+    assert lib.group_labels() == {9: "Empty"}
+    assert lib.metas()[1].group_label == "Empty"
+
+    lib.clear()
+    assert lib.group_label(9) == ""
+
+
+def test_group_names_reach_grouped_legend(loaded_library):
+    """cellpy names group-averaged traces after the label ``_batch`` hands it."""
+    lib = _spread_library(loaded_library)
+    lib.set_group_label(1, "Anodes")
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(plot_type="charge_capacity", group_average=True),
+        )
+    )
+    names = {tr.get("name") for tr in fig["data"]}
+    assert "Anodes" in names
+    assert "group 1" not in names
+    assert "group 2" in names  # unnamed singleton keeps cellpy's default
+
+
+def test_group_names_caption_ungrouped_legend(loaded_library):
+    """Per-cell traces of a named group get that name as legend-group title."""
+    lib = _spread_library(loaded_library)
+    lib.set_group_label(1, "Anodes")
+    records = lib.selected()
+    assert collect.group_titles(records) == {"1": "Anodes"}
+
+    fig = json.loads(
+        plotting.summary_figure(records, SummaryPlotSpec(plot_type="charge_capacity"))
+    )
+    by_group: dict[str, set[str | None]] = {}
+    for tr in fig["data"]:
+        title = (tr.get("legendgrouptitle") or {}).get("text")
+        by_group.setdefault(str(tr.get("legendgroup")), set()).add(title)
+    assert by_group["1"] == {"Anodes"}
+    assert by_group["2"] == {None}
+
+    fig = json.loads(plotting.cycles_figure(records, CyclesPlotSpec(cycles=[1])))
+    titles = {
+        (tr.get("legendgrouptitle") or {}).get("text")
+        for tr in fig["data"]
+        if str(tr.get("legendgroup")) == "1"
+    }
+    assert titles == {"Anodes"}
+
+
+# --------------------------------------------------------------------------- #
+# #181 — colour by group, shade by member, whatever legend muting does
+# --------------------------------------------------------------------------- #
+
+
+def _hue(color: str) -> float:
+    """Hue in [0, 1)."""
+    import colorsys
+
+    rgb = collect._parse_color(color)
+    assert rgb is not None, color
+    return colorsys.rgb_to_hls(*(v / 255 for v in rgb))[0]
+
+
+def _same_hue(a: str, b: str, tol: float = 0.03) -> bool:
+    """Hue equality with wraparound and slack for 8-bit hex rounding of dark/light shades."""
+    d = abs(_hue(a) - _hue(b))
+    return min(d, 1 - d) < tol
+
+
+def _line_colors(fig: dict) -> dict[str, str]:
+    """Trace name → line colour (first trace per name)."""
+    out: dict[str, str] = {}
+    for tr in fig["data"]:
+        color = (tr.get("line") or {}).get("color")
+        if tr.get("name") and color and tr["name"] not in out:
+            out[tr["name"]] = color
+    return out
+
+
+def _three_cells_two_groups(loaded_library):
+    """cellA1 + cellA2 in group 1, cellB in group 2."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    lib = loaded_library
+    a = lib.all()[0]
+    b = lib.add_cell(cellpy_adapter.load_example("cellpy"), source="example:cellpy2")
+    c = lib.add_cell(cellpy_adapter.load_example("rate"), source="example:rate")
+    lib.update(a.id, group=1, label="cellA1")
+    lib.update(b.id, group=1, label="cellA2")
+    lib.update(c.id, group=2, label="cellB")
+    return lib
+
+
+def test_cell_groups_map(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    lib.set_group_label(2, "Cathodes")
+    assert collect.cell_groups(lib.selected()) == {
+        "cellA1": 1, "cellA2": 1, "group 1": 1, "cellB": 2, "Cathodes": 2,
+    }
+
+
+def _lightness(color: str) -> float:
+    """HLS lightness in [0, 1]."""
+    import colorsys
+
+    rgb = collect._parse_color(color)
+    assert rgb is not None, color
+    return colorsys.rgb_to_hls(*(v / 255 for v in rgb))[1]
+
+
+def test_shade_series():
+    assert collect._shade_series("#4C78A8", 1) == ["#4C78A8"]
+    shades = collect._shade_series("#4C78A8", 3)
+    assert len(shades) == 3 and len(set(shades)) == 3
+    assert shades[1] == "#4c78a8"  # the middle member keeps the base
+    assert all(_same_hue(s, shades[0]) for s in shades)  # same hue throughout
+    # rgb() input is understood; garbage is passed through untouched
+    assert len(set(collect._shade_series("rgb(76, 120, 168)", 2))) == 2
+    assert collect._shade_series("not-a-colour", 2) == ["not-a-colour"] * 2
+
+
+def test_shade_series_spread_and_theme_window():
+    """Spread scales the fan; theme windows stop shades disappearing into the background."""
+    base = "#4C78A8"
+    base_l = _lightness(base)
+    full = collect._shade_series(base, 4, spread=1.0, theme="light")
+    tight = collect._shade_series(base, 4, spread=0.25, theme="light")
+    assert abs(_lightness(tight[0]) - base_l) < abs(_lightness(full[0]) - base_l)
+    assert collect._shade_series(base, 4, spread=0) == [base] * 4
+
+    # 8-bit hex rounding can land a hair outside the window.
+    dark = collect._shade_series(base, 4, spread=1.0, theme="dark")
+    assert min(_lightness(s) for s in dark) >= collect._SHADE_WINDOW["dark"][0] - 0.01
+    light = collect._shade_series(base, 4, spread=1.0, theme="light")
+    assert max(_lightness(s) for s in light) <= collect._SHADE_WINDOW["light"][1] + 0.01
+
+    # A colour already lighter than the light-theme ceiling is not pushed lighter.
+    pale = "#FF9DA6"
+    pale_l = _lightness(pale)
+    pale_shades = collect._shade_series(pale, 3, spread=1.0, theme="light")
+    assert max(_lightness(s) for s in pale_shades) <= pale_l + 1e-6
+
+
+@pytest.mark.parametrize("muting", [True, False])
+@pytest.mark.parametrize("scheme", ["safe", "muted", "cellpy"])
+def test_summary_colours_follow_groups_regardless_of_muting(loaded_library, muting, scheme):
+    """Cells of one group share a hue; members are distinct shades; groups differ (#181)."""
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="charge_capacity", group_legend_muting=muting, color_scheme=scheme
+            ),
+        )
+    )
+    colors = _line_colors(fig)
+    assert set(colors) == {"cellA1", "cellA2", "cellB"}
+    assert colors["cellA1"] != colors["cellA2"]
+    assert _same_hue(colors["cellA1"], colors["cellA2"])
+    assert not _same_hue(colors["cellB"], colors["cellA1"])
+    if scheme != "cellpy":
+        palette = collect.COLOR_SCHEMES[scheme]
+        # The singleton group is painted exactly its swatch colour (group 2 → index 1).
+        assert colors["cellB"] == palette[1]
+        assert _same_hue(colors["cellA1"], palette[0])
+
+
+def test_summary_group_shade_off_uses_one_colour(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="charge_capacity", color_scheme="safe", group_shade=False
+            ),
+        )
+    )
+    colors = _line_colors(fig)
+    palette = collect.COLOR_SCHEMES["safe"]
+    assert colors["cellA1"] == colors["cellA2"] == palette[0]
+    assert colors["cellB"] == palette[1]
+
+
+def test_summary_shade_spread_tightens_the_fan(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+
+    def drift(spread: float) -> float:
+        fig = json.loads(
+            plotting.summary_figure(
+                lib.selected(),
+                SummaryPlotSpec(
+                    plot_type="charge_capacity", color_scheme="safe", shade_spread=spread
+                ),
+            )
+        )
+        colors = _line_colors(fig)
+        base = _lightness(collect.COLOR_SCHEMES["safe"][0])
+        return max(abs(_lightness(colors[name]) - base) for name in ("cellA1", "cellA2"))
+
+    assert drift(0.2) < drift(1.0)
+
+
+def test_summary_dark_theme_shades_stay_above_the_floor(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(
+                plot_type="charge_capacity",
+                color_scheme="safe",
+                figure_theme="dark",
+                shade_spread=1,
+            ),
+        )
+    )
+    colors = _line_colors(fig)
+    floor = collect._SHADE_WINDOW["dark"][0]
+    assert _lightness(colors["cellA1"]) >= floor - 0.01
+    assert _lightness(colors["cellA2"]) >= floor - 0.01
+
+
+def test_summary_colours_identical_for_both_muting_modes(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    figs = [
+        json.loads(
+            plotting.summary_figure(
+                lib.selected(),
+                SummaryPlotSpec(
+                    plot_type="charge_capacity", group_legend_muting=muting, color_scheme="safe"
+                ),
+            )
+        )
+        for muting in (True, False)
+    ]
+    assert _line_colors(figs[0]) == _line_colors(figs[1])
+
+
+def test_cycles_pane_colours_follow_groups(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.cycles_figure(
+            lib.selected(),
+            CyclesPlotSpec(cycles=[1], group_legend_muting=False, color_scheme="safe"),
+        )
+    )
+    colors = _line_colors(fig)
+    assert _same_hue(colors["cellA1"], colors["cellA2"])
+    assert not _same_hue(colors["cellA1"], colors["cellB"])
+    assert colors["cellA1"] != colors["cellA2"]
+
+    # per_cell facets are coloured by cycle — untouched by the group pass.
+    fig = json.loads(
+        plotting.cycles_figure(
+            lib.selected(),
+            CyclesPlotSpec(cycles=[1, 2], layout="per_cell", color_scheme="safe"),
+        )
+    )
+    by_cycle = _line_colors(fig)
+    assert set(by_cycle) == {"1", "2"}
+    assert by_cycle["1"] != by_cycle["2"]
+
+
+def test_group_average_colours_match_swatches(loaded_library):
+    lib = _three_cells_two_groups(loaded_library)
+    fig = json.loads(
+        plotting.summary_figure(
+            lib.selected(),
+            SummaryPlotSpec(plot_type="charge_capacity", group_average=True, color_scheme="safe"),
+        )
+    )
+    colors = _line_colors(fig)
+    palette = collect.COLOR_SCHEMES["safe"]
+    assert colors["group 1"] == palette[0]
+    assert colors["group 2"] == palette[1]
 
 
 def test_summary_panels_for_capacity_ce():

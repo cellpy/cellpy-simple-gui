@@ -22,6 +22,16 @@ def example_cell():
         pytest.skip(f"example data unavailable: {exc}")
 
 
+@pytest.fixture(autouse=True)
+def _clear_plot_cache():
+    """Each test starts with an empty plot memo (#180)."""
+    from cellpy_simple_gui.core import plot_cache
+
+    plot_cache.invalidate()
+    yield
+    plot_cache.invalidate()
+
+
 @pytest.fixture()
 def loaded_library(example_cell):
     from cellpy_simple_gui.core.library import Library

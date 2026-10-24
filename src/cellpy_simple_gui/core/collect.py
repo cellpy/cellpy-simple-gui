@@ -12,6 +12,7 @@ response to issue #787), so we no longer maintain a hand-rolled batch shim.
 
 from __future__ import annotations
 
+import colorsys
 import io
 import logging
 
@@ -19,6 +20,7 @@ import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_ica, collect_summaries, from_cells
 from cellpy.collect.options import CurveOptions, IcaOptions
 
+from . import plot_cache
 from .library import PALETTE, CellRecord
 
 log = logging.getLogger(__name__)
@@ -37,22 +39,22 @@ _THEME_TOKENS: dict[str, dict[str, str]] = {
     "light": {
         "paper_bgcolor": "white",
         "plot_bgcolor": "white",
-        "font_color": "#1f2933",
-        "gridcolor": "#eceff3",
-        "linecolor": "#c7ccd4",
-        "tickcolor": "#c7ccd4",
-        "legend_bg": "rgba(255,255,255,0.6)",
-        "annotation": "#7b8794",
+        "font_color": "#1c1f22",
+        "gridcolor": "#e8eaec",
+        "linecolor": "#d5d8dc",
+        "tickcolor": "#d5d8dc",
+        "legend_bg": "rgba(255,255,255,0.75)",
+        "annotation": "#8b929a",
     },
     "dark": {
-        "paper_bgcolor": "#1a1f26",
-        "plot_bgcolor": "#1a1f26",
-        "font_color": "#e6edf3",
-        "gridcolor": "#2d3640",
-        "linecolor": "#4a5560",
-        "tickcolor": "#4a5560",
-        "legend_bg": "rgba(26,31,38,0.75)",
-        "annotation": "#9aa5b1",
+        "paper_bgcolor": "#16181b",
+        "plot_bgcolor": "#16181b",
+        "font_color": "#e7e6e4",
+        "gridcolor": "#2c3136",
+        "linecolor": "#3e444a",
+        "tickcolor": "#3e444a",
+        "legend_bg": "rgba(22,24,27,0.8)",
+        "annotation": "#7c8186",
     },
 }
 
@@ -62,12 +64,14 @@ _THEME_TOKENS: dict[str, dict[str, str]] = {
 # --------------------------------------------------------------------------- #
 
 
-def _batch(records: list[CellRecord]):
-    """Build a cellpy ``Batch`` from library records (labels/groups/selection)."""
-    cells: dict[str, object] = {}
-    groups: dict[str, int] = {}
-    selected: dict[str, bool] = {}
-    group_labels: dict[int, str] = {}
+def batch_keys(records: list[CellRecord]) -> list[str]:
+    """The ``cell`` label each record gets in a collected frame, in order.
+
+    This is the key :func:`_batch` hands to cellpy, so anything that filters a
+    collection by cell (compare mode, #169) must derive labels here rather than
+    re-implement the rule and drift.
+    """
+    keys: list[str] = []
     seen: dict[str, int] = {}
     for rec in records:
         key = rec.label or rec.name or rec.id
@@ -76,11 +80,57 @@ def _batch(records: list[CellRecord]):
             key = f"{key} ({seen[key]})"
         else:
             seen[key] = 1
+        keys.append(key)
+    return keys
+
+
+def _batch(records: list[CellRecord]):
+    """Build a cellpy ``Batch`` from library records (labels/groups/selection)."""
+    cells: dict[str, object] = {}
+    groups: dict[str, int] = {}
+    selected: dict[str, bool] = {}
+    group_labels: dict[int, str] = {}
+    for key, rec in zip(batch_keys(records), records, strict=True):
         cells[key] = rec.cell
         groups[key] = rec.group
         selected[key] = rec.selected
-        group_labels[rec.group] = f"group {rec.group}"
+        # cellpy names group-averaged traces after this (#187).
+        group_labels[rec.group] = rec.group_name()
     return from_cells(cells, groups=groups, selected=selected, group_labels=group_labels)
+
+
+def group_titles(records: list[CellRecord]) -> dict[str, str]:
+    """``legendgroup`` → user-given group name, for the groups that have one.
+
+    Ungrouped cellpy plots keep one trace per cell but put the group *number*
+    on ``legendgroup`` (that is what group legend muting toggles). Plotly can
+    caption such a legend group, so a named group shows its name above its
+    cells without re-plotting (#187). Unnamed groups get no caption — the
+    number alone adds nothing the swatch does not already say.
+    """
+    return {str(rec.group): rec.group_label for rec in records if rec.group_label}
+
+
+def cell_groups(records: list[CellRecord]) -> dict[str, int]:
+    """Legend key → group number, for colouring traces by group (#181).
+
+    Per-cell traces are named after the batch key; group-averaged traces are
+    named after the group (``group_name``). Both resolve here so the colour
+    pass can find a trace's group whatever ``legendgroup`` carries.
+    """
+    out: dict[str, int] = {}
+    for key, rec in zip(batch_keys(records), records, strict=True):
+        out[key] = rec.group
+        out.setdefault(rec.group_name(), rec.group)
+    return out
+
+
+def _apply_group_titles(fig, titles: dict[str, str]) -> None:
+    for tr in fig.data:
+        group = getattr(tr, "legendgroup", None)
+        text = titles.get(str(group)) if group is not None else None
+        if text:
+            tr.legendgrouptitle = {"text": _truncate_label(text)}
 
 
 # --------------------------------------------------------------------------- #
@@ -178,10 +228,28 @@ def _family_required_columns(family: str, hdr) -> tuple[str, ...]:
 
     fam = registry.get(family)
     try:
-        return tuple(fam.summary_options(hdr).columns)
+        requested = tuple(fam.summary_options(hdr).columns)
     except Exception:  # noqa: BLE001 - fall back to the drawn names
         log.warning("family %r has no summary_options; using columns()", family, exc_info=True)
-        return tuple(fam.columns(hdr))
+        requested = tuple(fam.columns(hdr))
+    # cellpy ≥2.1.5 asks for the drawn names (``*_cv`` / ``*_non_cv``).
+    # Collect manufactures those from the base summary column, so availability
+    # is the base name (#1009).
+    inputs: list[str] = []
+    for name in requested:
+        source = _pre_collect_column(name)
+        if source not in inputs:
+            inputs.append(source)
+    return tuple(inputs)
+
+
+def _pre_collect_column(name: str) -> str:
+    """Summary column that must already exist before collect derives ``name``."""
+    if name.endswith("_non_cv"):
+        return name[: -len("_non_cv")]
+    if name.endswith("_cv"):
+        return name[: -len("_cv")]
+    return name
 
 
 def family_summary_options(family: str, records: list[CellRecord] | None = None):
@@ -429,6 +497,38 @@ def summary_columns(basis: str, charge: bool, discharge: bool, efficiency: bool)
 # --------------------------------------------------------------------------- #
 
 
+def _rate_kwargs(
+    rate: float | None,
+    rate_on: tuple[str, ...] | None,
+    rate_std: float | None,
+) -> dict:
+    """cellpy rate-filter overrides. Omitted keys keep SummaryOptions defaults."""
+    kwargs: dict = {}
+    if rate is not None:
+        kwargs["rate"] = rate
+    if rate_on:
+        kwargs["rate_on"] = tuple(rate_on)
+    if rate_std is not None:
+        kwargs["rate_std"] = rate_std
+    return kwargs
+
+
+def collection_is_empty(collection) -> bool:
+    """True when a collected frame has no rows."""
+    data = getattr(collection, "data", None)
+    if data is None:
+        return True
+    height = getattr(data, "height", None)
+    if height is not None:
+        return height == 0
+    return len(data) == 0
+
+
+def no_matching_cycles_message(rate: float) -> str:
+    """Shared chart and export wording when a C-rate filter matches nothing."""
+    return f"No cycles match C-rate {rate:g}."
+
+
 def summary_collection(
     records: list[CellRecord],
     *,
@@ -436,29 +536,54 @@ def summary_collection(
     group_it: bool = False,
     max_cycle: int | None = None,
     options=None,
+    rate: float | None = None,
+    rate_on: tuple[str, ...] | None = None,
+    rate_std: float | None = None,
+    use_cache: bool = True,
 ):
     """Collect summaries, optionally under a family's own :class:`SummaryOptions`.
 
     ``options`` comes from :func:`family_summary_options` and already carries
     the family's ``columns``, CV split and transforms; the app only layers its
-    own grouping and cycle cap on top (#868). Without it this is the plain
-    column collect the curated plot types use.
+    own grouping, cycle cap, and C-rate filter on top (#868, #197). Without it
+    this is the plain column collect the curated plot types use.
     """
-    if options is not None:
+    rate_kwargs = _rate_kwargs(rate, rate_on, rate_std)
+
+    def build():
+        if options is not None:
+            return collect_summaries(
+                _batch(records),
+                options=options.replace(
+                    only_selected=False,  # records handed in are already the selected set
+                    group_it=group_it,
+                    max_cycle=max_cycle,
+                    **rate_kwargs,
+                ),
+            )
         return collect_summaries(
             _batch(records),
-            options=options.replace(
-                only_selected=False,  # records handed in are already the selected set
-                group_it=group_it,
-                max_cycle=max_cycle,
-            ),
+            columns=columns,
+            only_selected=False,
+            group_it=group_it,
+            max_cycle=max_cycle,
+            **rate_kwargs,
         )
-    return collect_summaries(
-        _batch(records),
-        columns=columns,
-        only_selected=False,
-        group_it=group_it,
-        max_cycle=max_cycle,
+
+    return plot_cache.cached_collect(
+        "summary_collection",
+        records,
+        {
+            "columns": columns,
+            "group_it": group_it,
+            "max_cycle": max_cycle,
+            "options": options,
+            "rate": rate,
+            "rate_on": rate_on,
+            "rate_std": rate_std,
+        },
+        build,
+        use_cache=use_cache,
     )
 
 
@@ -468,16 +593,26 @@ def cycles_collection(
     cycles: tuple[int, ...],
     mode: str | None = None,
     method: str | None = None,
+    use_cache: bool = True,
 ):
-    opts = CurveOptions(cycles=cycles)
-    changes = {}
-    if mode:
-        changes["mode"] = mode
-    if method:
-        changes["method"] = method
-    if changes:
-        opts = opts.replace(**changes)
-    return collect_cycles(_batch(records), options=opts)
+    def build():
+        opts = CurveOptions(cycles=cycles)
+        changes = {}
+        if mode:
+            changes["mode"] = mode
+        if method:
+            changes["method"] = method
+        if changes:
+            opts = opts.replace(**changes)
+        return collect_cycles(_batch(records), options=opts)
+
+    return plot_cache.cached_collect(
+        "cycles_collection",
+        records,
+        {"cycles": cycles, "mode": mode, "method": method},
+        build,
+        use_cache=use_cache,
+    )
 
 
 def ica_collection(
@@ -485,6 +620,7 @@ def ica_collection(
     *,
     cycles: tuple[int, ...],
     voltage_resolution: float | None = 0.005,
+    use_cache: bool = True,
 ):
     """Collect ICA (dQ/dV) curves, both half-cycles (``direction`` column kept).
 
@@ -492,8 +628,17 @@ def ica_collection(
     ``ica_plotter`` (#821), and exports use :func:`select_ica_direction` to match
     the chart. No app-side half-cycle filter on the collect step.
     """
-    opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-    return collect_ica(_batch(records), options=opts)
+    def build():
+        opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
+        return collect_ica(_batch(records), options=opts)
+
+    return plot_cache.cached_collect(
+        "ica_collection",
+        records,
+        {"cycles": cycles, "voltage_resolution": voltage_resolution},
+        build,
+        use_cache=use_cache,
+    )
 
 
 def dva_collection(
@@ -501,6 +646,7 @@ def dva_collection(
     *,
     cycles: tuple[int, ...],
     voltage_resolution: float | None = None,
+    use_cache: bool = True,
 ):
     """Collect DVA (dV/dQ) curves — the sibling of :func:`ica_collection`.
 
@@ -511,8 +657,17 @@ def dva_collection(
     """
     from cellpy.collect import collect_dva
 
-    opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-    return collect_dva(_batch(records), options=opts)
+    def build():
+        opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
+        return collect_dva(_batch(records), options=opts)
+
+    return plot_cache.cached_collect(
+        "dva_collection",
+        records,
+        {"cycles": cycles, "voltage_resolution": voltage_resolution},
+        build,
+        use_cache=use_cache,
+    )
 
 
 def select_ica_direction(collection, direction: str):
@@ -531,12 +686,82 @@ def select_ica_direction(collection, direction: str):
         log.warning("no 'direction' column in ICA frame - export filter skipped")
         return collection
     try:
+        import copy
+
         import polars as pl
 
-        collection.data = data.filter(pl.col("direction").str.to_lowercase() == want)
+        # The collect memo hands back the same collection. Filtering in place
+        # would empty the next export that asks for the other half-cycle.
+        filtered = data.filter(pl.col("direction").str.to_lowercase() == want)
+        collection = copy.copy(collection)
+        collection.data = filtered
     except Exception:  # noqa: BLE001 - export stays best-effort
         log.warning("could not filter ICA export by direction=%s", want, exc_info=True)
     return collection
+
+
+#: The cycle column differs between the collected curve frames: cellpy's
+#: cycles frame says ``cycle_num``, the ICA / DVA frames say ``cycle``.
+_CYCLE_COLUMNS = ("cycle_num", "cycle")
+
+
+def restrict_to_cycle_pairs(collection, pairs: set[tuple[str, int]]):
+    """Keep only the ``(cell label, cycle)`` rows in ``pairs`` (#169).
+
+    cellpy collects one ``cycles`` list for the whole batch, so "cycle 3 of A
+    and cycle 7 of B" is collected as the union and narrowed here — the same
+    in-place move as :func:`select_ica_direction`, so the plot and the export
+    see identical rows. Labels are the ones :func:`batch_keys` produces.
+    Best-effort: an unexpected frame is left alone with a warning.
+    """
+    data = getattr(collection, "data", None)
+    if data is None or getattr(data, "height", 0) == 0:
+        return collection
+    cycle_col = next((c for c in _CYCLE_COLUMNS if c in data.columns), None)
+    if cycle_col is None or "cell" not in data.columns:
+        log.warning(
+            "collected frame has no cell/cycle columns (%s) - compare filter skipped",
+            list(data.columns),
+        )
+        return collection
+    try:
+        import polars as pl
+
+        wanted = pl.DataFrame(
+            {
+                "cell": [cell for cell, _ in pairs],
+                cycle_col: [int(cycle) for _, cycle in pairs],
+            },
+            schema={"cell": pl.Utf8, cycle_col: data.schema[cycle_col]},
+        )
+        collection.data = data.join(wanted, on=["cell", cycle_col], how="semi")
+    except Exception:  # noqa: BLE001 - fall back to the full union
+        log.warning("could not restrict collection to picked cycles", exc_info=True)
+    return collection
+
+
+def present_cycle_pairs(collection) -> set[tuple[str, int]] | None:
+    """The ``(cell label, cycle)`` pairs that actually have rows (#175).
+
+    The mirror of :func:`restrict_to_cycle_pairs`: after collecting, this says
+    which requested cycles survived, so the ones that did not can be reported
+    as unreadable rather than silently absent. ``None`` when the frame has no
+    cell/cycle columns to judge by (then nothing can be called unreadable).
+    """
+    data = getattr(collection, "data", None)
+    if data is None:
+        return None
+    if getattr(data, "height", 0) == 0:
+        return set()
+    cycle_col = next((c for c in _CYCLE_COLUMNS if c in data.columns), None)
+    if cycle_col is None or "cell" not in data.columns:
+        return None
+    try:
+        rows = data.select(["cell", cycle_col]).unique().rows()
+    except Exception:  # noqa: BLE001
+        log.warning("could not read collected cell/cycle pairs", exc_info=True)
+        return None
+    return {(str(cell), int(cycle)) for cell, cycle in rows if cycle is not None}
 
 
 # --------------------------------------------------------------------------- #
@@ -759,33 +984,100 @@ def figure_json(
     spread: bool = False,
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
+    overlay: bool = False,
+    warnings: list[str] | None = None,
+    group_titles: dict[str, str] | None = None,
+    cell_groups: dict[str, int] | None = None,
+    group_shade: bool = True,
+    shade_spread: float = 1.0,
+    use_cache: bool = True,
     **plot_kwargs,
 ) -> str:
-    # spread (mean ± std band) only makes sense once actually group-averaged.
-    if spread and not is_grouped(collection):
-        spread = False
-    try:
-        x_range = plot_kwargs.pop("x_range", None)
-        y_range = plot_kwargs.pop("y_range", None)
-        # Per-facet summary limits (#60/#54); applied post-plot so they win over
-        # any ``share_y`` axis matching cellpy set on the collection.
-        y_ranges = plot_kwargs.pop("y_ranges", None)
-        opts = _inject_app_chrome(figure_theme, plot_kwargs)
+    # Ranges stay out of ``collection.plot`` so they win over any share_y
+    # matching cellpy already applied (#60/#54).
+    incoming = dict(plot_kwargs)
+    x_range = incoming.pop("x_range", None)
+    y_range = incoming.pop("y_range", None)
+    y_ranges = incoming.pop("y_ranges", None)
+    # Spread only means something once the collection is actually grouped.
+    draw_spread = bool(spread) and is_grouped(collection)
+
+    def build_base():
+        opts = _inject_app_chrome(figure_theme, incoming)
         # cellpy ≥2.1.2 honours share_y / match_axes on the collection itself,
         # incl. the group-avg + spread path (#816/#817), so no app re-link here.
-        fig = collection.plot(spread=spread, **opts)
-        if spread:
+        fig = collection.plot(spread=draw_spread, **opts)
+        # Facet axes before the spread hover rewrites ``variable=<column id>``
+        # into the pretty title (#186).
+        var_to_axes = _variable_axis_map(fig) if y_ranges else None
+        if draw_spread:
             _add_spread_hover(fig)
-        _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
+        if overlay:
+            # Before _restyle so legend truncation and the colorway see the
+            # final "<cell> · cycle n" names (#169).
+            fig = _overlay_facets(
+                fig, height=opts["height_per_panel"] + opts["figure_border_height"]
+            )
+        return fig, var_to_axes
+
+    def finish(fig, var_to_axes):
+        _restyle(
+            fig,
+            figure_theme=figure_theme,
+            color_scheme=color_scheme,
+            cell_groups=cell_groups,
+            group_shade=group_shade,
+            shade_spread=shade_spread,
+        )
+        if group_titles and not is_grouped(collection):
+            _apply_group_titles(fig, group_titles)
         if y_ranges:
-            _apply_y_ranges(fig, y_ranges)
+            _apply_y_ranges(fig, y_ranges, var_to_axes=var_to_axes)
         else:
             _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
+        _stamp_warnings(fig, warnings)
         return pio.to_json(fig)
+
+    try:
+        return plot_cache.cached_figure(
+            {
+                "kind": "figure_json",
+                "collection": id(collection),
+                "spread": spread,
+                "figure_theme": figure_theme,
+                "overlay": overlay,
+                "warnings": warnings,
+                "group_titles": group_titles,
+                "cell_groups": cell_groups,
+                "x_range": x_range,
+                "y_range": y_range,
+                "y_ranges": y_ranges,
+                **incoming,
+            },
+            build_base,
+            finish,
+            use_cache=use_cache,
+        )
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
-            f"Could not render this plot ({exc}).", figure_theme=figure_theme
+            f"Could not render this plot ({exc}).",
+            figure_theme=figure_theme,
+            warnings=warnings,
         )
+
+
+def _stamp_warnings(fig, warnings: list[str] | None) -> None:
+    """Carry user-facing notes in ``layout.meta.warnings`` (#175).
+
+    Plotly's ``meta`` is free-form and survives ``to_json`` / ``react``, so the
+    figure endpoints keep returning a plain figure while the UI can still show
+    "cell X: cycles 22–24 not in data" next to the chart.
+    """
+    if not warnings:
+        return
+    meta = dict(fig.layout.meta or {}) if isinstance(fig.layout.meta, dict) else {}
+    meta["warnings"] = [str(w) for w in warnings]
+    fig.update_layout(meta=meta)
 
 
 def raw_figure_json(
@@ -797,6 +1089,8 @@ def raw_figure_json(
     color_scheme: str = "cellpy",
     x_range=None,
     y_range=None,
+    cache_token: tuple | None = None,
+    use_cache: bool = True,
 ) -> str:
     """Raw time-series traces for one cell, via cellpy's ``raw_plot``.
 
@@ -806,14 +1100,35 @@ def raw_figure_json(
     """
     from cellpy.utils.plotutils import raw_plot
 
-    try:
+    token = cache_token if cache_token is not None else id(cell)
+
+    def build_base():
         fig = raw_plot(
             cell, plot_type=plot_type, backend="plotly", max_points=max_points
         )
+        return fig, None
+
+    def finish(fig, _extra):
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         _apply_xy_ranges(fig, x_range=x_range, y_range=y_range)
         _note_downsampling(fig, cell)
         return pio.to_json(fig)
+
+    try:
+        return plot_cache.cached_figure(
+            {
+                "kind": "raw",
+                "token": token,
+                "plot_type": plot_type,
+                "max_points": max_points,
+                "figure_theme": figure_theme,
+                "x_range": x_range,
+                "y_range": y_range,
+            },
+            build_base,
+            finish,
+            use_cache=use_cache,
+        )
     except Exception as exc:  # noqa: BLE001 - never leave the user with a broken chart
         return _empty_figure_json(
             f"Could not render raw data ({exc}).", figure_theme=figure_theme
@@ -826,6 +1141,8 @@ def cycle_info_figure_json(
     cycles: tuple[int, ...],
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
+    cache_token: tuple | None = None,
+    use_cache: bool = True,
 ) -> str:
     """Raw traces annotated with step/cycle info, via cellpy's ``cycle_info_plot``.
 
@@ -834,19 +1151,36 @@ def cycle_info_figure_json(
     """
     from cellpy.utils.plotutils import cycle_info_plot
 
-    try:
+    token = cache_token if cache_token is not None else id(cell)
+
+    def build_base():
         # get_axes=True is what returns the *figure* on the plotly backend;
         # without it cycle_info_plot returns None.
         fig = cycle_info_plot(
             cell, cycle=list(cycles), backend="plotly", get_axes=True
         )
         if fig is None:
-            return _empty_figure_json(
-                "cellpy returned no cycle-info figure for this selection.",
-                figure_theme=figure_theme,
-            )
+            raise RuntimeError("cellpy returned no cycle-info figure for this selection.")
+        return fig, None
+
+    def finish(fig, _extra):
         _restyle(fig, figure_theme=figure_theme, color_scheme=color_scheme)
         return pio.to_json(fig)
+
+    try:
+        return plot_cache.cached_figure(
+            {
+                "kind": "cycle_info",
+                "token": token,
+                "cycles": cycles,
+                "figure_theme": figure_theme,
+            },
+            build_base,
+            finish,
+            use_cache=use_cache,
+        )
+    except RuntimeError as exc:
+        return _empty_figure_json(str(exc), figure_theme=figure_theme)
     except Exception as exc:  # noqa: BLE001
         return _empty_figure_json(
             f"Could not render cycle info ({exc}).", figure_theme=figure_theme
@@ -911,12 +1245,19 @@ def _layout_key_for_y_id(y_id: str) -> str:
     return "yaxis" if y_id == "y" else f"yaxis{y_id[1:]}"
 
 
-def _apply_y_ranges(fig, y_ranges: dict) -> None:
+def _apply_y_ranges(
+    fig, y_ranges: dict, *, var_to_axes: dict[str, tuple[str, str]] | None = None
+) -> None:
     """Set per-facet ``[lo, hi]`` on the merged summary figure (#60 / #54).
 
     Prefer hover ``variable=…`` → axis map (same source as secondary remapping).
     Fall back to cellpy's facet/title resolver so spread bands (no hover
     ``variable=``) still match pretty axis titles.
+
+    ``var_to_axes`` is that map taken *before* the app rewrote any hover text;
+    :func:`figure_json` passes it because the spread hover (#40) replaces the
+    column id with the axis title, which otherwise left every range unmatched
+    on the Group avg + Spread path (#186).
 
     Either end of ``[lo, hi]`` may be null; the missing end is filled from that
     facet's trace extent (same idea as cycles/ICA ``x_range`` / ``y_range``).
@@ -933,7 +1274,8 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
     except Exception:  # noqa: BLE001
         pass
 
-    var_to_axes = _variable_axis_map(fig)
+    if var_to_axes is None:
+        var_to_axes = _variable_axis_map(fig)
     for variable, y_range in y_ranges.items():
         if y_range is None:
             continue
@@ -966,7 +1308,9 @@ def _apply_y_ranges(fig, y_ranges: dict) -> None:
             log.warning("could not apply y_ranges[%r]", variable, exc_info=True)
 
 
-def _empty_figure_json(message: str, *, figure_theme: str = "light") -> str:
+def _empty_figure_json(
+    message: str, *, figure_theme: str = "light", warnings: list[str] | None = None
+) -> str:
     import plotly.graph_objects as go
 
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
@@ -978,6 +1322,7 @@ def _empty_figure_json(message: str, *, figure_theme: str = "light") -> str:
     )
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
+    _stamp_warnings(fig, warnings)
     return pio.to_json(fig)
 
 
@@ -1060,6 +1405,140 @@ def _tidy_facet_annotations(fig) -> None:
             ann.text = text.split("=", 1)[1]
 
 
+#: Default Plotly colorway, used when a figure's template carries none.
+_FALLBACK_COLORWAY = (
+    "#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A",
+    "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52",
+)
+
+
+def _trace_cell_label(tr, facet_labels: dict[tuple[str, str], str]) -> str:
+    """Which cell a per-cell facet trace belongs to.
+
+    Plotly Express writes ``cell=<label>`` into every trace's hovertemplate,
+    which is exact. The facet strip annotation is the fallback.
+    """
+    ht = str(getattr(tr, "hovertemplate", None) or "")
+    for part in ht.split("<br>"):
+        if part.startswith("cell="):
+            label = part.split("=", 1)[1].split("<", 1)[0].strip()
+            if label:
+                return label
+    key = (str(getattr(tr, "xaxis", None) or "x"), str(getattr(tr, "yaxis", None) or "y"))
+    return facet_labels.get(key, "")
+
+
+def _facet_labels_by_axes(fig) -> dict[tuple[str, str], str]:
+    """Facet strip text per ``(xaxis, yaxis)`` pair, matched on axis domain.
+
+    PX positions each strip annotation at the horizontal centre and top of its
+    facet, so the pair whose domains contain that point owns the label.
+    """
+    out: dict[tuple[str, str], str] = {}
+    axes = fig.to_dict().get("layout", {})
+    annotations = getattr(fig.layout, "annotations", None) or ()
+    for key in _facet_traces(fig):
+        x_id, y_id = key
+        x_dom = axes.get(_layout_key_for_x_id(x_id), {}).get("domain") or [0, 1]
+        y_dom = axes.get(_layout_key_for_y_id(y_id), {}).get("domain") or [0, 1]
+        for ann in annotations:
+            try:
+                ax, ay = float(ann.x), float(ann.y)
+            except (TypeError, ValueError):
+                continue
+            if x_dom[0] - 1e-6 <= ax <= x_dom[1] + 1e-6 and abs(ay - y_dom[1]) < 0.02:
+                out[key] = str(ann.text or "")
+                break
+    return out
+
+
+def _layout_key_for_x_id(x_id: str) -> str:
+    return "xaxis" if x_id == "x" else f"xaxis{x_id[1:]}"
+
+
+def _overlay_label(cell: str, series: str, limit: int = _LEGEND_NAME_LIMIT) -> str:
+    """``"<cell> · cycle <n>"`` that still fits the legend after truncation.
+
+    :func:`_shorten_legend` cuts long names from the right, which would drop the
+    cycle — the one part that differs between two curves of the same cell — so
+    the cell label is what gets shortened.
+    """
+    # cellpy names "both"-direction traces "<n>, charge" / "<n>, discharge";
+    # keep the half-cycle visible without it eating the whole legend width.
+    series = series.replace(", discharge", " dchg").replace(", charge", " chg")
+    suffix = f" · cycle {series}" if series else ""
+    room = max(6, limit - len(suffix))
+    return _truncate_label(cell, room) + suffix
+
+
+def _overlay_facets(fig, *, height: int | None = None):
+    """Fold a cellpy ``per_cell`` facet figure onto one axis pair (#169).
+
+    cellpy's collected layouts both facet (``per_cell`` / ``per_cycle``); there
+    is no overlay, and its colours follow the *cycle number*, so cycle 3 of two
+    cells would draw in the same colour on one axis. This keeps cellpy's traces
+    and data untouched and rewrites only the presentation: every trace moves to
+    ``x``/``y`` and gets its own legend entry (``"<cell> · cycle <n>"``, full
+    identity still in the PX hovertemplate), colours run sequentially through
+    the colorway, and the facet strips and extra axes go. Returns a new figure.
+    """
+    import plotly.graph_objects as go
+
+    facet_labels = _facet_labels_by_axes(fig)
+    raw = fig.to_dict()
+    layout = raw.get("layout", {})
+
+    x_title = y_title = None
+    for key, axis in layout.items():
+        if not isinstance(axis, dict):
+            continue
+        text = (axis.get("title") or {}).get("text")
+        if text and key.startswith("xaxis") and x_title is None:
+            x_title = text
+        if text and key.startswith("yaxis") and y_title is None:
+            y_title = text
+
+    colorway = (
+        (layout.get("template") or {}).get("layout", {}).get("colorway")
+        or layout.get("colorway")
+        or _FALLBACK_COLORWAY
+    )
+
+    traces = []
+    for i, tr in enumerate(fig.data):
+        d = tr.to_plotly_json()
+        cell = _trace_cell_label(tr, facet_labels)
+        series = str(d.get("name") or "")
+        d["name"] = _overlay_label(cell, series)
+        # Short and unique: a legend click mutes exactly this curve, and
+        # _shorten_legend never truncates it into a neighbour's group.
+        d["legendgroup"] = f"c{i}"
+        d["showlegend"] = True
+        d["xaxis"] = "x"
+        d["yaxis"] = "y"
+        color = colorway[i % len(colorway)]
+        line = d.get("line")
+        d["line"] = {**(line if isinstance(line, dict) else {}), "color": color}
+        marker = d.get("marker")
+        if isinstance(marker, dict):
+            d["marker"] = {**marker, "color": color}
+        traces.append(d)
+
+    new_layout = {
+        k: v
+        for k, v in layout.items()
+        if not k.startswith(("xaxis", "yaxis")) and k not in ("annotations", "grid", "width")
+    }
+    new_layout["xaxis"] = {"anchor": "y", "domain": [0, 1], "title": {"text": x_title or ""}}
+    new_layout["yaxis"] = {"anchor": "x", "domain": [0, 1], "title": {"text": y_title or ""}}
+    legend = dict(new_layout.get("legend") or {})
+    legend["title"] = {"text": "Cell · cycle"}
+    new_layout["legend"] = legend
+    if height:
+        new_layout["height"] = height
+    return go.Figure(data=traces, layout=new_layout)
+
+
 def _hex_to_rgba(color: str, alpha: float = 0.28) -> str:
     """Turn ``#RRGGBB`` into ``rgba(r,g,b,a)`` for translucent Plotly fills."""
     c = color.strip()
@@ -1073,30 +1552,164 @@ def _hex_to_rgba(color: str, alpha: float = 0.28) -> str:
     return color
 
 
-def _apply_colorway(fig, color_scheme: str) -> None:
-    """Cycle a discrete colorway across legend series (name / legendgroup)."""
+def _parse_color(color) -> tuple[int, int, int] | None:
+    """``#rrggbb`` / ``rgb(…)`` / ``rgba(…)`` → ``(r, g, b)``; None when unknown."""
+    if not isinstance(color, str):
+        return None
+    c = color.strip()
+    try:
+        if c.startswith("#") and len(c) == 7:
+            return tuple(int(c[i : i + 2], 16) for i in (1, 3, 5))  # type: ignore[return-value]
+        if c.startswith("rgb"):
+            parts = c[c.index("(") + 1 : c.rindex(")")].split(",")[:3]
+            return tuple(int(float(p)) for p in parts)  # type: ignore[return-value]
+    except (ValueError, IndexError):
+        return None
+    return None
+
+
+# HLS lightness the generated shades may use. The group's own colour is kept
+# even when it already sits outside the window. Shades may move toward the
+# window, but not further into black on a dark figure or white on a light one.
+_SHADE_WINDOW: dict[str, tuple[float, float]] = {
+    "light": (0.28, 0.68),
+    "dark": (0.45, 0.88),
+}
+
+
+def _shade_series(
+    base: str, n: int, *, spread: float = 1.0, theme: str = "light"
+) -> list[str]:
+    """``n`` shades of ``base`` — same hue, lightness spread around it (#181).
+
+    One member keeps the base colour exactly, so a singleton group matches
+    its sidebar swatch. Several members fan out from darker to lighter, the
+    span growing with the count. ``spread`` is ``0``–``1`` times that span
+    (``0`` paints every member the base colour). Each step is then held
+    inside the figure theme's lightness window (``_SHADE_WINDOW``) so a
+    dark shade stays visible on a dark plot and a light shade stays visible
+    on a white one.
+    """
+    if n <= 1:
+        return [base]
+    if spread <= 0:
+        return [base] * n
+    rgb = _parse_color(base)
+    if rgb is None:
+        return [base] * n
+    h, lum, sat = colorsys.rgb_to_hls(*(v / 255 for v in rgb))
+    span = min(0.55, 0.22 * (n - 1)) * min(1.0, spread)
+    lo, hi = _SHADE_WINDOW.get(theme, _SHADE_WINDOW["light"])
+    out: list[str] = []
+    for i in range(n):
+        t = i / (n - 1)
+        delta = (t - 0.5) * span
+        if delta < 0:
+            delta = max(delta, min(0.0, lo - lum))
+        else:
+            delta = min(delta, max(0.0, hi - lum))
+        r, g, b = colorsys.hls_to_rgb(h, lum + delta, sat)
+        out.append(f"#{round(r * 255):02x}{round(g * 255):02x}{round(b * 255):02x}")
+    return out
+
+
+def _trace_color(tr) -> str | None:
+    line = getattr(tr, "line", None)
+    color = getattr(line, "color", None) if line is not None else None
+    if isinstance(color, str):
+        return color
+    marker = getattr(tr, "marker", None)
+    color = getattr(marker, "color", None) if marker is not None else None
+    return color if isinstance(color, str) else None
+
+
+def _paint(tr, color: str) -> None:
+    try:
+        if getattr(tr, "line", None) is not None:
+            tr.line.color = color
+        if getattr(tr, "marker", None) is not None:
+            tr.marker.color = color
+        # Spread bands need alpha in fillcolor; tr.opacity is ignored for
+        # fills or washes out the mean line when fill+line share a trace.
+        fill = getattr(tr, "fill", None)
+        if fill and fill != "none":
+            tr.fillcolor = _hex_to_rgba(color, 0.28)
+    except Exception:  # noqa: BLE001 - per-trace color is best-effort
+        pass
+
+
+def _apply_colorway(
+    fig,
+    color_scheme: str,
+    *,
+    cell_groups: dict[str, int] | None = None,
+    group_shade: bool = True,
+    shade_spread: float = 1.0,
+    figure_theme: str = "light",
+) -> None:
+    """Colour legend series: by group when the groups are known, else per series.
+
+    With ``cell_groups`` (#181) every trace that resolves to a group — by name
+    or ``legendgroup`` — takes that group's colour, whichever way legend muting
+    is set: the scheme colour at ``group - 1`` (so ``safe`` matches the sidebar
+    swatches) or, for the ``cellpy`` scheme, the colour cellpy already gave the
+    group. Members of a multi-cell group become shades of that colour so they
+    stay distinguishable, unless ``group_shade`` is off or ``shade_spread``
+    is ``0``. The fan is held inside the figure theme's lightness window.
+    Traces outside any group cycle the scheme in order of appearance, as
+    before; without a scheme they are left to cellpy.
+    """
     colors = COLOR_SCHEMES.get(color_scheme)
+    if not colors and not cell_groups:
+        return
+
+    def series_of(tr) -> str:
+        # A trace named after a cell is that cell's series even when legend
+        # muting puts the whole group on one legendgroup.
+        name = getattr(tr, "name", None)
+        if cell_groups and name is not None and str(name) in cell_groups:
+            return str(name)
+        return str(getattr(tr, "legendgroup", None) or name or id(tr))
+
+    def group_of(tr) -> int | None:
+        if not cell_groups:
+            return None
+        for attr in ("name", "legendgroup"):
+            value = getattr(tr, attr, None)
+            if value is not None and str(value) in cell_groups:
+                return cell_groups[str(value)]
+        return None
+
+    # group → series key → traces, all in order of appearance
+    grouped: dict[int, dict[str, list]] = {}
+    loose: list[tuple[str, object]] = []
+    for tr in fig.data:
+        g = group_of(tr)
+        if g is None:
+            loose.append((series_of(tr), tr))
+        else:
+            grouped.setdefault(g, {}).setdefault(series_of(tr), []).append(tr)
+
+    for g, members in grouped.items():
+        if colors:
+            base = colors[(g - 1) % len(colors)]
+        else:
+            base = next((c for traces in members.values() for tr in traces if (c := _trace_color(tr))), None)
+            if base is None:
+                continue
+        spread = shade_spread if group_shade else 0.0
+        shades = _shade_series(base, len(members), spread=spread, theme=figure_theme)
+        for shade, traces in zip(shades, members.values(), strict=True):
+            for tr in traces:
+                _paint(tr, shade)
+
     if not colors:
         return
-    series_key: dict[str, int] = {}
-    for tr in fig.data:
-        key = getattr(tr, "legendgroup", None) or getattr(tr, "name", None) or id(tr)
-        key = str(key)
-        if key not in series_key:
-            series_key[key] = len(series_key)
-        color = colors[series_key[key] % len(colors)]
-        try:
-            if getattr(tr, "line", None) is not None:
-                tr.line.color = color
-            if getattr(tr, "marker", None) is not None:
-                tr.marker.color = color
-            # Spread bands need alpha in fillcolor; tr.opacity is ignored for
-            # fills or washes out the mean line when fill+line share a trace.
-            fill = getattr(tr, "fill", None)
-            if fill and fill != "none":
-                tr.fillcolor = _hex_to_rgba(color, 0.28)
-        except Exception:  # noqa: BLE001 - per-trace color is best-effort
-            continue
+    series_index: dict[str, int] = {}
+    for key, tr in loose:
+        if key not in series_index:
+            series_index[key] = len(series_index)
+        _paint(tr, colors[series_index[key] % len(colors)])
 
 
 def _restyle(
@@ -1104,6 +1717,9 @@ def _restyle(
     *,
     figure_theme: str = "light",
     color_scheme: str = "cellpy",
+    cell_groups: dict[str, int] | None = None,
+    group_shade: bool = True,
+    shade_spread: float = 1.0,
 ) -> None:
     """Post-plot polish: legend truncation, colorway, margins, soft axes.
 
@@ -1111,9 +1727,18 @@ def _restyle(
     ``layout_updates`` / ``height_per_panel`` (#801) in :func:`_inject_app_chrome`.
     This pass keeps app-owned legend/colorway behaviour and axis grid styling.
     """
-    # Name truncation must not share fate with best-effort cosmetics.
+    # Colour first, while trace names are still the full batch keys the
+    # group lookup needs (#181); truncation must not share fate with the
+    # best-effort cosmetics below.
+    _apply_colorway(
+        fig,
+        color_scheme,
+        cell_groups=cell_groups,
+        group_shade=group_shade,
+        shade_spread=shade_spread,
+        figure_theme=figure_theme,
+    )
     longest = _shorten_legend(fig)
-    _apply_colorway(fig, color_scheme)
     tokens = _THEME_TOKENS.get(figure_theme, _THEME_TOKENS["light"])
     try:
         strip_pad = _FACET_STRIP_RIGHT_PAD if _has_right_facet_strips(fig) else 0

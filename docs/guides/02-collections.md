@@ -215,28 +215,28 @@ Crossing it is explicit and cheap — `collection.data.to_pandas()` — but do i
 the edge of your code rather than in the middle of it. The failure mode is a
 `.iloc` on a polars frame twenty minutes into a debugging session.
 
-## Two things that fail quietly
+## Two things that go wrong
 
-**A value that is not a cell is silently dropped.** `from_cells` accepts the
-mapping without validating it, and the non-cell simply does not appear
-downstream — no exception, no warning, a plot with one fewer line than you have
-cells:
+**A value that is not a cell raises.** `from_cells` refuses the mapping and
+names the bad keys ([cellpy#939](https://github.com/jepegit/cellpy/issues/939)).
+Older cellpy dropped that value with no exception, which showed up later as a
+plot with one fewer line than you have cells:
 
 ```python
-oops = from_cells({"good": cells["sf033"], "oops": example_data.rate_file()})
-collected = collect_summaries(oops, columns=("discharge_capacity_gravimetric",))
-print(collected.data["cell"].unique().to_list())
+try:
+    from_cells({"good": cells["sf033"], "oops": example_data.rate_file()})
+except ValueError as exc:
+    print(type(exc).__name__)
 ```
 
 ```text
-['good']
+ValueError
 ```
 
 `example_data.rate_file()` returns a *path*, not a cell — an easy mistake, since
-its sibling `example_data.cellpy_file()` returns a cell. A plain `42` is dropped
-just as quietly, so what you get is a chart with fewer lines than you have cells,
-which reads as a data problem rather than a type error. If you build the mapping
-from anything dynamic, check it yourself:
+its sibling `example_data.cellpy_file()` returns a cell. A plain `42` raises the
+same way. If you build the mapping from anything dynamic, check it before the
+call:
 
 ```python
 from cellpy.readers.cellreader import CellpyCell   # note: not cellpy.cellreader

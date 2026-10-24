@@ -572,6 +572,23 @@ def load_journal_cells(
 ) -> list[tuple[str, Any, int]]:
     """Load a cellpy batch journal (.json) and return ``(label, cell, group)``.
 
+    Thin wrapper over :func:`load_journal` for callers that do not need the
+    group names.
+    """
+    return load_journal(path, progress)[0]
+
+
+def load_journal(
+    path: str | Path,
+    progress: ProgressFn = None,
+) -> tuple[list[tuple[str, Any, int]], dict[int, str]]:
+    """Load a cellpy batch journal (.json).
+
+    Returns ``(cells, group_labels)``: one ``(label, cell, group)`` triple per
+    linkable cell, plus the journal's ``group_label`` column as ``{group:
+    name}`` for the groups that carry a real name (cellpy's own ``group <n>``
+    placeholders are dropped) (#187).
+
     Uses cellpy 2.1's ``batch.from_journal`` + ``batch.load()``. Loads
     **cellpy files only** (not raw instrument paths) so old journals with
     dead lab-share ``raw_file_names`` do not hang forever. Raises if the
@@ -669,12 +686,18 @@ def load_journal_cells(
             log.info("Journal: cell load finished for “%s”", p.name)
 
     groups: dict[str, int] = {}
+    group_labels: dict[int, str] = {}
     try:
         pages = batch.journal.pages
         cols = pages.columns
         if FILENAME in cols and "group" in cols:
             for row in pages.iter_rows(named=True):
-                groups[row[FILENAME]] = int(row.get("group") or 1)
+                group = int(row.get("group") or 1)
+                groups[row[FILENAME]] = group
+                name = row.get("group_label") if "group_label" in cols else None
+                name = str(name).strip() if name is not None else ""
+                if name and name != f"group {group}":
+                    group_labels[group] = name
     except Exception:  # noqa: BLE001 - group metadata is best-effort
         pass
 
@@ -711,7 +734,8 @@ def load_journal_cells(
         raise RuntimeError(
             f"Could not load cells from journal “{p.name}”: {load_exc}"
         ) from load_exc
-    return out
+    used = {group for _label, _cell, group in out}
+    return out, {g: lbl for g, lbl in group_labels.items() if g in used}
 
 
 def save_cell(cell: Any, path: str | Path) -> None:
