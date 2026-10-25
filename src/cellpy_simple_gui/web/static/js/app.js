@@ -159,7 +159,10 @@ function app() {
       yRange: { min: "", max: "" },
     },
     exportFormats: ["csv", "xlsx", "parquet", "json"],
-    figureFormats: ["png", "svg", "pdf"],
+    figureFormats: JSON.parse(
+      document.querySelector('meta[name="csg-figure-formats"]')?.content
+      || '["png","svg","pdf"]'
+    ),
     cellFileFormats: ["cellpy", "csv", "xlsx"],
     exportOpen: false,
     exportCellOpen: false,

@@ -1782,6 +1782,27 @@ def _restyle(
 EXPORT_FORMATS = ("csv", "xlsx", "parquet", "json")
 FIGURE_EXPORT_FORMATS = ("png", "svg", "pdf")
 
+
+def cfz_export_available() -> bool:
+    """True when cellpy can write a ``.cfz`` and cellpy-figure can describe one."""
+    try:
+        from cellpy.plotting.bundle import save_bundle  # noqa: F401
+    except ImportError:
+        return False
+    try:
+        import cellpy_figure  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def figure_export_formats() -> tuple[str, ...]:
+    """Static image formats, plus ``cfz`` when the translator is installed."""
+    if cfz_export_available():
+        return FIGURE_EXPORT_FORMATS + ("cfz",)
+    return FIGURE_EXPORT_FORMATS
+
+
 _MEDIA = {
     "csv": "text/csv",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1790,6 +1811,7 @@ _MEDIA = {
     "png": "image/png",
     "svg": "image/svg+xml",
     "pdf": "application/pdf",
+    "cfz": "application/zip",
 }
 
 

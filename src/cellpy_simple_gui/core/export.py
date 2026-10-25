@@ -104,12 +104,29 @@ def cycles_export(records: list[CellRecord], spec: CyclesPlotSpec, fmt: str) -> 
 def summary_figure_export(
     records: list[CellRecord], spec: SummaryPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
+    if fmt.lower() == "cfz":
+        kwargs: dict = {}
+        if spec.plot_type.startswith(collect.FAMILY_PREFIX):
+            kwargs["y"] = spec.plot_type[len(collect.FAMILY_PREFIX) :]
+        return _cells_cfz(records, "summary", kwargs)
     return figure_bytes(plotting.summary_figure(records, spec), fmt)
 
 
 def cycles_figure_export(
     records: list[CellRecord], spec: CyclesPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
+    if fmt.lower() == "cfz":
+        if not spec.cycles:
+            raise FigureExportError("Pick one or more cycles to export.")
+        kind = {"voltage": "cycles", "dqdv": "ica", "dvdq": "dva"}.get(spec.curve_kind, "cycles")
+        kwargs = {"cycles": list(spec.cycles)}
+        if kind == "cycles":
+            kwargs["mode"] = spec.mode
+            kwargs["method"] = spec.method
+        else:
+            kwargs["direction"] = spec.direction
+            kwargs["voltage_resolution"] = spec.voltage_resolution
+        return _cells_cfz(records, kind, kwargs)
     return figure_bytes(plotting.cycles_figure(records, spec), fmt)
 
 
@@ -133,6 +150,10 @@ def compare_export(
 def compare_figure_export(
     picks: plotting.ComparePicks, spec: ComparePlotSpec, fmt: str
 ) -> tuple[bytes, str]:
+    if fmt.lower() == "cfz":
+        if spec.layout == "overlay":
+            return _overlay_cfz(picks, spec)
+        return _compare_cells_cfz(picks, spec)
     return figure_bytes(plotting.compare_figure(picks, spec), fmt)
 
 
@@ -150,6 +171,18 @@ def ica_export(record: CellRecord, spec: IcaPlotSpec, fmt: str) -> tuple[bytes, 
 def ica_figure_export(
     record: CellRecord, spec: IcaPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
+    if fmt.lower() == "cfz":
+        if not spec.cycles:
+            raise FigureExportError("Pick one or more cycles to export.")
+        return _cells_cfz(
+            [record],
+            "ica",
+            {
+                "cycles": list(spec.cycles),
+                "direction": spec.direction,
+                "voltage_resolution": spec.voltage_resolution,
+            },
+        )
     return figure_bytes(plotting.ica_figure(record, spec), fmt)
 
 
@@ -167,7 +200,195 @@ def dva_export(record: CellRecord, spec: DvaPlotSpec, fmt: str) -> tuple[bytes, 
 def dva_figure_export(
     record: CellRecord, spec: DvaPlotSpec, fmt: str
 ) -> tuple[bytes, str]:
+    if fmt.lower() == "cfz":
+        if not spec.cycles:
+            raise FigureExportError("Pick one or more cycles to export.")
+        return _cells_cfz(
+            [record],
+            "dva",
+            {
+                "cycles": list(spec.cycles),
+                "direction": spec.direction,
+                "voltage_resolution": spec.voltage_resolution,
+            },
+        )
     return figure_bytes(plotting.dva_figure(record, spec), fmt)
+
+
+_CFZ_DISABLED = (
+    "cfz export needs cellpy.plotting.bundle.save_bundle. "
+    'Install it with pip install "cellpy[plotting-mpl]".'
+)
+
+
+def _save_bundle(cell, **kwargs):
+    from cellpy.plotting.bundle import save_bundle
+
+    return save_bundle(cell, **kwargs)
+
+
+def _cells_cfz(records: list[CellRecord], kind: str, kwargs: dict) -> tuple[bytes, str]:
+    """Write one ``.cfz`` per cell through cellpy's translator.
+
+    One cell returns that bundle. Several cells return a zip of bundles.
+    """
+    if not records:
+        raise FigureExportError("No cells to export.")
+    if not collect.cfz_export_available():
+        raise FigureExportError(_CFZ_DISABLED)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        written: list[tuple[str, Path]] = []
+        for record, stem in zip(records, _unique_stems(records), strict=True):
+            path = work / f"{stem}.cfz"
+            _save_bundle(record.cell, kind=kind, path=str(path), **kwargs)
+            written.append((path.name, path))
+        if len(written) == 1:
+            return written[0][1].read_bytes(), "application/zip"
+        return _zip_members(written), "application/zip"
+
+
+def _overlay_cfz(picks: plotting.ComparePicks, spec: ComparePlotSpec) -> tuple[bytes, str]:
+    """The compare-overlay view, written from the tidy rows the chart uses.
+
+    ``collect._overlay_facets`` restyles cellpy's facets after they come back,
+    so this view does not go through ``save_bundle``.
+    """
+    collection, _reports = plotting.compare_collection(picks, spec)
+    if collection is None or getattr(getattr(collection, "data", None), "height", 0) == 0:
+        raise FigureExportError("Nothing to export.")
+    if spec.curve_kind in ("dqdv", "dvdq"):
+        collection = collect.select_ica_direction(collection, spec.direction)
+    frame, x, y, labels = _overlay_table(collection.data, spec)
+    return (
+        overlay_bundle_bytes(
+            frame,
+            x=x,
+            y=y,
+            x_label=labels[0],
+            y_label=labels[1],
+            x_unit=labels[2],
+            y_unit=labels[3],
+            color="curve",
+        ),
+        "application/zip",
+    )
+
+
+def _compare_cells_cfz(picks: plotting.ComparePicks, spec: ComparePlotSpec) -> tuple[bytes, str]:
+    """One ``save_bundle`` per cell when the compare view is still faceted."""
+    kind = {"voltage": "cycles", "dqdv": "ica", "dvdq": "dva"}.get(spec.curve_kind, "cycles")
+    written_records: list[CellRecord] = []
+    bundles: list[bytes] = []
+    for record, cycles in picks:
+        if not cycles:
+            continue
+        kwargs: dict = {"cycles": list(cycles)}
+        if kind == "cycles":
+            kwargs["mode"] = spec.mode
+            kwargs["method"] = spec.method
+        else:
+            kwargs["direction"] = spec.direction
+            kwargs["voltage_resolution"] = spec.voltage_resolution
+        data, _media = _cells_cfz([record], kind, kwargs)
+        written_records.append(record)
+        bundles.append(data)
+    if not bundles:
+        raise FigureExportError("Nothing to export.")
+    if len(bundles) == 1:
+        return bundles[0], "application/zip"
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        members = []
+        for record, stem, data in zip(written_records, _unique_stems(written_records), bundles, strict=True):
+            path = work / f"{stem}.cfz"
+            path.write_bytes(data)
+            members.append((path.name, path))
+        return _zip_members(members), "application/zip"
+
+
+def _overlay_table(data, spec: ComparePlotSpec):
+    """Tidy rows plus the x/y columns the overlay chart is showing."""
+    import polars as pl
+
+    from .models import CAPACITY_UNITS
+
+    columns = set(data.columns)
+    cycle_col = next((name for name in ("cycle_num", "cycle") if name in columns), None)
+    if "cell" not in columns or cycle_col is None:
+        raise FigureExportError("Overlay export needs cell and cycle columns.")
+    if spec.curve_kind == "dqdv":
+        x = "voltage" if "voltage" in columns else "potential"
+        y, x_label, y_label = "dqdv", "Voltage", "dQ/dV"
+        x_unit, y_unit = "V", None
+    elif spec.curve_kind == "dvdq":
+        x, y, x_label, y_label = "capacity", "dvdq", "Capacity", "dV/dQ"
+        x_unit = CAPACITY_UNITS.get(spec.mode, CAPACITY_UNITS["gravimetric"])
+        y_unit = None
+    else:
+        x = "capacity"
+        y = "voltage" if "voltage" in columns else "potential"
+        x_label, y_label = "Capacity", "Voltage"
+        x_unit = CAPACITY_UNITS.get(spec.mode, CAPACITY_UNITS["gravimetric"])
+        y_unit = "V"
+    missing = [name for name in (x, y) if name not in columns]
+    if missing:
+        raise FigureExportError(
+            "Overlay export cannot find " + ", ".join(missing) + " in the collected rows."
+        )
+    frame = data.with_columns(
+        (
+            pl.col("cell").cast(pl.Utf8)
+            + " · "
+            + pl.col(cycle_col).cast(pl.Utf8)
+        ).alias("curve")
+    )
+    return frame, x, y, (x_label, y_label, x_unit, y_unit)
+
+
+def overlay_bundle_bytes(
+    frame,
+    *,
+    x: str,
+    y: str,
+    x_label: str | None = None,
+    y_label: str | None = None,
+    x_unit: str | None = None,
+    y_unit: str | None = None,
+    color: str | None = None,
+    facet: str | None = None,
+) -> bytes:
+    """Write a compare-overlay bundle the GUI assembled itself.
+
+    cellpy's ``save_bundle`` does not see this view, because the GUI restyles
+    the facets after cellpy returns them. ``provenance.producer`` is
+    ``cellpy-simple-gui``.
+    """
+    try:
+        import cellpy_simple_gui
+        from cellpy_figure import Encoding, Figure, Panel, Provenance
+    except ImportError as exc:
+        raise FigureExportError(_CFZ_DISABLED) from exc
+
+    panel = Panel(
+        x=Encoding(field=x, label=x_label or x, unit=x_unit),
+        y=Encoding(field=y, label=y_label or y, unit=y_unit),
+        color=Encoding(field=color, type="nominal", legend_title="Curve") if color else None,
+        facet=Encoding(field=facet, label=facet) if facet else None,
+    )
+    figure = Figure(
+        data=frame,
+        panels=[panel],
+        provenance=Provenance(
+            producer="cellpy-simple-gui",
+            producer_version=cellpy_simple_gui.__version__,
+        ),
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "overlay.cfz"
+        figure.write(str(path))
+        return path.read_bytes()
 
 
 def figure_bytes(figure_json: str, fmt: str) -> tuple[bytes, str]:
