@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 from fastapi import Depends, FastAPI, Request
@@ -9,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..config import get_settings
-from ..core import cellpy_adapter
+from ..core import cellpy_adapter, collect
 from ..logging_setup import enable_ring_buffer
 from .deps import TEMPLATES, TOKEN_COOKIE, WEB_DIR, require_token
 from .routers import cells, export, ingest, jobs, plots, projects, remote, system, uploads
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
                 "token": settings.token,
                 "app_name": settings.app_name,
                 "cellpy_version": version,
+                "figure_formats": json.dumps(list(collect.figure_export_formats())),
                 # Cache-bust our own assets: without this a browser happily
                 # keeps a stale app.js after an upgrade and runs it against the
                 # new template and API.

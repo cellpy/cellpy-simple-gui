@@ -23,7 +23,10 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 _DATA_EXT = {"csv": "csv", "xlsx": "xlsx", "parquet": "parquet", "json": "json"}
-_FIG_EXT = {f: f for f in collect.FIGURE_EXPORT_FORMATS}
+
+
+def _figure_formats() -> tuple[str, ...]:
+    return collect.figure_export_formats()
 
 
 def _check_data_fmt(fmt: str) -> str:
@@ -32,19 +35,42 @@ def _check_data_fmt(fmt: str) -> str:
         raise HTTPException(
             400,
             f"Unsupported format '{fmt}'. "
-            f"Data: {collect.EXPORT_FORMATS}; figures: {collect.FIGURE_EXPORT_FORMATS}.",
+            f"Data: {collect.EXPORT_FORMATS}; figures: {_figure_formats()}.",
         )
     return fmt
 
 
 def _check_figure_fmt(fmt: str) -> str:
     fmt = fmt.lower()
-    if fmt not in collect.FIGURE_EXPORT_FORMATS:
+    formats = _figure_formats()
+    if fmt not in formats:
+        if fmt == "cfz":
+            raise HTTPException(
+                400,
+                "cfz export is disabled until cellpy can write a bundle. "
+                'Install it with pip install "cellpy[plotting-mpl]".',
+            )
         raise HTTPException(
             400,
-            f"Unsupported figure format '{fmt}'. Use one of {collect.FIGURE_EXPORT_FORMATS}.",
+            f"Unsupported figure format '{fmt}'. Use one of {formats}.",
         )
     return fmt
+
+
+def _figure_file(data: bytes, media: str, stem: str, fmt: str) -> Response:
+    """One bundle keeps the ``.cfz`` name. A zip of bundles is ``.zip``."""
+    name = f"{stem}.{fmt}"
+    if fmt == "cfz":
+        try:
+            import io
+            import zipfile
+
+            names = zipfile.ZipFile(io.BytesIO(data)).namelist()
+        except zipfile.BadZipFile:
+            names = []
+        if "manifest.json" not in names:
+            name = f"{stem}.zip"
+    return _file(data, media, name)
 
 
 def _file(data: bytes, media: str, name: str) -> Response:
@@ -67,14 +93,14 @@ def export_summary(spec: SummaryPlotSpec, fmt: str = "csv") -> Response:
     if not records:
         raise HTTPException(400, "No cells selected.")
     log.info("Export summary as %s (%d selected)", fmt_l, len(records))
-    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+    if fmt_l in _figure_formats():
         fmt_l = _check_figure_fmt(fmt_l)
         try:
             data, media = export_core.summary_figure_export(records, spec, fmt_l)
         except export_core.FigureExportError as exc:
             log.error("Summary figure export failed: %s", exc)
             raise _figure_http(exc) from exc
-        return _file(data, media, f"summary.{_FIG_EXT[fmt_l]}")
+        return _figure_file(data, media, "summary", fmt_l)
     fmt_l = _check_data_fmt(fmt_l)
     try:
         data, media = export_core.summary_export(records, spec, fmt_l)
@@ -103,13 +129,13 @@ def export_cycles(spec: CyclesPlotSpec, fmt: str = "csv") -> Response:
         name = f"cycles_{(records[0].label or records[0].name)}".replace(" ", "_")
     else:
         name = f"cycles_{len(records)}_cells"
-    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+    if fmt_l in _figure_formats():
         fmt_l = _check_figure_fmt(fmt_l)
         try:
             data, media = export_core.cycles_figure_export(records, spec, fmt_l)
         except export_core.FigureExportError as exc:
             raise _figure_http(exc) from exc
-        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+        return _figure_file(data, media, name, fmt_l)
     fmt_l = _check_data_fmt(fmt_l)
     data, media = export_core.cycles_export(records, spec, fmt_l)
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
@@ -121,13 +147,13 @@ def export_compare(spec: ComparePlotSpec, fmt: str = "csv") -> Response:
     fmt_l = fmt.lower()
     picks = compare_picks(spec)
     name = f"compare_{len(picks)}_cells"
-    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+    if fmt_l in _figure_formats():
         fmt_l = _check_figure_fmt(fmt_l)
         try:
             data, media = export_core.compare_figure_export(picks, spec, fmt_l)
         except export_core.FigureExportError as exc:
             raise _figure_http(exc) from exc
-        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+        return _figure_file(data, media, name, fmt_l)
     fmt_l = _check_data_fmt(fmt_l)
     try:
         data, media = export_core.compare_export(picks, spec, fmt_l)
@@ -144,13 +170,13 @@ def export_ica(spec: IcaPlotSpec, fmt: str = "csv") -> Response:
     except KeyError:
         raise HTTPException(404, "No such cell")
     name = f"ica_{(rec.label or rec.name)}".replace(" ", "_")
-    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+    if fmt_l in _figure_formats():
         fmt_l = _check_figure_fmt(fmt_l)
         try:
             data, media = export_core.ica_figure_export(rec, spec, fmt_l)
         except export_core.FigureExportError as exc:
             raise _figure_http(exc) from exc
-        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+        return _figure_file(data, media, name, fmt_l)
     fmt_l = _check_data_fmt(fmt_l)
     data, media = export_core.ica_export(rec, spec, fmt_l)
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
@@ -165,13 +191,13 @@ def export_dva(spec: DvaPlotSpec, fmt: str = "csv") -> Response:
     except KeyError:
         raise HTTPException(404, "No such cell")
     name = f"dva_{(rec.label or rec.name)}".replace(" ", "_")
-    if fmt_l in collect.FIGURE_EXPORT_FORMATS:
+    if fmt_l in _figure_formats():
         fmt_l = _check_figure_fmt(fmt_l)
         try:
             data, media = export_core.dva_figure_export(rec, spec, fmt_l)
         except export_core.FigureExportError as exc:
             raise _figure_http(exc) from exc
-        return _file(data, media, f"{name}.{_FIG_EXT[fmt_l]}")
+        return _figure_file(data, media, name, fmt_l)
     fmt_l = _check_data_fmt(fmt_l)
     data, media = export_core.dva_export(rec, spec, fmt_l)
     return _file(data, media, f"{name}.{_DATA_EXT[fmt_l]}")
