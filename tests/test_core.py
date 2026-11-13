@@ -22,6 +22,106 @@ def test_read_meta(example_cell):
     assert meta["nom_cap_specifics"] in ("gravimetric", "areal", "absolute", None)
 
 
+def test_read_meta_shows_full_cell_for_cellpy_spelling():
+    """A stored ``full-cell`` still displays as ``full_cell`` (#185)."""
+    from cellpy_simple_gui.core import cellpy_adapter
+
+    class _Cell:
+        cycle_mode = "full-cell"
+        cell_name = "demo"
+        mass = 1.0
+        active_electrode_area = 2.0
+        nominal_capacity = 3.0
+        nom_cap_specifics = "gravimetric"
+
+        def get_number_of_cycles(self):
+            return 4
+
+    cell = _Cell()
+    meta = cellpy_adapter.read_meta(cell)
+    assert meta["cycle_mode"] == "full_cell"
+    assert cell.cycle_mode == "full-cell"
+
+
+def _half_cycle_voltage_at_max_capacity(capacity, voltage) -> float:
+    import numpy as np
+
+    capacity = np.asarray(capacity, dtype=float)
+    voltage = np.asarray(voltage, dtype=float)
+    if capacity.size == 0 or not np.isfinite(capacity).any():
+        raise ValueError("empty half-cycle")
+    return float(voltage[np.nanargmax(capacity)])
+
+
+def _cycle_whose_ends_differ(cell):
+    """A cycle where charge and discharge end at different voltages."""
+    for cycle in cell.get_cycle_numbers():
+        cycle = int(cycle)
+        try:
+            cc, cv = cell.get_ccap(cycle, as_frame=False)
+            dc, dv = cell.get_dcap(cycle, as_frame=False)
+        except Exception:  # noqa: BLE001 - skip a cycle the reader cannot split
+            continue
+        if len(cv) < 5 or len(dv) < 5:
+            continue
+        charge_v = _half_cycle_voltage_at_max_capacity(cc, cv)
+        discharge_v = _half_cycle_voltage_at_max_capacity(dc, dv)
+        if abs(charge_v - discharge_v) >= 0.2:
+            return cycle, charge_v, discharge_v
+    return None
+
+
+def test_full_cell_ica_labels_charge_from_the_charge_series(example_cell):
+    """``full_cell`` must not keep anode ICA labels (#185).
+
+    cellpy's labeler only knows ``full-cell``. Without the translation,
+    Direction = Charge draws the discharge series.
+    """
+    import numpy as np
+
+    from cellpy_simple_gui.core import collect
+    from cellpy_simple_gui.core.library import CellRecord
+
+    cell = example_cell
+    saved = cell.cycle_mode
+    picked = _cycle_whose_ends_differ(cell)
+    if picked is None:
+        pytest.skip("example cell has no cycle with distinct charge and discharge ends")
+    cycle, charge_v, discharge_v = picked
+
+    def labeled_charge_voltage(mode: str) -> float:
+        cell.cycle_mode = mode
+        record = CellRecord(id="c-mode", cell=cell, name="demo", label="demo", cycle_mode=mode)
+        collected = collect.ica_collection(
+            [record], cycles=(cycle,), voltage_resolution=0.005, use_cache=False
+        )
+        assert cell.cycle_mode == mode
+        frame = collected.data
+        directions = set(frame["direction"].unique().to_list())
+        assert directions == {"charge", "discharge"}
+        charge = frame.filter(frame["direction"] == "charge")
+        voltage = charge["voltage"].to_numpy()
+        capacity = charge["capacity"].to_numpy()
+        return float(voltage[int(np.nanargmax(capacity))])
+
+    try:
+        full = labeled_charge_voltage("full_cell")
+        assert abs(full - charge_v) < 0.05
+        assert abs(full - discharge_v) > 0.2
+        # DVA uses the same spelling bridge and must put the app value back.
+        cell.cycle_mode = "full_cell"
+        record = CellRecord(id="c-mode", cell=cell, name="demo", label="demo")
+        collect.dva_collection(
+            [record], cycles=(cycle,), voltage_resolution=0.005, use_cache=False
+        )
+        assert cell.cycle_mode == "full_cell"
+        anode = labeled_charge_voltage("anode")
+        assert abs(anode - charge_v) < 0.05
+        assert abs(anode - discharge_v) > 0.2
+    finally:
+        cell.cycle_mode = saved
+
+
 def test_apply_physical_meta_updates_and_summary(example_cell):
     from cellpy_simple_gui.core import cellpy_adapter
 

@@ -507,6 +507,10 @@ def read_meta(cell: Any) -> dict[str, Any]:
 
     mode = getattr(cell, "cycle_mode", None)
     mode_s = str(mode).strip() if mode not in (None, "") else None
+    # cellpy's ICA table spells this ``full-cell``. The dropdown and saved
+    # projects use ``full_cell``. Show the app spelling; do not rewrite the cell.
+    if mode_s is not None and "".join(ch for ch in mode_s.lower() if ch.isalnum()) == "fullcell":
+        mode_s = "full_cell"
     if mode_s not in ("anode", "cathode", "full_cell"):
         mode_s = None
 

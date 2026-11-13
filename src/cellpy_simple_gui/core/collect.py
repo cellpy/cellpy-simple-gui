@@ -15,6 +15,8 @@ from __future__ import annotations
 import colorsys
 import io
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import plotly.io as pio
 from cellpy.collect import collect_cycles, collect_ica, collect_summaries, from_cells
@@ -615,6 +617,44 @@ def cycles_collection(
     )
 
 
+def _ica_cycle_mode(mode: str | None) -> str | None:
+    """Spelling cellpy's ICA/DVA labeler understands.
+
+    The app and ``cellpy.get`` store ``full_cell``. ``cellpy.ica`` only lists
+    ``full-cell`` and treats every other string as an anode, which swaps the
+    charge and discharge labels (#185). Anode, cathode, empty, and an
+    already-hyphenated ``full-cell`` are returned unchanged.
+    """
+    if not mode:
+        return mode
+    collapsed = "".join(ch for ch in str(mode).lower() if ch.isalnum())
+    if collapsed == "fullcell":
+        return "full-cell"
+    return mode
+
+
+@contextmanager
+def _ica_cycle_modes(records: list[CellRecord]) -> Iterator[None]:
+    """Show cellpy ``full-cell`` for the duration of one ICA/DVA collect.
+
+    The library keeps ``full_cell``. The previous value is put back even when
+    the collect raises, so a plot never leaves the cell in cellpy's spelling.
+    """
+    saved: list[tuple[object, str | None]] = []
+    for record in records:
+        cell = record.cell
+        current = getattr(cell, "cycle_mode", None)
+        translated = _ica_cycle_mode(current)
+        if translated != current:
+            saved.append((cell, current))
+            cell.cycle_mode = translated
+    try:
+        yield
+    finally:
+        for cell, previous in saved:
+            cell.cycle_mode = previous
+
+
 def ica_collection(
     records: list[CellRecord],
     *,
@@ -630,7 +670,8 @@ def ica_collection(
     """
     def build():
         opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-        return collect_ica(_batch(records), options=opts)
+        with _ica_cycle_modes(records):
+            return collect_ica(_batch(records), options=opts)
 
     return plot_cache.cached_collect(
         "ica_collection",
@@ -659,7 +700,8 @@ def dva_collection(
 
     def build():
         opts = IcaOptions(cycles=cycles, voltage_resolution=voltage_resolution)
-        return collect_dva(_batch(records), options=opts)
+        with _ica_cycle_modes(records):
+            return collect_dva(_batch(records), options=opts)
 
     return plot_cache.cached_collect(
         "dva_collection",

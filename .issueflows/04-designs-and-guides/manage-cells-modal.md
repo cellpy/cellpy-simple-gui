@@ -12,8 +12,22 @@
   cycle mode (anode/cathode/full_cell), cycles (read-only), remove.
 - Physical edits (`mass` / `area` / `nominal_capacity` / `nom_cap_specifics` /
   `cycle_mode`) go through `POST /api/cells/{id}/update` → `Library.update` →
-  adapter `apply_physical_meta` (attribute assign + full `make_summary()`).
+  adapter `apply_physical_meta` (attribute assign + summary refresh).
   Persist via project `.cellpy` save (not the org-only manifest). See #69 / #86.
+
+## Cycle mode spelling (issue #185)
+
+The dropdown stores `full_cell`, which is also what `cellpy.get` documents.
+`cellpy.ica` only lists `full-cell` and labels every other string as an anode,
+so a saved full cell kept anode charge/discharge labels and Direction = Charge
+drew the discharge series.
+
+Decision: keep `full_cell` on the cell and in projects. `collect.ica_collection`
+and `collect.dva_collection` show cellpy `full-cell` for the duration of the
+collect call, then put the app spelling back. `read_meta` displays a stored
+`full-cell` as `full_cell` and does not rewrite the cell. Anode and cathode
+are unchanged. Alternative considered: store `full-cell` on the cell — rejected
+because `read_meta` would blank the dropdown.
 - Basis defaults from cellpy meta per cell; nom. cap unit hint follows basis
   (mAh/g / mAh/cm² / mAh).
 - Client-only niceties: filter by label, sort by group/name, select-by-group (sequential updates; replot once at end).
