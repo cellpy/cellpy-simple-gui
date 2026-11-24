@@ -238,6 +238,123 @@ def test_edit_cell(client):
     assert out["state"]["n_selected"] == 0
 
 
+def _load_two_cells(client):
+    r = client.post("/api/load/example", json={"kinds": ["cellpy", "rate"]})
+    snap = _wait_for_job(client, r.json()["job_id"])
+    if snap["status"] != "done" or len(snap["result"].get("added") or []) < 2:
+        pytest.skip("example data unavailable")
+    cells = client.get("/api/state").json()["cells"]
+    assert len(cells) >= 2
+    return cells[:2]
+
+
+def _masses(client, ids):
+    by_id = {c["id"]: c for c in client.get("/api/state").json()["cells"]}
+    return {i: by_id[i]["mass"] for i in ids}
+
+
+def test_bulk_mul_mass(client):
+    cells = _load_two_cells(client)
+    ids = [c["id"] for c in cells]
+    for cid in ids:
+        client.post(f"/api/cells/{cid}/update", json={"id": cid, "mass": 2.0})
+    out = client.post(
+        "/api/cells/bulk",
+        json={"cell_ids": ids, "mass": {"op": "mul", "value": 1000}},
+    )
+    assert out.status_code == 200, out.text
+    body = out.json()
+    assert body["updated"] == 2
+    assert body["skipped"] == []
+    by_id = {c["id"]: c for c in body["state"]["cells"]}
+    assert by_id[ids[0]]["mass"] == pytest.approx(2000.0)
+    assert by_id[ids[1]]["mass"] == pytest.approx(2000.0)
+
+
+def test_bulk_set_group(client):
+    cells = _load_two_cells(client)
+    ids = [c["id"] for c in cells]
+    out = client.post("/api/cells/bulk", json={"cell_ids": ids, "group": 4})
+    assert out.status_code == 200, out.text
+    body = out.json()
+    assert body["updated"] == 2
+    assert body["skipped"] == []
+    by_id = {c["id"]: c for c in body["state"]["cells"]}
+    assert by_id[ids[0]]["group"] == 4
+    assert by_id[ids[1]]["group"] == 4
+
+
+def test_bulk_unknown_id_writes_nothing(client):
+    cells = _load_two_cells(client)
+    cid = cells[0]["id"]
+    client.post(f"/api/cells/{cid}/update", json={"id": cid, "mass": 3.0})
+    before = _masses(client, [cid])
+    out = client.post(
+        "/api/cells/bulk",
+        json={"cell_ids": [cid, "no-such-cell"], "mass": {"op": "set", "value": 9}},
+    )
+    assert out.status_code == 404
+    assert _masses(client, [cid]) == before
+
+
+def test_bulk_div_zero_writes_nothing(client):
+    cells = _load_two_cells(client)
+    ids = [c["id"] for c in cells]
+    for cid in ids:
+        client.post(f"/api/cells/{cid}/update", json={"id": cid, "mass": 4.0})
+    before = _masses(client, ids)
+    out = client.post(
+        "/api/cells/bulk",
+        json={"cell_ids": ids, "mass": {"op": "div", "value": 0}},
+    )
+    assert out.status_code == 400
+    assert "divide" in out.json()["detail"].lower()
+    assert _masses(client, ids) == before
+
+
+def test_bulk_non_positive_skipped_then_other_field(client):
+    cells = _load_two_cells(client)
+    ids = [c["id"] for c in cells]
+    client.post(f"/api/cells/{ids[0]}/update", json={"id": ids[0], "mass": 2.0})
+    client.post(f"/api/cells/{ids[1]}/update", json={"id": ids[1], "mass": 0.5})
+    out = client.post(
+        "/api/cells/bulk",
+        json={"cell_ids": ids, "mass": {"op": "sub", "value": 1}},
+    )
+    assert out.status_code == 200, out.text
+    body = out.json()
+    assert body["updated"] == 1
+    assert body["skipped"] == [{"id": ids[1], "field": "mass", "reason": "result must be > 0"}]
+    masses = _masses(client, ids)
+    assert masses[ids[0]] == pytest.approx(1.0)
+    assert masses[ids[1]] == pytest.approx(0.5)
+
+    grouped = client.post("/api/cells/bulk", json={"cell_ids": ids, "group": 7})
+    assert grouped.status_code == 200, grouped.text
+    by_id = {c["id"]: c for c in grouped.json()["state"]["cells"]}
+    assert by_id[ids[0]]["group"] == 7
+    assert by_id[ids[1]]["group"] == 7
+    assert by_id[ids[0]]["mass"] == pytest.approx(1.0)
+    assert by_id[ids[1]]["mass"] == pytest.approx(0.5)
+
+
+def test_bulk_empty_ids_rejected(client):
+    out = client.post("/api/cells/bulk", json={"cell_ids": [], "group": 2})
+    assert out.status_code == 422
+
+
+def test_bulk_two_fields_rejected(client):
+    cells = _load_two_cells(client)
+    cid = cells[0]["id"]
+    before = _masses(client, [cid])
+    out = client.post(
+        "/api/cells/bulk",
+        json={"cell_ids": [cid], "group": 3, "mass": {"op": "set", "value": 8}},
+    )
+    assert out.status_code == 400
+    assert _masses(client, [cid]) == before
+
+
 def test_rename_group(client):
     """Groups are named through their own endpoint; state carries them (#187)."""
     r = client.post("/api/load/example", json={"kinds": ["cellpy"]})

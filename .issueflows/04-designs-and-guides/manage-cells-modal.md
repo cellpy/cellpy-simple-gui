@@ -75,6 +75,14 @@ because `read_meta` would blank the dropdown.
   soon as two cells disagree) and a separate "Groups" modal (one more dialog
   for a one-field edit).
 
+## Bulk edit (issue #188)
+
+- A second toolbar row applies **one field** to the cells that are **checked and visible** under the name filter. A checked cell the filter is hiding is left alone. An empty filter means every checked cell.
+- Floats (`mass`, `area`, `nominal_capacity`) take `set` / `mul` / `div` / `add` / `sub` against that cell's current value. Group, basis, and cycle mode are sets. Labels, selection, and cycles stay per row.
+- `POST /api/cells/bulk` checks every id, then calls `Library.update` per cell that can take the change. Unknown id, division by zero, a non-finite operand, or `group < 1` writes nothing. A float result that is missing or not `> 0` is skipped for that cell and reported; the other cells in the request still update.
+- One response, one deferred replot (same as other modal edits). Per-row editors are unchanged.
+- Loading cells stays in the Add cells modal. This dialog does not grow a load path.
+
 ## UI location
 
 - Markup: `web/templates/index.html` (modal after `.layout`)
