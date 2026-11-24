@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from ...core import cellpy_adapter, cellpy_config
 from ...core.library import get_library
 from ...core.models import (
+    BulkCellUpdate,
     GroupLabelUpdate,
     JournalRowUpdate,
     LoadExampleRequest,
@@ -126,6 +127,29 @@ def load_files(req: LoadFilesRequest) -> dict:
 
 
 # ------------------------------ editing ------------------------------------ #
+
+
+_BULK_FIELDS = ("group", "nom_cap_specifics", "cycle_mode", "mass", "area", "nominal_capacity")
+_BULK_FLOATS = ("mass", "area", "nominal_capacity")
+
+
+@router.post("/cells/bulk")
+def bulk_update_cells(body: BulkCellUpdate) -> dict:
+    """One field, many cells. Floats are an operation on the current value (#188)."""
+    present = [name for name in _BULK_FIELDS if getattr(body, name) is not None]
+    if len(present) != 1:
+        raise HTTPException(400, "Provide exactly one field to change")
+    field = present[0]
+    value = getattr(body, field)
+    if field in _BULK_FLOATS:
+        value = (value.op, value.value)
+    try:
+        updated, skipped = get_library().bulk_update(body.cell_ids, **{field: value})
+    except KeyError:
+        raise HTTPException(404, "No such cell")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"updated": updated, "skipped": skipped, "state": _state()}
 
 
 @router.post("/cells/{cell_id}/update")

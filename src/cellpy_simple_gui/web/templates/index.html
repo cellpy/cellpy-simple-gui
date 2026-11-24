@@ -1021,6 +1021,52 @@
           </div>
         </div>
       </div>
+      <div class="modal-toolbar mgr-bulk">
+        <label class="mgr-ctl">
+          Apply
+          <select x-model="bulkField" @change="bulkValue = ''">
+            <option value="mass">Mass</option>
+            <option value="area">Area</option>
+            <option value="nominal_capacity">Nom. cap</option>
+            <option value="group">Group</option>
+            <option value="nom_cap_specifics">Basis</option>
+            <option value="cycle_mode">Cycle mode</option>
+          </select>
+        </label>
+        <label class="mgr-ctl" x-show="bulkIsFloat" x-cloak>
+          <select x-model="bulkOp" aria-label="Operation">
+            <option value="set">=</option>
+            <option value="mul">×</option>
+            <option value="div">÷</option>
+            <option value="add">+</option>
+            <option value="sub">−</option>
+          </select>
+          <input class="num" type="number" step="any" x-model="bulkValue" aria-label="Value" />
+        </label>
+        <label class="mgr-ctl" x-show="bulkField === 'group'" x-cloak>
+          <input class="num" type="number" min="1" step="1" x-model="bulkValue" aria-label="Group" />
+        </label>
+        <label class="mgr-ctl" x-show="bulkField === 'nom_cap_specifics'" x-cloak>
+          <select x-model="bulkValue" aria-label="Basis">
+            <option value="">—</option>
+            <option value="gravimetric">gravimetric</option>
+            <option value="areal">areal</option>
+            <option value="absolute">absolute</option>
+          </select>
+        </label>
+        <label class="mgr-ctl" x-show="bulkField === 'cycle_mode'" x-cloak>
+          <select x-model="bulkValue" aria-label="Cycle mode">
+            <option value="">—</option>
+            <option value="anode">anode</option>
+            <option value="cathode">cathode</option>
+            <option value="full_cell">full_cell</option>
+          </select>
+        </label>
+        <button class="mini" type="button" @click="applyBulk()"
+                :disabled="bulkBusy || !bulkTargetIds.length || !bulkReady"
+                x-text="'Apply to ' + bulkTargetIds.length"></button>
+        <span class="hint">Checked cells in the current filter.</span>
+      </div>
       <div class="modal-body">
         <div class="mgr-groups" x-show="groups.length">
           <span class="mgr-groups-title" title="Group names appear in plot legends and are saved with the project">Groups</span>

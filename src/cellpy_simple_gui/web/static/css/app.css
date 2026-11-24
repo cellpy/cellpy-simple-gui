@@ -548,6 +548,7 @@ input:focus, select:focus { border-color: var(--accent); }
   padding: 5px 8px; font-size: 13px;
 }
 .mgr-meta { font-size: 12px; color: var(--text-faint); }
+.mgr-bulk .hint { margin: 0; }
 .mgr-remove-all { margin-left: auto; }
 .mgr-foot-hint { margin: 0 auto 0 0; font-size: 12px; }
 .modal-body { overflow: auto; padding: 0 8px 8px; min-height: 0; flex: 1; }

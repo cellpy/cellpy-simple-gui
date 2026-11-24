@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,27 @@ log = logging.getLogger(__name__)
 def default_group_label(group: int) -> str:
     """The name a group has until the user gives it one (cellpy's default too)."""
     return f"group {int(group)}"
+
+
+def _float_result(
+    current: float | None, op: str, value: float
+) -> tuple[float | None, str | None]:
+    """Next physical number, or ``(None, reason)`` when this cell should be skipped."""
+    if op != "set" and (current is None or not math.isfinite(current)):
+        return None, "no current value"
+    if op == "set":
+        result = float(value)
+    elif op == "mul":
+        result = float(current) * value  # type: ignore[arg-type]
+    elif op == "div":
+        result = float(current) / value  # type: ignore[arg-type]
+    elif op == "add":
+        result = float(current) + value  # type: ignore[arg-type]
+    else:
+        result = float(current) - value  # type: ignore[arg-type]
+    if not math.isfinite(result) or result <= 0:
+        return None, "result must be > 0"
+    return result, None
 
 
 def file_stat(path: str | Path) -> tuple[int, int] | None:
@@ -259,6 +281,77 @@ class Library:
                 record.data_stat = None
             self._touch()
             return record
+
+    def bulk_update(
+        self,
+        cell_ids: list[str],
+        *,
+        group: int | None = None,
+        nom_cap_specifics: str | None = None,
+        cycle_mode: str | None = None,
+        mass: tuple[str, float] | None = None,
+        area: tuple[str, float] | None = None,
+        nominal_capacity: tuple[str, float] | None = None,
+    ) -> tuple[int, list[dict[str, str]]]:
+        """Apply one field to each id. Floats are ``(op, value)`` against the current number.
+
+        Unknown ids, a non-finite operand, division by zero, and ``group < 1``
+        raise before any write. A cell whose float result is missing or not
+        ``> 0`` is skipped and listed; the others still update.
+        """
+        specs = {
+            "group": group,
+            "nom_cap_specifics": nom_cap_specifics,
+            "cycle_mode": cycle_mode,
+            "mass": mass,
+            "area": area,
+            "nominal_capacity": nominal_capacity,
+        }
+        present = [name for name, value in specs.items() if value is not None]
+        if len(present) != 1:
+            raise ValueError("Provide exactly one field to change")
+        field = present[0]
+        if field == "group" and int(group) < 1:  # type: ignore[arg-type]
+            raise ValueError("Group numbers start at 1")
+        op: str | None = None
+        operand: float | None = None
+        if field in ("mass", "area", "nominal_capacity"):
+            op, operand = specs[field]  # type: ignore[misc]
+            if op not in ("set", "mul", "div", "add", "sub"):
+                raise ValueError(f"Unknown operation for {field}")
+            if isinstance(operand, bool) or not isinstance(operand, (int, float)) or not math.isfinite(operand):
+                raise ValueError(f"{field} value must be a finite number")
+            if op == "div" and operand == 0:
+                raise ValueError("Cannot divide by zero")
+
+        ids: list[str] = []
+        for rid in cell_ids:
+            if rid not in ids:
+                ids.append(rid)
+        with self._lock:
+            missing = [rid for rid in ids if rid not in self._records]
+            if missing:
+                raise KeyError(missing[0])
+            currents = {
+                rid: getattr(self._records[rid], field) if field in ("mass", "area", "nominal_capacity") else None
+                for rid in ids
+            }
+
+        updated = 0
+        skipped: list[dict[str, str]] = []
+        for rid in ids:
+            if field in ("mass", "area", "nominal_capacity"):
+                result, reason = _float_result(currents[rid], op, operand)  # type: ignore[arg-type]
+                if reason is not None:
+                    skipped.append({"id": rid, "field": field, "reason": reason})
+                    continue
+                self.update(rid, **{field: result})
+            elif field == "group":
+                self.update(rid, group=int(group))  # type: ignore[arg-type]
+            else:
+                self.update(rid, **{field: specs[field]})
+            updated += 1
+        return updated, skipped
 
     # -- save provenance (#29) -------------------------------------------- #
     def _mark_clean(self, record: CellRecord, path: str | Path) -> None:

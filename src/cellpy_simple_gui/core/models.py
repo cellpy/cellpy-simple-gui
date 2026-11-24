@@ -365,6 +365,28 @@ class JournalRowUpdate(BaseModel):
     cycle_mode: Optional[CycleMode] = None
 
 
+NumericOp = Literal["set", "mul", "div", "add", "sub"]
+
+
+class NumericEdit(BaseModel):
+    """One arithmetic step on a physical number (mass, area, nominal capacity)."""
+
+    op: NumericOp
+    value: float
+
+
+class BulkCellUpdate(BaseModel):
+    """Apply one field to several cells. Floats take an operation; the rest are sets."""
+
+    cell_ids: list[str] = Field(min_length=1)
+    group: Optional[int] = None
+    nom_cap_specifics: Optional[CapacityMode] = None
+    cycle_mode: Optional[CycleMode] = None
+    mass: Optional[NumericEdit] = None
+    area: Optional[NumericEdit] = None
+    nominal_capacity: Optional[NumericEdit] = None
+
+
 class LoadExampleRequest(BaseModel):
     kinds: list[str] = Field(default_factory=lambda: ["cellpy", "old_cellpy", "rate"])
 

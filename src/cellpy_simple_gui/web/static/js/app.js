@@ -173,6 +173,11 @@ function app() {
     cellsManagerFilter: "",
     cellsManagerSort: "default",
     cellsManagerGroup: 1,
+    // Bulk edit (#188): one field, applied to checked cells in the name filter.
+    bulkField: "mass",
+    bulkOp: "set",
+    bulkValue: "",
+    bulkBusy: false,
     cellpyConfigOpen: false,
     cellpyConfigLoading: false,
     cellpyConfigError: "",
@@ -570,6 +575,21 @@ function app() {
     },
 
     get nSelected() { return this.cells.filter((c) => c.selected).length; },
+    /** Checked cells the name filter is currently showing (#188). */
+    get bulkTargetIds() {
+      return this.filteredSortedCells.filter((c) => c.selected).map((c) => c.id);
+    },
+    get bulkIsFloat() {
+      return this.bulkField === "mass" || this.bulkField === "area" || this.bulkField === "nominal_capacity";
+    },
+    get bulkReady() {
+      if (this.bulkIsFloat) return this._num(this.bulkValue) != null;
+      if (this.bulkField === "group") {
+        const g = parseInt(this.bulkValue, 10);
+        return Number.isFinite(g) && g >= 1;
+      }
+      return !!this.bulkValue;
+    },
     get nGroups() { return new Set(this.cells.map((c) => c.group)).size; },
     get projectTagLabel() {
       if (!this.project) return "no project";
@@ -1057,6 +1077,38 @@ function app() {
         this.notify("error", e.message || "Could not pin the settings.");
       } finally {
         this.cellpyConfigPinning = false;
+      }
+    },
+    async applyBulk() {
+      const ids = this.bulkTargetIds;
+      if (!ids.length || !this.bulkReady || this.bulkBusy) return;
+      const field = this.bulkField;
+      const body = { cell_ids: ids };
+      if (this.bulkIsFloat) {
+        body[field] = { op: this.bulkOp, value: this._num(this.bulkValue) };
+      } else if (field === "group") {
+        body.group = parseInt(this.bulkValue, 10);
+      } else {
+        body[field] = this.bulkValue;
+      }
+      this.bulkBusy = true;
+      try {
+        const r = await (await api("/api/cells/bulk", { method: "POST", body })).json();
+        this._applyState(r.state);
+        if (r.updated > 0) {
+          this.markDirty();
+          this._replotAfterEdit();
+        }
+        const skipped = r.skipped || [];
+        if (skipped.length) {
+          const reasons = [...new Set(skipped.map((s) => s.reason))];
+          const n = skipped.length === 1 ? "1 cell" : `${skipped.length} cells`;
+          this.notify("error", `${n} left unchanged — ${reasons.join("; ")}.`);
+        }
+      } catch (e) {
+        this.notify("error", e.message || "Could not apply the bulk edit.");
+      } finally {
+        this.bulkBusy = false;
       }
     },
     async updateCell(id, patch, { plot = true } = {}) {
