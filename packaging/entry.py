@@ -82,14 +82,47 @@ def _report_crash(exc: BaseException) -> None:
     )
 
 
+def _windowed() -> bool:
+    """True when nobody is reading a console — the windowed exe (#122, #183)."""
+    stream = getattr(sys, "stderr", None)
+    if stream is None:
+        return True
+    try:
+        stream.write("")
+    except Exception:  # noqa: BLE001 - a broken handle is just as windowed
+        return True
+    return False
+
+
+def _show_starting() -> None:
+    from cellpy_simple_gui.splash import show
+
+    show()
+
+
+def _close_starting() -> None:
+    from cellpy_simple_gui.splash import close
+
+    close()
+
+
 def main() -> int:
     # Without this, a frozen child process re-runs the whole app instead of the
     # worker function. polars/pyarrow may spawn; cheap insurance either way.
     multiprocessing.freeze_support()
+    # Before the heavy import. A modal dialog here would block that import.
+    shown = False
     try:
-        from cellpy_simple_gui.__main__ import main as app_main
+        if _windowed():
+            _show_starting()
+            shown = True
+        try:
+            from cellpy_simple_gui.__main__ import main as app_main
 
-        return app_main() or 0
+            return app_main() or 0
+        finally:
+            if shown:
+                _close_starting()
     except SystemExit:
         raise
     except BaseException as exc:  # noqa: BLE001 - this is the last line of defence

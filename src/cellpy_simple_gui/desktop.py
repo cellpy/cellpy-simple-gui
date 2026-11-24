@@ -99,6 +99,10 @@ def run_desktop() -> None:
     )
     previous, _win32_keepalive = _install_ctrl_c_close(webview)
     icon = str(_WINDOW_ICON) if _WINDOW_ICON.is_file() else None
+    # The starting window has done its job once this one is about to show (#183).
+    from .splash import close as close_starting
+
+    close_starting()
     try:
         webview.start(icon=icon)
     finally:

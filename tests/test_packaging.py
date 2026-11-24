@@ -109,6 +109,82 @@ def test_crash_goes_to_stderr_when_there_is_a_console(monkeypatch, tmp_path, cap
     assert not shown, "no dialog when the traceback is already on screen"
 
 
+def _fake_app(monkeypatch, order, boom=False):
+    import types
+
+    fake = types.ModuleType("cellpy_simple_gui.__main__")
+
+    def app_main():
+        order.append("app")
+        if boom:
+            raise RuntimeError("boom")
+        return 0
+
+    fake.main = app_main
+    monkeypatch.setitem(sys.modules, "cellpy_simple_gui.__main__", fake)
+
+
+def test_windowed_start_shows_splash_before_the_app(monkeypatch):
+    entry = _load_entry()
+    monkeypatch.setattr(sys, "stderr", None)
+    order: list[str] = []
+    monkeypatch.setattr(entry, "_show_starting", lambda: order.append("show"))
+    monkeypatch.setattr(entry, "_close_starting", lambda: order.append("close"))
+    _fake_app(monkeypatch, order)
+
+    assert entry.main() == 0
+    assert order == ["show", "app", "close"]
+
+
+def test_console_start_skips_the_splash(monkeypatch):
+    entry = _load_entry()
+
+    class Console:
+        def write(self, _text):
+            return 0
+
+    monkeypatch.setattr(sys, "stderr", Console())
+    order: list[str] = []
+    monkeypatch.setattr(entry, "_show_starting", lambda: order.append("show"))
+    monkeypatch.setattr(entry, "_close_starting", lambda: order.append("close"))
+    _fake_app(monkeypatch, order)
+
+    assert entry.main() == 0
+    assert order == ["app"]
+
+
+def test_crash_after_splash_closes_it_before_the_dialog(monkeypatch, tmp_path):
+    entry = _load_entry()
+    monkeypatch.setattr(sys, "stderr", None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    order: list[str] = []
+    monkeypatch.setattr(entry, "_show_starting", lambda: order.append("show"))
+    monkeypatch.setattr(entry, "_close_starting", lambda: order.append("close"))
+    monkeypatch.setattr(entry, "_show_dialog", lambda _message: order.append("dialog"))
+    _fake_app(monkeypatch, order, boom=True)
+
+    assert entry.main() == 1
+    assert order == ["show", "app", "close", "dialog"]
+
+
+def test_splash_is_a_noop_off_windows(monkeypatch):
+    import builtins
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    real_import = builtins.__import__
+
+    def guard(name, *args, **kwargs):
+        if name == "ctypes" or name.startswith("ctypes."):
+            raise AssertionError(f"splash touched {name}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guard)
+    from cellpy_simple_gui import splash
+
+    splash.show()
+    splash.close()
+
+
 def _fake_cellpy_config(monkeypatch, **fields):
     """Stand in for ``cellpy.config``, recording any reload."""
     state = {"reloaded": 0, "fields": dict(fields)}

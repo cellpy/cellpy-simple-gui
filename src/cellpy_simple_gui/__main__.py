@@ -130,6 +130,11 @@ def main() -> None:
                 exc,
             )
 
+    # Desktop launch closes the splash itself. This path (explicit --server,
+    # or the desktop window was unavailable) must not leave it up (#183).
+    from .splash import close as close_starting
+
+    close_starting()
     port = pick_port(settings.host, args.port or settings.port)
     server = ServerThread(settings.host, port)
     server.start(wait=True)
