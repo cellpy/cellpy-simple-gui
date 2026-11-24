@@ -201,4 +201,4 @@ Needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 The first-run cost is a one-time price for touching ~4000 new files — on
 Windows, largely Defender scanning them. It is long enough that the app looks
-hung, which is worth a progress cue.
+hung. The windowed exe covers that wait with a Starting… window (#183).

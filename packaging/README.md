@@ -63,7 +63,9 @@ Two corrections to what the plan assumed before the spike:
 The first-run cost is a one-time price for touching ~4000 new files — on
 Windows, largely Defender scanning them. It is not the steady state, but a user
 installing the app *does* pay it once, and it is long enough that the app looks
-hung. Worth either a progress cue or a note in the installer.
+hung. The windowed exe shows a "Starting…" window before those imports (#183)
+and closes it as the real window opens. The console exe has a terminal, so it
+does not.
 
 ~6 s warm is tolerable for a desktop app but not good. Most of it is importing
 pandas, polars, pytables and cellpy. If it needs to come down, that is where to
